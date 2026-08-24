@@ -23,7 +23,9 @@ export const Route = createFileRoute("/contacto")({
   component: Contacto,
 });
 
-const WHATSAPP = "5210000000000";
+const WHATSAPP = "523318359421";
+const TEL = "3318359421";
+const EMAIL = "isaac.gomez@orb-lite.com";
 
 function Contacto() {
   const [nombre, setNombre] = useState("");
@@ -119,12 +121,17 @@ function Contacto() {
 
         <aside className="space-y-4">
           {[
-            { icon: Phone, title: "Teléfono", text: "Pregunta en recepción por tu asesor" },
-            { icon: MessageCircle, title: "WhatsApp", text: "Atención directa y cotización rápida" },
-            { icon: Mail, title: "Correo", text: "contacto@orb-lite.mx" },
-            { icon: MapPin, title: "Cobertura", text: "Todo el territorio nacional" },
-            { icon: Clock, title: "Horario", text: "Lunes a sábado, 9:00 a 19:00 h" },
-          ].map(({ icon: Icon, title, text }) => (
+            { icon: Phone, title: "Teléfono", text: TEL, href: `tel:+52${TEL}` },
+            {
+              icon: MessageCircle,
+              title: "WhatsApp",
+              text: TEL,
+              href: `https://wa.me/${WHATSAPP}`,
+            },
+            { icon: Mail, title: "Correo", text: EMAIL, href: `mailto:${EMAIL}` },
+            { icon: MapPin, title: "Cobertura", text: "Todo el territorio nacional", href: null },
+            { icon: Clock, title: "Horario", text: "Lunes a sábado, 9:00 a 19:00 h", href: null },
+          ].map(({ icon: Icon, title, text, href }) => (
             <div
               key={title}
               className="flex gap-4 rounded-xl border border-border/70 bg-card/50 p-5"
@@ -132,7 +139,16 @@ function Contacto() {
               <Icon className="mt-1 h-5 w-5 shrink-0 text-primary" />
               <div>
                 <p className="font-display font-bold uppercase tracking-wide">{title}</p>
-                <p className="text-sm text-muted-foreground">{text}</p>
+                {href ? (
+                  <a
+                    href={href}
+                    className="text-sm text-muted-foreground transition-colors hover:text-primary"
+                  >
+                    {text}
+                  </a>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{text}</p>
+                )}
               </div>
             </div>
           ))}
