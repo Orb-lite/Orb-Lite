@@ -40,7 +40,16 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
-      ORB-LITE · Rastreo GPS Satelital · Tu vehículo, tu familia, tu tranquilidad
+      <p>ORB-LITE · Rastreo GPS Satelital · Tu vehículo, tu familia, tu tranquilidad</p>
+      <p className="mt-2">
+        <a href="tel:+523318359421" className="hover:text-primary">
+          33 1835 9421
+        </a>
+        <span className="px-2 text-primary">|</span>
+        <a href="mailto:isaac.gomez@orb-lite.com" className="hover:text-primary">
+          isaac.gomez@orb-lite.com
+        </a>
+      </p>
     </footer>
   );
 }
