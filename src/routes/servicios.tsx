@@ -65,8 +65,8 @@ const features = [
   },
   {
     icon: RadioTower,
-    title: "CONECTIVIDAD MULTIRED",
-    text: "Transmisión continua sin interrupciones gracias a la red móvil de cobertura nacional.",
+    title: "CONECTIVIDAD MULTICARRIER",
+    text: "Transmisión continua sin interrupciones gracias a la red móvil de cobertura nacional de distintas compañias se conecta a la que este mejor en cada situacion.",
   },
   {
     icon: ShieldCheck,
