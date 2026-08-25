@@ -11,7 +11,7 @@ export const Route = createFileRoute("/tienda")({
       {
         name: "description",
         content:
-          "Compra tu equipo GPS ORB-LITE en $1,450 con instalación, app y 1 año de datos renovable. Precios por lote: 10 equipos a $1,300 y 20+ a $1,200.",
+          "Compra tu equipo GPS ORB-LITE en $1,450 con instalación, app y 1 año de datos incluido, renovable. Precios por lote: 10 equipos a $1,300 y 20+ a $1,200.",
       },
       { property: "og:title", content: "Tienda ORB-LITE | Equipo GPS con todo incluido" },
       {

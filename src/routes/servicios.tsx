@@ -183,7 +183,7 @@ function Servicios() {
       <section className="mx-auto max-w-6xl px-5 pb-16">
         <div className="rounded-2xl border-2 border-primary/60 bg-card/50 p-7 sm:p-10">
           <p className="font-display text-2xl font-bold uppercase italic text-primary">
-            ¡Ya no ocupas recargar!
+            ¡Ya no necesitas recargar!
           </p>
           <p className="mt-2 max-w-xl text-muted-foreground">
             El primer año de línea de datos celular va incluido con tu equipo.
