@@ -69,6 +69,9 @@ export function SiteFooter() {
           del usuario o instalador final; ORB-LITE se deslinda de cualquier uso indebido, ilícito o no
           autorizado de sus productos.
         </p>
+        <p className="mt-2 font-medium">
+          Al realizar una compra, el cliente acepta estos términos y condiciones.
+        </p>
       </div>
     </footer>
   );

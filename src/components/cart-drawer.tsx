@@ -138,6 +138,9 @@ export function CartDrawer() {
                     Contáctanos para generarla.
                   </a>
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  Al pagar con Shopify aceptas el uso de datos y condiciones descritas en el sitio.
+                </p>
                 <Button
                   onClick={handleCheckout}
                   className="w-full"
