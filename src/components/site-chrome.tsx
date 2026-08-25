@@ -17,9 +17,10 @@ export function SiteHeader() {
           <img
             src={logo}
             alt="ORB-LITE rastreo GPS satelital"
-            className="h-12 w-auto rounded-md"
+            className="h-16 w-auto drop-shadow-[0_0_20px_color-mix(in_oklab,var(--primary)_30%,transparent)] sm:h-20"
           />
         </Link>
+
 
         <nav className="flex items-center gap-6 font-display text-sm font-bold uppercase tracking-widest">
           {nav.map((item) => (
