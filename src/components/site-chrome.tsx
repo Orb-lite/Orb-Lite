@@ -1,9 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import logo from "@/assets/orb-lite-logo.jpeg.asset.json";
+import { CartDrawer } from "@/components/cart-drawer";
 
 const nav = [
   { to: "/", label: "Inicio" },
   { to: "/servicios", label: "Servicios" },
+  { to: "/tienda", label: "Tienda" },
   { to: "/contacto", label: "Contacto" },
 ] as const;
 
@@ -31,6 +33,7 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <CartDrawer />
         </nav>
       </div>
     </header>

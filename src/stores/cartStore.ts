@@ -172,7 +172,7 @@ async function removeLineFromShopifyCart(
 }
 
 async function applyTierDiscount(cartId: string, totalQuantity: number) {
-  const code = tierForQuantity(totalQuantity).code;
+  const code = tierForQuantity(totalQuantity)?.code ?? null;
   try {
     await storefrontApiRequest(CART_DISCOUNT_CODES_UPDATE_MUTATION, {
       cartId,
