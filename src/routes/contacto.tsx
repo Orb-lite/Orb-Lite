@@ -14,7 +14,7 @@ export const Route = createFileRoute("/contacto")({
       { property: "og:title", content: "Contacto | ORB-LITE" },
       {
         property: "og:description",
-        content: "Escríbenos por WhatsApp o envía tu solicitud para agendar la instalación.",
+        content: "Escríbenos por WhatsApp o envía tu solicitud para recibir información.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -42,7 +42,7 @@ function Contacto() {
       <section className="mx-auto max-w-6xl px-5 py-14">
         <p className="font-display text-sm uppercase tracking-[0.3em] text-primary">Contacto</p>
         <h1 className="mt-3 font-display text-4xl font-bold uppercase italic sm:text-5xl">
-          Agenda tu <span className="text-gradient-lime">instalación</span>
+          Solicita <span className="text-gradient-lime">información hoy</span>
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
           Déjanos tus datos y te compartimos paquetes, planes de servicio (renovación anual:
