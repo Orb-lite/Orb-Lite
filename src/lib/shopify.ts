@@ -33,7 +33,7 @@ const PRODUCT_FIELDS = `
   title
   description
   handle
-  priceRange { minVariantPrice { amount currencyCode } }
+  priceRange { minVariantPrice { amount currencyCode } maxVariantPrice { amount currencyCode } }
   images(first: 5) { edges { node { url altText } } }
   variants(first: 10) {
     edges {
