@@ -48,6 +48,9 @@ export function ProductCard({ product }: { product: ShopifyProduct }) {
         </Link>
         <p className="line-clamp-3 text-sm text-muted-foreground">{product.node.description}</p>
         <p className="font-display text-2xl font-bold text-primary">{priceLabel}</p>
+        <p className="text-xs text-muted-foreground">
+          Precio más IVA en caso de requerir factura.
+        </p>
         <Button onClick={handleAddToCart} disabled={isLoading || !variant} className="w-full">
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Agregar al carrito"}
         </Button>

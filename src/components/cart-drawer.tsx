@@ -128,6 +128,16 @@ export function CartDrawer() {
                   <span className="text-lg font-semibold">Total estimado</span>
                   <span className="text-xl font-bold">{formatMxn(totalPrice)}</span>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Precios más IVA en caso de requerir factura.{" "}
+                  <a
+                    href="/contacto"
+                    className="underline hover:text-primary"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    Contáctanos para generarla.
+                  </a>
+                </p>
                 <Button
                   onClick={handleCheckout}
                   className="w-full"
