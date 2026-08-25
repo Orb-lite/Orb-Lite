@@ -176,7 +176,7 @@ function Servicios() {
           ))}
         </div>
         <p className="mt-5 text-sm text-muted-foreground">
-          Pregunta por precios y paquetes vigentes; incluimos demostración en vivo.
+          Pregunta por precios y paquetes vigentes.
         </p>
       </section>
 
