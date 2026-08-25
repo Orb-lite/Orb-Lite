@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   MapPin,
   Power,
@@ -188,10 +188,18 @@ function Servicios() {
           <p className="mt-2 max-w-xl text-muted-foreground">
             El primer año de línea de datos celular va incluido con tu equipo.
           </p>
-          <p className="font-display text-5xl font-bold uppercase italic sm:text-6xl">1 año</p>
+          <p className="font-display mt-5 text-3xl font-bold uppercase italic sm:text-4xl">1 año</p>
           <p className="font-display text-sm uppercase tracking-[0.2em] text-primary">
             incluido · renovación: plataforma $350/año · SIM $550/año
           </p>
+          <div className="mt-6">
+            <Link
+              to="/tienda"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Compra tu equipo con SIM
+            </Link>
+          </div>
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {dataPerks.map(({ icon: Icon, title, text }) => (
               <div key={title} className="border-t border-border pt-4">
