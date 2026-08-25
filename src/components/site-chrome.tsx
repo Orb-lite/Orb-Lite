@@ -15,7 +15,7 @@ export function SiteHeader() {
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-4">
         <Link to="/" className="flex items-center">
           <img
-            src={logo.url}
+            src={logo}
             alt="ORB-LITE rastreo GPS satelital"
             className="h-12 w-auto rounded-md"
           />
