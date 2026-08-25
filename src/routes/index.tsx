@@ -85,7 +85,7 @@ function Index() {
           <div className="mt-8 flex flex-wrap gap-5 text-sm">
             {[
               { icon: ShieldCheck, label: "Tu vehículo" },
-              { icon: Users, label: "Tu familia" },
+              { icon: Users, label: "Tu negocio" },
               { icon: Lock, label: "Tu tranquilidad" },
             ].map(({ icon: Icon, label }) => (
               <span key={label} className="flex items-center gap-2 uppercase tracking-widest">

@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Truck,
   Car,
-  Users,
 } from "lucide-react";
 
 import { CtaBanner } from "@/components/site-chrome";
@@ -86,7 +85,7 @@ const plans = [
   {
     icon: Car,
     name: "Vehículo particular",
-    text: "Ideal para autos y motos familiares. Rastreo en tiempo real, alertas y paro de motor.",
+    text: "Ideal para autos y motos personales. Rastreo en tiempo real, alertas y paro de motor.",
     items: ["1 equipo instalado", "App móvil y web", "Alertas configurables"],
   },
   {
@@ -94,12 +93,6 @@ const plans = [
     name: "Flota comercial",
     text: "Control de unidades de trabajo con reportes de rutas y hábitos de manejo.",
     items: ["Multiunidad", "Historial y reportes", "Geocercas y velocidad"],
-  },
-  {
-    icon: Users,
-    name: "Familia protegida",
-    text: "Comparte el monitoreo con quien tú decidas y viaja con tranquilidad total.",
-    items: ["Usuarios compartidos", "Notificaciones inmediatas", "Soporte prioritario"],
   },
 ];
 
@@ -112,7 +105,7 @@ const reasons = [
   {
     icon: MonitorSmartphone,
     title: "Plataforma Ágil y Fácil de Usar",
-    text: "Interfaz moderna, rápida y configurable para ti y tu familia.",
+    text: "Interfaz moderna, rápida y configurable para ti y tus unidades.",
   },
   {
     icon: Zap,
