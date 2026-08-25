@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Truck,
   Car,
-  Users,
 } from "lucide-react";
 
 import { CtaBanner } from "@/components/site-chrome";
