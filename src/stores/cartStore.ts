@@ -276,10 +276,6 @@ export const useCartStore = create<CartStore>()(
               clearCart();
             } else {
               set({ items: newItems });
-              await applyTierDiscount(
-                cartId,
-                newItems.reduce((s, i) => s + i.quantity, 0),
-              );
             }
           } else if (result.cartNotFound) {
             clearCart();
