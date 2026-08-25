@@ -251,10 +251,6 @@ export const useCartStore = create<CartStore>()(
               i.variantId === variantId ? { ...i, quantity } : i,
             );
             set({ items: nextItems });
-            await applyTierDiscount(
-              cartId,
-              nextItems.reduce((s, i) => s + i.quantity, 0),
-            );
           } else if (result.cartNotFound) {
             clearCart();
           }
