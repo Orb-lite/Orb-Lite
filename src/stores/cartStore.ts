@@ -201,7 +201,6 @@ export const useCartStore = create<CartStore>()(
                 checkoutUrl: result.checkoutUrl,
                 items: [{ ...item, lineId: result.lineId }],
               });
-              await applyTierDiscount(result.cartId, item.quantity);
             }
           } else if (existingItem) {
             const newQuantity = existingItem.quantity + item.quantity;
@@ -213,10 +212,6 @@ export const useCartStore = create<CartStore>()(
                 i.variantId === item.variantId ? { ...i, quantity: newQuantity } : i,
               );
               set({ items: nextItems });
-              await applyTierDiscount(
-                cartId,
-                nextItems.reduce((s, i) => s + i.quantity, 0),
-              );
             } else if (result.cartNotFound) {
               clearCart();
             }
@@ -226,10 +221,6 @@ export const useCartStore = create<CartStore>()(
               const currentItems = get().items;
               const nextItems = [...currentItems, { ...item, lineId: result.lineId ?? null }];
               set({ items: nextItems });
-              await applyTierDiscount(
-                cartId,
-                nextItems.reduce((s, i) => s + i.quantity, 0),
-              );
             } else if (result.cartNotFound) {
               clearCart();
             }
