@@ -55,24 +55,12 @@ export function SiteFooter() {
         </a>
       </p>
 
-      <div className="mx-auto mt-6 max-w-3xl px-5 text-xs leading-relaxed text-muted-foreground/80">
-        <p className="font-display font-bold uppercase tracking-widest text-muted-foreground">
-          Uso de datos y condiciones
-        </p>
-        <p className="mt-2">
-          La información que compartas con ORB-LITE se utiliza exclusivamente para cotizar, vender,
-          facturar o brindarte soporte técnico. No vendemos ni compartimos tus datos con terceros.
-          ORB-LITE se compromete a no hacer mal uso de tu información.
-        </p>
-        <p className="mt-2">
-          El mal uso de los equipos, plataforma o servicios de rastreo queda bajo responsabilidad
-          del usuario o instalador final; ORB-LITE se deslinda de cualquier uso indebido, ilícito o no
-          autorizado de sus productos.
-        </p>
-        <p className="mt-2 font-medium">
-          Al realizar una compra, el cliente acepta estos términos y condiciones.
-        </p>
-      </div>
+      <Link
+        to="/terminos"
+        className="mx-auto mt-6 inline-block rounded-md border border-border/60 px-4 py-2 font-display text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+      >
+        Uso de datos y condiciones
+      </Link>
     </footer>
   );
 }
