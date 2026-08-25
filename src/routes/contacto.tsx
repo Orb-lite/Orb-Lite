@@ -5,16 +5,17 @@ import { Phone, MessageCircle, Mail, MapPin, Clock } from "lucide-react";
 export const Route = createFileRoute("/contacto")({
   head: () => ({
     meta: [
-      { title: "Contacto | ORB-LITE Rastreo GPS Satelital" },
+      { title: "Alianza comercial | ORB-LITE Rastreo GPS Satelital" },
       {
         name: "description",
         content:
-          "Solicita información de rastreo GPS ORB-LITE: cotización, paquetes y planes de servicio.",
+          "Solicita cotización de equipos GPS ORB-LITE para tu negocio: precios de mayoreo, planes de servicio y alianza comercial.",
       },
-      { property: "og:title", content: "Contacto | ORB-LITE" },
+      { property: "og:title", content: "Alianza comercial | ORB-LITE" },
       {
         property: "og:description",
-        content: "Escríbenos por WhatsApp o envía tu solicitud para recibir información.",
+        content:
+          "Escríbenos por WhatsApp o envía tu solicitud para cotizar equipos GPS y hacer mancuerna comercial.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -29,23 +30,23 @@ const EMAIL = "ventas@orb-lite.com";
 
 function Contacto() {
   const [nombre, setNombre] = useState("");
+  const [negocio, setNegocio] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [vehiculo, setVehiculo] = useState("");
+  const [cantidad, setCantidad] = useState("");
   const [mensaje, setMensaje] = useState("");
 
-  const texto = `Hola, soy ${nombre || "(nombre)"}. Tel: ${telefono || "(teléfono)"}. Vehículo: ${
-    vehiculo || "(vehículo)"
-  }. ${mensaje}`;
+  const texto = `Hola, soy ${nombre || "(nombre)"} de ${negocio || "(negocio)"}. Tel: ${telefono || "(teléfono)"}. Equipos estimados: ${cantidad || "(cantidad)"}. ${mensaje}`;
 
   return (
     <div>
       <section className="mx-auto max-w-6xl px-5 py-14">
-        <p className="font-display text-sm uppercase tracking-[0.3em] text-primary">Contacto</p>
+        <p className="font-display text-sm uppercase tracking-[0.3em] text-primary">Hagamos mancuerna</p>
         <h1 className="mt-3 font-display text-4xl font-bold uppercase italic sm:text-5xl">
-          Solicita <span className="text-gradient-lime">información hoy</span>
+          Cotiza equipos <span className="text-gradient-lime">para tu negocio</span>
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-          Déjanos tus datos y te compartimos paquetes, planes de servicio y precios de renovación
+          Déjanos tus datos y te compartimos precios de mayoreo, condiciones por volumen y planes de
+          servicio. Tú atiendes a tus clientes y nosotros te respaldamos con tecnología GPS. Renovación
           anual: plataforma <span className="font-bold text-primary">$350/año</span> y SIM{" "}
           <span className="font-bold text-primary">$550/año</span>.
         </p>
@@ -86,15 +87,26 @@ function Contacto() {
             </label>
           </div>
 
-          <label className="mt-5 block text-sm">
-            <span className="font-display uppercase tracking-wide">Vehículo o flota</span>
-            <input
-              value={vehiculo}
-              onChange={(e) => setVehiculo(e.target.value)}
-              className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-primary"
-              placeholder="Ej. Nissan Versa 2020 / 4 unidades de reparto"
-            />
-          </label>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2">
+            <label className="text-sm">
+              <span className="font-display uppercase tracking-wide">Nombre del negocio</span>
+              <input
+                value={negocio}
+                onChange={(e) => setNegocio(e.target.value)}
+                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-primary"
+                placeholder="Ej. Alarmas del Centro"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="font-display uppercase tracking-wide">Cantidad estimada</span>
+              <input
+                value={cantidad}
+                onChange={(e) => setCantidad(e.target.value)}
+                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-primary"
+                placeholder="Ej. 5, 10, 50 equipos"
+              />
+            </label>
+          </div>
 
           <label className="mt-5 block text-sm">
             <span className="font-display uppercase tracking-wide">Mensaje</span>
@@ -103,7 +115,7 @@ function Contacto() {
               value={mensaje}
               onChange={(e) => setMensaje(e.target.value)}
               className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-primary"
-              placeholder="Cuéntanos qué necesitas rastrear"
+              placeholder="Cuéntanos sobre tu negocio y qué necesitas: cotización de equipos, condiciones por volumen, alianza comercial, etc."
             />
           </label>
 
@@ -139,16 +151,13 @@ function Contacto() {
             >
               <Icon className="mt-1 h-5 w-5 shrink-0 text-primary" />
               <div>
-                <p className="font-display font-bold uppercase tracking-wide">{title}</p>
+                <p className="font-display text-sm font-bold uppercase tracking-wide">{title}</p>
                 {href ? (
-                  <a
-                    href={href}
-                    className="text-sm text-muted-foreground transition-colors hover:text-primary"
-                  >
+                  <a href={href} className="text-muted-foreground hover:text-primary">
                     {text}
                   </a>
                 ) : (
-                  <p className="text-sm text-muted-foreground">{text}</p>
+                  <p className="text-muted-foreground">{text}</p>
                 )}
               </div>
             </div>

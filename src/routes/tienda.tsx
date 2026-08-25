@@ -51,7 +51,7 @@ function TiendaPage() {
           Tienda <span className="text-primary">ORB-LITE</span>
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          Equipo de rastreo GPS satelital con instalación profesional, app de
+          Equipo de rastreo GPS satelital OL-01 para que lo instales en tu negocio de alarmas, app de
           monitoreo 24/7 y <span className="font-bold text-primary">1 año de plataforma incluido</span>.
         </p>
         <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
