@@ -106,10 +106,11 @@ function ProductPage() {
           <p className="whitespace-pre-line text-muted-foreground">{product.node.description}</p>
 
           <div className="rounded-xl border border-border/60 p-4 text-sm">
-            <p className="font-display font-bold uppercase tracking-widest">Plataforma</p>
+            <p className="font-display font-bold uppercase tracking-widest">Plataforma y SIM</p>
             <p className="mt-1 text-muted-foreground">
               <span className="font-bold text-primary">1 año incluido</span> con la compra del equipo;
-              renovación anual{" "}
+              renovación anual de plataforma{" "}
+              <span className="font-bold text-primary">$350 MXN/año</span> y SIM{" "}
               <span className="font-bold text-primary">$550 MXN/año</span>.
             </p>
           </div>

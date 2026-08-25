@@ -55,8 +55,9 @@ function TiendaPage() {
           monitoreo 24/7 y <span className="font-bold text-primary">1 año de plataforma incluido</span>.
         </p>
         <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
-          Renovación anual de plataforma:{" "}
-          <span className="font-display font-bold uppercase tracking-wide text-primary">$550 MXN/año</span>.
+          Renovación anual:{" "}
+          <span className="font-display font-bold uppercase tracking-wide text-primary">plataforma $350 MXN/año</span>{" "}
+          y <span className="font-display font-bold uppercase tracking-wide text-primary">SIM $550 MXN/año</span>.
         </p>
       </section>
 
