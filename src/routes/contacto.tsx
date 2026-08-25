@@ -45,7 +45,8 @@ function Contacto() {
           Agenda tu <span className="text-gradient-lime">instalación</span>
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-          Déjanos tus datos y te compartimos paquetes, planes de servicio (renovación de datos{" "}
+          Déjanos tus datos y te compartimos paquetes, planes de servicio (renovación anual:
+          plataforma <span className="font-bold text-primary">$350/año</span> y SIM{" "}
           <span className="font-bold text-primary">$550/año</span>) y una demostración en vivo con
           prueba de ubicación en tiempo real.
         </p>
