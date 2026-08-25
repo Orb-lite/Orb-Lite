@@ -33,6 +33,7 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <CartDrawer />
         </nav>
       </div>
     </header>
