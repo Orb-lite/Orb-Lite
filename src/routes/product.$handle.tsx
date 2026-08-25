@@ -93,6 +93,14 @@ function ProductPage() {
           <p className="whitespace-pre-line text-muted-foreground">{product.node.description}</p>
 
           <div className="rounded-xl border border-border/60 p-4 text-sm">
+            <p className="font-display font-bold uppercase tracking-widest">Plan de datos</p>
+            <p className="mt-1 text-muted-foreground">
+              1 año incluido; renovación anual {" "}
+              <span className="font-bold text-primary">$550 MXN/año</span>.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border/60 p-4 text-sm">
             <p className="font-display font-bold uppercase tracking-widest">Precios por lote</p>
             <ul className="mt-2 space-y-1 text-muted-foreground">
               {VOLUME_TIERS.map((tier) => (

@@ -190,7 +190,7 @@ function Servicios() {
           </p>
           <p className="font-display text-5xl font-bold uppercase italic sm:text-6xl">1 año</p>
           <p className="font-display text-sm uppercase tracking-[0.2em] text-primary">
-            renovable
+            renovable · $550/año
           </p>
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {dataPerks.map(({ icon: Icon, title, text }) => (
