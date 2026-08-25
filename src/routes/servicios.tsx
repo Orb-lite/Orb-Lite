@@ -186,11 +186,11 @@ function Servicios() {
             ¡Ya no ocupas recargar!
           </p>
           <p className="mt-2 max-w-xl text-muted-foreground">
-            Línea de datos celular incluida con vigencia de
+            El primer año de línea de datos celular va incluido con tu equipo.
           </p>
           <p className="font-display text-5xl font-bold uppercase italic sm:text-6xl">1 año</p>
           <p className="font-display text-sm uppercase tracking-[0.2em] text-primary">
-            renovable · $550/año
+            incluido · renovación $550/año
           </p>
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {dataPerks.map(({ icon: Icon, title, text }) => (
