@@ -65,7 +65,7 @@ const features = [
   },
   {
     icon: RadioTower,
-    title: "CONECTIVIDAD MULTICARRIER",
+    title: "CONECTIVIDAD MULTI CARRIER",
     text: "Conexión estable e ininterrumpida gracias a la red móvil de cobertura nacional; elige automáticamente la mejor señal disponible en cada momento.",
   },
   {
