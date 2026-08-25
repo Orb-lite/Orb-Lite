@@ -41,6 +41,9 @@ function TiendaPage() {
           Equipo de rastreo GPS satelital con todo incluido: instalación profesional, app de
           monitoreo 24/7 y 1 año de plan de datos renovable.
         </p>
+        <p className="mx-auto mt-2 max-w-2xl font-display text-sm font-bold uppercase tracking-wide text-primary">
+          Renovación de datos: $550/año
+        </p>
       </section>
 
       <section className="mx-auto max-w-6xl px-5 pb-12">

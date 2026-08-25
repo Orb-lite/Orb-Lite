@@ -41,7 +41,7 @@ const highlights = [
   { icon: Power, title: "Paro de motor", text: "Apaga el vehículo a distancia ante un robo." },
   { icon: Bell, title: "Alertas", text: "Batería desconectada, exceso de velocidad y más." },
   { icon: RadioTower, title: "Multirred", text: "Cobertura nacional sin interrupciones." },
-  { icon: CalendarCheck, title: "Datos incluidos", text: "1 año renovable sin recargas ni trámites." },
+  { icon: CalendarCheck, title: "Datos incluidos", text: "1 año renovable; $550/año después." },
   { icon: HardHat, title: "Instalación pro", text: "Discreta, sin afectar la garantía de tu auto." },
 ];
 
