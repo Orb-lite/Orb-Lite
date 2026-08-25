@@ -95,7 +95,8 @@ function ProductPage() {
           <div className="rounded-xl border border-border/60 p-4 text-sm">
             <p className="font-display font-bold uppercase tracking-widest">Plan de datos</p>
             <p className="mt-1 text-muted-foreground">
-              1 año incluido; renovación anual {" "}
+              <span className="font-bold text-primary">1 año incluido</span> con la compra del equipo;
+              renovación anual {" "}
               <span className="font-bold text-primary">$550 MXN/año</span>.
             </p>
           </div>
