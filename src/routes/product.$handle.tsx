@@ -103,6 +103,12 @@ function ProductPage() {
               ? formatMxn(parseFloat(selectedVariant.price.amount))
               : formatMxn(parseFloat(product.node.priceRange.minVariantPrice.amount))}
           </p>
+          <p className="text-sm text-muted-foreground">
+            Precio más IVA en caso de requerir factura.{" "}
+            <Link to="/contacto" className="underline hover:text-primary">
+              Contáctanos para generarla.
+            </Link>
+          </p>
           <p className="whitespace-pre-line text-muted-foreground">{product.node.description}</p>
 
           <div className="rounded-xl border border-border/60 p-4 text-sm">

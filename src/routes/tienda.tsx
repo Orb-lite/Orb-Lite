@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ProductCard } from "@/components/product-card";
 import { fetchProducts, formatMxn } from "@/lib/shopify";
@@ -74,6 +74,12 @@ function TiendaPage() {
               <p className="mt-1 text-xs text-muted-foreground">{pkg.sublabel}</p>
               <p className="mt-2 font-display text-3xl font-bold text-primary">
                 {formatMxn(pkg.price)}
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Precio más IVA en caso de requerir factura.{" "}
+                <Link to="/contacto" className="underline hover:text-primary">
+                  Contáctanos para generarla.
+                </Link>
               </p>
             </div>
           ))}
