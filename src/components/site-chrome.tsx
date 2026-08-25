@@ -70,8 +70,7 @@ export function CtaBanner() {
           ¡Solicita información hoy!
         </h2>
         <p className="max-w-xl text-primary-foreground/85">
-          Pregunta por nuestros paquetes, planes de servicio y demostración en vivo con prueba de
-          ubicación en tiempo real.
+          Pregunta por nuestros paquetes, planes de servicio y precios de renovación anual.
         </p>
 
         <Link

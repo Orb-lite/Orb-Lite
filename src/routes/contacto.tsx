@@ -9,7 +9,7 @@ export const Route = createFileRoute("/contacto")({
       {
         name: "description",
         content:
-          "Solicita información de rastreo GPS ORB-LITE: cotización, paquetes, planes de servicio y demostración en vivo.",
+          "Solicita información de rastreo GPS ORB-LITE: cotización, paquetes y planes de servicio.",
       },
       { property: "og:title", content: "Contacto | ORB-LITE" },
       {
@@ -45,10 +45,9 @@ function Contacto() {
           Solicita <span className="text-gradient-lime">información hoy</span>
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-          Déjanos tus datos y te compartimos paquetes, planes de servicio (renovación anual:
-          plataforma <span className="font-bold text-primary">$350/año</span> y SIM{" "}
-          <span className="font-bold text-primary">$550/año</span>) y una demostración en vivo con
-          prueba de ubicación en tiempo real.
+          Déjanos tus datos y te compartimos paquetes, planes de servicio y precios de renovación
+          anual: plataforma <span className="font-bold text-primary">$350/año</span> y SIM{" "}
+          <span className="font-bold text-primary">$550/año</span>.
         </p>
       </section>
 
