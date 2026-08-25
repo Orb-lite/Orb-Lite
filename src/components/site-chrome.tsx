@@ -67,7 +67,7 @@ export function CtaBanner() {
         style={{ background: "var(--gradient-lime)" }}
       >
         <h2 className="font-display text-3xl font-bold uppercase italic text-primary-foreground sm:text-4xl">
-          ¡Solicita tu instalación hoy!
+          ¡Solicita información hoy!
         </h2>
         <p className="max-w-xl text-primary-foreground/85">
           Pregunta por nuestros paquetes, planes de servicio y demostración en vivo con prueba de

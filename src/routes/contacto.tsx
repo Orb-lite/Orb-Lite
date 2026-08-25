@@ -9,7 +9,7 @@ export const Route = createFileRoute("/contacto")({
       {
         name: "description",
         content:
-          "Solicita tu instalación de rastreo GPS ORB-LITE: cotización, paquetes, planes de servicio y demostración en vivo.",
+          "Solicita información de rastreo GPS ORB-LITE: cotización, paquetes, planes de servicio y demostración en vivo.",
       },
       { property: "og:title", content: "Contacto | ORB-LITE" },
       {
