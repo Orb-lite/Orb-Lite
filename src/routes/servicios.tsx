@@ -27,7 +27,7 @@ export const Route = createFileRoute("/servicios")({
       {
         name: "description",
         content:
-          "Rastreo en tiempo real, paro de motor remoto, alertas inteligentes, historial de rutas y datos incluidos hasta 5 años para vehículos y flotas.",
+          "Rastreo en tiempo real, paro de motor remoto, alertas inteligentes, historial de rutas y datos incluidos con 1 año renovable para vehículos y flotas.",
       },
       { property: "og:title", content: "Servicios de Rastreo GPS | ORB-LITE" },
       {
@@ -77,7 +77,7 @@ const features = [
 
 const dataPerks = [
   { icon: InfinityIcon, title: "Sin recargas", text: "ni complicaciones" },
-  { icon: CalendarCheck, title: "Vigencia hasta 5 años", text: "ininterrumpidos" },
+  { icon: CalendarCheck, title: "Vigencia 1 año", text: "renovable" },
   { icon: RefreshCw, title: "Renovables", text: "para que siempre estés conectado" },
   { icon: SignalHigh, title: "Conectividad", text: "garantizada en territorio nacional" },
 ];
@@ -186,11 +186,11 @@ function Servicios() {
             ¡Ya no ocupas recargar!
           </p>
           <p className="mt-2 max-w-xl text-muted-foreground">
-            Línea de datos celular incluida con vigencia de hasta
+            Línea de datos celular incluida con vigencia de
           </p>
-          <p className="font-display text-5xl font-bold uppercase italic sm:text-6xl">5 años</p>
+          <p className="font-display text-5xl font-bold uppercase italic sm:text-6xl">1 año</p>
           <p className="font-display text-sm uppercase tracking-[0.2em] text-primary">
-            ininterrumpidos y renovables
+            renovable
           </p>
           <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {dataPerks.map(({ icon: Icon, title, text }) => (

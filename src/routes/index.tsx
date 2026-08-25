@@ -21,7 +21,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Protege tu vehículo o flota con rastreo GPS satelital en tiempo real 24/7: paro de motor remoto, alertas y datos incluidos hasta 5 años.",
+          "Protege tu vehículo o flota con rastreo GPS satelital en tiempo real 24/7: paro de motor remoto, alertas y datos incluidos 1 año renovable.",
       },
       { property: "og:title", content: "ORB-LITE | Rastreo GPS Satelital" },
       {
@@ -41,7 +41,7 @@ const highlights = [
   { icon: Power, title: "Paro de motor", text: "Apaga el vehículo a distancia ante un robo." },
   { icon: Bell, title: "Alertas", text: "Batería desconectada, exceso de velocidad y más." },
   { icon: RadioTower, title: "Multirred", text: "Cobertura nacional sin interrupciones." },
-  { icon: CalendarCheck, title: "Datos incluidos", text: "Hasta 5 años sin recargas ni trámites." },
+  { icon: CalendarCheck, title: "Datos incluidos", text: "1 año renovable sin recargas ni trámites." },
   { icon: HardHat, title: "Instalación pro", text: "Discreta, sin afectar la garantía de tu auto." },
 ];
 
@@ -107,7 +107,7 @@ function Index() {
 
       <section className="mx-auto max-w-6xl px-5 pb-16">
         <div className="flex flex-wrap gap-4">
-          {["24/7", "365 días", "5 años de datos"].map((t) => (
+          {["24/7", "365 días", "1 año renovable"].map((t) => (
             <div
               key={t}
               className="rounded-lg border border-primary/40 bg-card/60 px-6 py-3 font-display text-xl font-bold uppercase text-primary"
