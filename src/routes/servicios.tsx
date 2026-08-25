@@ -66,7 +66,7 @@ const features = [
   {
     icon: RadioTower,
     title: "CONECTIVIDAD MULTICARRIER",
-    text: "Transmisión continua sin interrupciones gracias a la red móvil de cobertura nacional de distintas compañias se conecta a la que este mejor en cada situacion.",
+    text: "Conexión estable e ininterrumpida gracias a la red móvil de cobertura nacional; elige automáticamente la mejor señal disponible en cada momento.",
   },
   {
     icon: ShieldCheck,
