@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { storefrontApiRequest, tierForQuantity, type ShopifyProduct } from "@/lib/shopify";
+import { storefrontApiRequest, type ShopifyProduct } from "@/lib/shopify";
 
 export interface CartItem {
   lineId: string | null;
@@ -61,14 +61,6 @@ const CART_LINES_REMOVE_MUTATION = `
   }
 `;
 
-const CART_DISCOUNT_CODES_UPDATE_MUTATION = `
-  mutation cartDiscountCodesUpdate($cartId: ID!, $discountCodes: [String!]) {
-    cartDiscountCodesUpdate(cartId: $cartId, discountCodes: $discountCodes) {
-      cart { id }
-      userErrors { field message }
-    }
-  }
-`;
 
 function formatCheckoutUrl(checkoutUrl: string): string {
   try {
@@ -171,17 +163,6 @@ async function removeLineFromShopifyCart(
   return { success: true };
 }
 
-async function applyTierDiscount(cartId: string, totalQuantity: number) {
-  const code = tierForQuantity(totalQuantity)?.code ?? null;
-  try {
-    await storefrontApiRequest(CART_DISCOUNT_CODES_UPDATE_MUTATION, {
-      cartId,
-      discountCodes: code ? [code] : [],
-    });
-  } catch (error) {
-    console.error("Failed to apply volume discount:", error);
-  }
-}
 
 interface CartStore {
   items: CartItem[];
@@ -220,7 +201,6 @@ export const useCartStore = create<CartStore>()(
                 checkoutUrl: result.checkoutUrl,
                 items: [{ ...item, lineId: result.lineId }],
               });
-              await applyTierDiscount(result.cartId, item.quantity);
             }
           } else if (existingItem) {
             const newQuantity = existingItem.quantity + item.quantity;
@@ -232,10 +212,6 @@ export const useCartStore = create<CartStore>()(
                 i.variantId === item.variantId ? { ...i, quantity: newQuantity } : i,
               );
               set({ items: nextItems });
-              await applyTierDiscount(
-                cartId,
-                nextItems.reduce((s, i) => s + i.quantity, 0),
-              );
             } else if (result.cartNotFound) {
               clearCart();
             }
@@ -245,10 +221,6 @@ export const useCartStore = create<CartStore>()(
               const currentItems = get().items;
               const nextItems = [...currentItems, { ...item, lineId: result.lineId ?? null }];
               set({ items: nextItems });
-              await applyTierDiscount(
-                cartId,
-                nextItems.reduce((s, i) => s + i.quantity, 0),
-              );
             } else if (result.cartNotFound) {
               clearCart();
             }
@@ -279,10 +251,6 @@ export const useCartStore = create<CartStore>()(
               i.variantId === variantId ? { ...i, quantity } : i,
             );
             set({ items: nextItems });
-            await applyTierDiscount(
-              cartId,
-              nextItems.reduce((s, i) => s + i.quantity, 0),
-            );
           } else if (result.cartNotFound) {
             clearCart();
           }
@@ -308,10 +276,6 @@ export const useCartStore = create<CartStore>()(
               clearCart();
             } else {
               set({ items: newItems });
-              await applyTierDiscount(
-                cartId,
-                newItems.reduce((s, i) => s + i.quantity, 0),
-              );
             }
           } else if (result.cartNotFound) {
             clearCart();
