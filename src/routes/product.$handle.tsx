@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cartStore";
-import { fetchProductByHandle, formatMxn, VOLUME_TIERS } from "@/lib/shopify";
+import { fetchProductByHandle, formatMxn } from "@/lib/shopify";
 
 export const Route = createFileRoute("/product/$handle")({
   head: () => ({
@@ -13,12 +13,12 @@ export const Route = createFileRoute("/product/$handle")({
       {
         name: "description",
         content:
-          "Detalle del equipo GPS ORB-LITE: instalación profesional, monitoreo 24/7, paro de motor y 1 año de datos incluido, renovable.",
+          "Detalle del equipo GPS ORB-LITE: instalación profesional, monitoreo 24/7, paro de motor y 1 año de plataforma incluido, renovable.",
       },
       { property: "og:title", content: "Equipo GPS ORB-LITE" },
       {
         property: "og:description",
-        content: "Kit completo de rastreo GPS satelital con instalación y datos incluidos.",
+        content: "Kit completo de rastreo GPS satelital con instalación y plataforma incluidos.",
       },
       { property: "og:type", content: "product" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -38,6 +38,18 @@ function ProductPage() {
     queryFn: () => fetchProductByHandle(handle),
   });
 
+  const variants = useMemo(
+    () => product?.node.variants.edges.map((e) => e.node) ?? [],
+    [product],
+  );
+
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+
+  const selectedVariant = useMemo(
+    () => variants.find((v) => v.id === selectedVariantId) ?? variants[0] ?? null,
+    [variants, selectedVariantId],
+  );
+
   if (isFetching) {
     return <main className="mx-auto max-w-6xl px-5 py-20 text-muted-foreground">Cargando…</main>;
   }
@@ -53,18 +65,17 @@ function ProductPage() {
     );
   }
 
-  const variant = product.node.variants.edges[0]?.node;
   const image = product.node.images.edges[0]?.node;
 
   const handleAdd = async () => {
-    if (!variant) return;
+    if (!selectedVariant) return;
     await addItem({
       product,
-      variantId: variant.id,
-      variantTitle: variant.title,
-      price: variant.price,
+      variantId: selectedVariant.id,
+      variantTitle: selectedVariant.title,
+      price: selectedVariant.price,
       quantity,
-      selectedOptions: variant.selectedOptions || [],
+      selectedOptions: selectedVariant.selectedOptions || [],
     });
   };
 
@@ -88,29 +99,43 @@ function ProductPage() {
             {product.node.title}
           </h1>
           <p className="font-display text-4xl font-bold text-primary">
-            {formatMxn(parseFloat(product.node.priceRange.minVariantPrice.amount))}
+            {selectedVariant
+              ? formatMxn(parseFloat(selectedVariant.price.amount))
+              : formatMxn(parseFloat(product.node.priceRange.minVariantPrice.amount))}
           </p>
           <p className="whitespace-pre-line text-muted-foreground">{product.node.description}</p>
 
           <div className="rounded-xl border border-border/60 p-4 text-sm">
-            <p className="font-display font-bold uppercase tracking-widest">Plan de datos</p>
+            <p className="font-display font-bold uppercase tracking-widest">Plataforma</p>
             <p className="mt-1 text-muted-foreground">
               <span className="font-bold text-primary">1 año incluido</span> con la compra del equipo;
-              renovación anual {" "}
+              renovación anual{" "}
               <span className="font-bold text-primary">$550 MXN/año</span>.
             </p>
           </div>
 
-          <div className="rounded-xl border border-border/60 p-4 text-sm">
-            <p className="font-display font-bold uppercase tracking-widest">Precios por lote</p>
-            <ul className="mt-2 space-y-1 text-muted-foreground">
-              {VOLUME_TIERS.map((tier) => (
-                <li key={tier.min}>
-                  {tier.label}: <span className="text-primary">{formatMxn(tier.price)}</span> c/u
-                </li>
-              ))}
-            </ul>
-          </div>
+          {variants.length > 1 && (
+            <div className="space-y-3 rounded-xl border border-border/60 p-4">
+              <p className="font-display text-sm font-bold uppercase tracking-widest">Elige tu paquete</p>
+              <div className="flex flex-wrap gap-3">
+                {variants.map((variant) => (
+                  <button
+                    key={variant.id}
+                    type="button"
+                    onClick={() => setSelectedVariantId(variant.id)}
+                    className={`rounded-lg border px-4 py-2 text-left text-sm transition-colors ${
+                      selectedVariant?.id === variant.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/60 bg-background hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="block font-semibold">{variant.title}</span>
+                    <span className="block text-muted-foreground">{formatMxn(parseFloat(variant.price.amount))}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <label htmlFor="qty" className="text-sm text-muted-foreground">
@@ -126,7 +151,7 @@ function ProductPage() {
             />
           </div>
 
-          <Button onClick={handleAdd} disabled={isLoading || !variant} size="lg" className="w-full">
+          <Button onClick={handleAdd} disabled={isLoading || !selectedVariant} size="lg" className="w-full">
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Agregar al carrito"}
           </Button>
         </div>

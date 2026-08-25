@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { ShoppingCart, Minus, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
 import { useCartStore } from "@/stores/cartStore";
-import { formatMxn, tierForQuantity } from "@/lib/shopify";
+import { formatMxn } from "@/lib/shopify";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,13 +19,10 @@ export function CartDrawer() {
     useCartStore();
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const tier = tierForQuantity(totalItems);
-  const unitPrice = tier?.price ?? 1450;
-  const listTotal = items.reduce(
+  const totalPrice = items.reduce(
     (sum, item) => sum + parseFloat(item.price.amount) * item.quantity,
     0,
   );
-  const tierTotal = totalItems * unitPrice;
 
   useEffect(() => {
     if (isOpen) syncCart();
@@ -57,7 +54,7 @@ export function CartDrawer() {
           <SheetDescription>
             {totalItems === 0
               ? "Tu carrito está vacío"
-              : `${totalItems} equipo${totalItems !== 1 ? "s" : ""} · ${formatMxn(unitPrice)} c/u`}
+              : `${totalItems} equipo${totalItems !== 1 ? "s" : ""} en tu carrito`}
           </SheetDescription>
         </SheetHeader>
 
@@ -87,9 +84,10 @@ export function CartDrawer() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <h4 className="truncate font-medium">{item.product.node.title}</h4>
-                        <p className="font-semibold">
-                          {formatMxn(parseFloat(item.price.amount))}
+                        <p className="text-xs text-muted-foreground">
+                          {item.selectedOptions.map((o) => o.value).join(" · ")}
                         </p>
+                        <p className="font-semibold">{formatMxn(parseFloat(item.price.amount))}</p>
                       </div>
                       <div className="flex flex-shrink-0 flex-col items-end gap-2">
                         <Button
@@ -126,22 +124,9 @@ export function CartDrawer() {
               </div>
 
               <div className="flex-shrink-0 space-y-4 border-t bg-background pt-4">
-                {tier?.code && (
-                  <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
-                    Precio por lote aplicado ({tier.label}): {formatMxn(unitPrice)} c/u con el
-                    código {tier.code}.
-                  </p>
-                )}
                 <div className="flex items-center justify-between">
                   <span className="text-lg font-semibold">Total estimado</span>
-                  <span className="text-right">
-                    {tierTotal < listTotal && (
-                      <span className="mr-2 text-sm text-muted-foreground line-through">
-                        {formatMxn(listTotal)}
-                      </span>
-                    )}
-                    <span className="text-xl font-bold">{formatMxn(tierTotal)}</span>
-                  </span>
+                  <span className="text-xl font-bold">{formatMxn(totalPrice)}</span>
                 </div>
                 <Button
                   onClick={handleCheckout}

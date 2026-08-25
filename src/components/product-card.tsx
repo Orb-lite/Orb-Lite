@@ -10,6 +10,10 @@ export function ProductCard({ product }: { product: ShopifyProduct }) {
   const variant = product.node.variants.edges[0]?.node;
   const image = product.node.images.edges[0]?.node;
 
+  const minPrice = parseFloat(product.node.priceRange.minVariantPrice.amount);
+  const maxPrice = parseFloat(product.node.priceRange.maxVariantPrice.amount);
+  const priceLabel = minPrice === maxPrice ? formatMxn(minPrice) : `${formatMxn(minPrice)} – ${formatMxn(maxPrice)}`;
+
   const handleAddToCart = async () => {
     if (!variant) return;
     await addItem({
@@ -43,9 +47,7 @@ export function ProductCard({ product }: { product: ShopifyProduct }) {
           <h3 className="font-display text-xl font-bold uppercase italic">{product.node.title}</h3>
         </Link>
         <p className="line-clamp-3 text-sm text-muted-foreground">{product.node.description}</p>
-        <p className="font-display text-2xl font-bold text-primary">
-          {formatMxn(parseFloat(product.node.priceRange.minVariantPrice.amount))}
-        </p>
+        <p className="font-display text-2xl font-bold text-primary">{priceLabel}</p>
         <Button onClick={handleAddToCart} disabled={isLoading || !variant} className="w-full">
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Agregar al carrito"}
         </Button>
