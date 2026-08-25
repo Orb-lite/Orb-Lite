@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 
 import heroImg from "@/assets/hero-gps.jpg";
-import logo from "@/assets/orb-lite-logo.png";
 
 import { CtaBanner } from "@/components/site-chrome";
 
@@ -52,13 +51,7 @@ function Index() {
     <div>
       <section className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-10 lg:grid-cols-2">
         <div>
-          <img
-            src={logo}
-            alt="ORB-LITE rastreo GPS satelital"
-            className="mb-6 w-full max-w-md drop-shadow-[0_0_45px_color-mix(in_oklab,var(--primary)_35%,transparent)]"
-          />
           <h1 className="font-display text-4xl font-bold uppercase italic leading-[1.05] sm:text-6xl">
-
             Protege
             <br />
             <span className="text-gradient-lime">lo que más quieres</span>
