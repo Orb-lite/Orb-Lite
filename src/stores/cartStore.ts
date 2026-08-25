@@ -163,17 +163,6 @@ async function removeLineFromShopifyCart(
   return { success: true };
 }
 
-async function applyTierDiscount(cartId: string, totalQuantity: number) {
-  const code = tierForQuantity(totalQuantity)?.code ?? null;
-  try {
-    await storefrontApiRequest(CART_DISCOUNT_CODES_UPDATE_MUTATION, {
-      cartId,
-      discountCodes: code ? [code] : [],
-    });
-  } catch (error) {
-    console.error("Failed to apply volume discount:", error);
-  }
-}
 
 interface CartStore {
   items: CartItem[];
