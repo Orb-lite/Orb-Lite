@@ -44,11 +44,6 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="border-t border-border/60 py-10 text-center text-sm text-muted-foreground">
-      <img
-        src={logo}
-        alt="ORB-LITE"
-        className="mx-auto mb-5 h-20 w-auto opacity-90 drop-shadow-[0_0_25px_color-mix(in_oklab,var(--primary)_25%,transparent)]"
-      />
       <p>ORB-LITE · Rastreo GPS Satelital · Tu vehículo, tu familia, tu tranquilidad</p>
       <p className="mt-2">
         <a href="tel:+523318359421" className="hover:text-primary">
@@ -71,12 +66,6 @@ export function CtaBanner() {
         className="relative flex flex-col items-center gap-4 overflow-hidden rounded-2xl px-6 py-10 text-center"
         style={{ background: "var(--gradient-lime)" }}
       >
-        <img
-          src={logo}
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-8 -top-10 h-56 w-auto opacity-15"
-        />
         <h2 className="font-display text-3xl font-bold uppercase italic text-primary-foreground sm:text-4xl">
           ¡Solicita tu instalación hoy!
         </h2>
