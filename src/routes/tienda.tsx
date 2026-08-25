@@ -11,7 +11,7 @@ export const Route = createFileRoute("/tienda")({
       {
         name: "description",
         content:
-          "Compra tu equipo GPS ORB-LITE en $1,450 con instalación, app y 5 años de datos. Precios por lote: 10 equipos a $1,300 y 20+ a $1,200.",
+          "Compra tu equipo GPS ORB-LITE en $1,450 con instalación, app y 1 año de datos renovable. Precios por lote: 10 equipos a $1,300 y 20+ a $1,200.",
       },
       { property: "og:title", content: "Tienda ORB-LITE | Equipo GPS con todo incluido" },
       {
@@ -39,7 +39,7 @@ function TiendaPage() {
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
           Equipo de rastreo GPS satelital con todo incluido: instalación profesional, app de
-          monitoreo 24/7 y 5 años de plan de datos.
+          monitoreo 24/7 y 1 año de plan de datos renovable.
         </p>
       </section>
 

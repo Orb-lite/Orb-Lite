@@ -25,7 +25,7 @@ export const Route = createFileRoute("/contacto")({
 
 const WHATSAPP = "523318359421";
 const TEL = "3318359421";
-const EMAIL = "isaac.gomez@orb-lite.com";
+const EMAIL = "ventas@orb-lite.com";
 
 function Contacto() {
   const [nombre, setNombre] = useState("");

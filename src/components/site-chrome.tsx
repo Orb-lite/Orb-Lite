@@ -49,8 +49,8 @@ export function SiteFooter() {
           33 1835 9421
         </a>
         <span className="px-2 text-primary">|</span>
-        <a href="mailto:isaac.gomez@orb-lite.com" className="hover:text-primary">
-          isaac.gomez@orb-lite.com
+        <a href="mailto:ventas@orb-lite.com" className="hover:text-primary">
+          ventas@orb-lite.com
         </a>
       </p>
     </footer>

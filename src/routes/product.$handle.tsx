@@ -13,7 +13,7 @@ export const Route = createFileRoute("/product/$handle")({
       {
         name: "description",
         content:
-          "Detalle del equipo GPS ORB-LITE: instalación profesional, monitoreo 24/7, paro de motor y 5 años de datos incluidos.",
+          "Detalle del equipo GPS ORB-LITE: instalación profesional, monitoreo 24/7, paro de motor y 1 año de datos incluidos renovable.",
       },
       { property: "og:title", content: "Equipo GPS ORB-LITE" },
       {
