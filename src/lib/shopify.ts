@@ -100,20 +100,6 @@ export async function fetchProductByHandle(handle: string): Promise<ShopifyProdu
   return product ? { node: product } : null;
 }
 
-export const UNIT_PRICE = 1450;
-
-export const VOLUME_TIERS = [
-  { min: 1, price: 1450, label: "1 - 9 equipos", code: null as string | null },
-  { min: 10, price: 1300, label: "10 - 19 equipos", code: "LOTE10" as string | null },
-  { min: 20, price: 1200, label: "20 equipos o más", code: "LOTE20" as string | null },
-];
-
-export function tierForQuantity(quantity: number) {
-  if (quantity >= 20) return VOLUME_TIERS[2];
-  if (quantity >= 10) return VOLUME_TIERS[1];
-  return VOLUME_TIERS[0];
-}
-
 export function formatMxn(amount: number) {
   return new Intl.NumberFormat("es-MX", {
     style: "currency",
