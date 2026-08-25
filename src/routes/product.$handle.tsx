@@ -13,12 +13,12 @@ export const Route = createFileRoute("/product/$handle")({
       {
         name: "description",
         content:
-          "Detalle del equipo GPS ORB-LITE: instalación profesional, monitoreo 24/7, paro de motor y 1 año de plataforma incluido, renovable.",
+          "Equipo GPS ORB-LITE OL-01 para negocios de alarmas: monitoreo 24/7, paro de motor y 1 año de plataforma incluido, renovable.",
       },
       { property: "og:title", content: "Equipo GPS ORB-LITE" },
       {
         property: "og:description",
-        content: "Kit completo de rastreo GPS satelital con instalación y plataforma incluidos.",
+        content: "Equipo GPS OL-01 para instalar en tu negocio de alarmas con plataforma y monitoreo incluidos.",
       },
       { property: "og:type", content: "product" },
       { name: "twitter:card", content: "summary_large_image" },
