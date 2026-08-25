@@ -61,14 +61,6 @@ const CART_LINES_REMOVE_MUTATION = `
   }
 `;
 
-const CART_DISCOUNT_CODES_UPDATE_MUTATION = `
-  mutation cartDiscountCodesUpdate($cartId: ID!, $discountCodes: [String!]) {
-    cartDiscountCodesUpdate(cartId: $cartId, discountCodes: $discountCodes) {
-      cart { id }
-      userErrors { field message }
-    }
-  }
-`;
 
 function formatCheckoutUrl(checkoutUrl: string): string {
   try {
