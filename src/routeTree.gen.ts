@@ -11,10 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ContactoRouteImport } from './routes/contacto'
+import { Route as KitInstaladoresRouteImport } from './routes/kit-instaladores'
+import { Route as RenovacionesRouteImport } from './routes/renovaciones'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as TiendaRouteImport } from './routes/tienda'
-import { Route as ProductHandleRouteImport } from './routes/product.$handle'
+import { Route as UsuarioFinalRouteImport } from './routes/usuario-final'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -24,6 +26,16 @@ const IndexRoute = IndexRouteImport.update({
 const ContactoRoute = ContactoRouteImport.update({
   id: '/contacto',
   path: '/contacto',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KitInstaladoresRoute = KitInstaladoresRouteImport.update({
+  id: '/kit-instaladores',
+  path: '/kit-instaladores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RenovacionesRoute = RenovacionesRouteImport.update({
+  id: '/renovaciones',
+  path: '/renovaciones',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ServiciosRoute = ServiciosRouteImport.update({
@@ -41,71 +53,85 @@ const TiendaRoute = TiendaRouteImport.update({
   path: '/tienda',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProductHandleRoute = ProductHandleRouteImport.update({
-  id: '/product/$handle',
-  path: '/product/$handle',
+const UsuarioFinalRoute = UsuarioFinalRouteImport.update({
+  id: '/usuario-final',
+  path: '/usuario-final',
   getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/contacto': typeof ContactoRoute
+  '/kit-instaladores': typeof KitInstaladoresRoute
+  '/renovaciones': typeof RenovacionesRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
-  '/product/$handle': typeof ProductHandleRoute
+  '/usuario-final': typeof UsuarioFinalRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/contacto': typeof ContactoRoute
+  '/kit-instaladores': typeof KitInstaladoresRoute
+  '/renovaciones': typeof RenovacionesRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
-  '/product/$handle': typeof ProductHandleRoute
+  '/usuario-final': typeof UsuarioFinalRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/contacto': typeof ContactoRoute
+  '/kit-instaladores': typeof KitInstaladoresRoute
+  '/renovaciones': typeof RenovacionesRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
-  '/product/$handle': typeof ProductHandleRoute
+  '/usuario-final': typeof UsuarioFinalRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/contacto'
+    | '/kit-instaladores'
+    | '/renovaciones'
     | '/servicios'
     | '/terminos'
     | '/tienda'
-    | '/product/$handle'
+    | '/usuario-final'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/contacto'
+    | '/kit-instaladores'
+    | '/renovaciones'
     | '/servicios'
     | '/terminos'
     | '/tienda'
-    | '/product/$handle'
+    | '/usuario-final'
   id:
     | '__root__'
     | '/'
     | '/contacto'
+    | '/kit-instaladores'
+    | '/renovaciones'
     | '/servicios'
     | '/terminos'
     | '/tienda'
-    | '/product/$handle'
+    | '/usuario-final'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ContactoRoute: typeof ContactoRoute
+  KitInstaladoresRoute: typeof KitInstaladoresRoute
+  RenovacionesRoute: typeof RenovacionesRoute
   ServiciosRoute: typeof ServiciosRoute
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
-  ProductHandleRoute: typeof ProductHandleRoute
+  UsuarioFinalRoute: typeof UsuarioFinalRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -122,6 +148,20 @@ declare module '@tanstack/react-router' {
       path: '/contacto'
       fullPath: '/contacto'
       preLoaderRoute: typeof ContactoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kit-instaladores': {
+      id: '/kit-instaladores'
+      path: '/kit-instaladores'
+      fullPath: '/kit-instaladores'
+      preLoaderRoute: typeof KitInstaladoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/renovaciones': {
+      id: '/renovaciones'
+      path: '/renovaciones'
+      fullPath: '/renovaciones'
+      preLoaderRoute: typeof RenovacionesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/servicios': {
@@ -145,11 +185,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TiendaRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/product/$handle': {
-      id: '/product/$handle'
-      path: '/product/$handle'
-      fullPath: '/product/$handle'
-      preLoaderRoute: typeof ProductHandleRouteImport
+    '/usuario-final': {
+      id: '/usuario-final'
+      path: '/usuario-final'
+      fullPath: '/usuario-final'
+      preLoaderRoute: typeof UsuarioFinalRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -158,10 +198,12 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ContactoRoute: ContactoRoute,
+  KitInstaladoresRoute: KitInstaladoresRoute,
+  RenovacionesRoute: RenovacionesRoute,
   ServiciosRoute: ServiciosRoute,
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
-  ProductHandleRoute: ProductHandleRoute,
+  UsuarioFinalRoute: UsuarioFinalRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

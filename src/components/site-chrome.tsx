@@ -4,7 +4,9 @@ import { CartDrawer } from "@/components/cart-drawer";
 
 const nav = [
   { to: "/", label: "Inicio" },
-  { to: "/servicios", label: "Servicios" },
+  { to: "/kit-instaladores", label: "Kit Instaladores" },
+  { to: "/usuario-final", label: "Usuario Final" },
+  { to: "/renovaciones", label: "Renovaciones" },
   { to: "/tienda", label: "Tienda" },
   { to: "/contacto", label: "Contacto" },
 ] as const;
@@ -54,6 +56,40 @@ export function SiteFooter() {
           ventas@orb-lite.com
         </a>
       </p>
+      <p className="mt-2">
+        <a
+          href="https://wa.me/523318359421"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-primary"
+        >
+          WhatsApp: 331 835 9421
+        </a>
+      </p>
+
+      <ul className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-3 px-5 text-xs uppercase tracking-widest">
+        <li className="rounded-full border border-primary/30 px-4 py-2 text-primary">
+          Soporte técnico incluido
+        </li>
+        <li className="rounded-full border border-primary/30 px-4 py-2 text-primary">
+          Entrega incluida en GDL/ZMG
+        </li>
+        <li className="rounded-full border border-primary/30 px-4 py-2 text-primary">
+          Envíos a todo México
+        </li>
+      </ul>
+
+      <p className="mt-6">
+        <Link to="/servicios" className="hover:text-primary">
+          Servicios
+        </Link>
+        <span className="px-2 text-primary">|</span>
+        <Link to="/tienda" className="hover:text-primary">
+          Tienda
+        </Link>
+      </p>
+
+
 
       <Link
         to="/terminos"
