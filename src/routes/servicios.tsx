@@ -16,7 +16,6 @@ import {
   Truck,
   Car,
   Store,
-  Package,
 } from "lucide-react";
 
 import { CtaBanner } from "@/components/site-chrome";
@@ -24,17 +23,20 @@ import { CtaBanner } from "@/components/site-chrome";
 export const Route = createFileRoute("/servicios")({
   head: () => ({
     meta: [
-      { title: "Servicios GPS para Distribuidores e Instaladores | ORB-LITE" },
+      { title: "Servicios de Rastreo GPS para Autos, Flotas y Negocios | ORB-LITE" },
       {
         name: "description",
         content:
-          "Soluciones de rastreo GPS satelital para negocios de alarmas: equipos, plataforma, SIM, soporte técnico y planes para que revendas a clientes finales.",
+          "Rastreo GPS satelital para uso personal, empresas con flotas y negocios: equipo OL-01, plataforma en tiempo real, SIM con datos, renovaciones y soporte técnico.",
       },
-      { property: "og:title", content: "Servicios GPS para Distribuidores e Instaladores | ORB-LITE" },
+      {
+        property: "og:title",
+        content: "Servicios de Rastreo GPS para Autos, Flotas y Negocios | ORB-LITE",
+      },
       {
         property: "og:description",
         content:
-          "Todo lo que tu negocio de alarmas necesita para ofrecer rastreo GPS: equipos OL-01, plataforma, datos y soporte.",
+          "Equipo OL-01, plataforma, datos incluidos y soporte: rastreo GPS para personas, empresas y negocios.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -47,12 +49,12 @@ const features = [
   {
     icon: MapPin,
     title: "Rastreo en Tiempo Real",
-    text: "Ubicación exacta minuto a minuto desde smartphone o PC para los clientes de tus instaladores.",
+    text: "Ubicación exacta minuto a minuto desde tu smartphone o PC, para uno o varios vehículos.",
   },
   {
     icon: Power,
     title: "Paro de Motor Remoto",
-    text: "Apaga el vehículo a distancia desde la app; un diferencial clave frente a la competencia.",
+    text: "Apaga el vehículo a distancia desde la app en caso de robo o uso no autorizado.",
   },
   {
     icon: Bell,
@@ -62,7 +64,7 @@ const features = [
   {
     icon: RouteIcon,
     title: "Historial y Rutas",
-    text: "Revisa recorridos, paradas y hábitos de manejo para ofrecer reportes de valor agregado.",
+    text: "Revisa recorridos, paradas y hábitos de manejo con reportes claros y descargables.",
   },
   {
     icon: RadioTower,
@@ -72,34 +74,34 @@ const features = [
   {
     icon: ShieldCheck,
     title: "Soporte y Garantía",
-    text: "Asesoría especializada para tu equipo de instalación, garantía del equipo y respaldo real.",
+    text: "Asesoría para configurar y usar la plataforma, garantía del equipo y respaldo real.",
   },
 ];
 
 const dataPerks = [
   { icon: InfinityIcon, title: "Sin recargas", text: "ni complicaciones" },
   { icon: CalendarCheck, title: "Vigencia 1 año", text: "renovable" },
-  { icon: RefreshCw, title: "Renovables", text: "ingreso recurrente para tu negocio" },
+  { icon: RefreshCw, title: "Renovables", text: "renovación anual simple y económica" },
   { icon: SignalHigh, title: "Conectividad", text: "garantizada en territorio nacional" },
 ];
 
 const plans = [
   {
-    icon: Store,
-    name: "Negocios de seguridad",
-    text: "Ideal para autoalarmas, cerrajerías, accesorios y electrónica vehicular. Agrega GPS como servicio adicional y crece tu cartera.",
-    items: ["Equipo OL-01", "App móvil y web", "Guía y soporte técnico"],
+    icon: Car,
+    name: "Uso personal",
+    text: "Para tu auto, camioneta o moto: tranquilidad para ti y tu familia con ubicación en tiempo real y paro de motor.",
+    items: ["Equipo OL-01", "App móvil y web", "1 año de datos incluido"],
   },
   {
     icon: Truck,
-    name: "Flotas comerciales",
-    text: "Control de unidades de trabajo con reportes de rutas, geocercas y hábitos de manejo.",
+    name: "Empresas y flotas",
+    text: "Control de unidades de trabajo con reportes de rutas, geocercas y hábitos de manejo desde un solo panel.",
     items: ["Multiunidad", "Historial y reportes", "Soporte técnico"],
   },
   {
-    icon: Package,
-    name: "Mayoreo",
-    text: "Compra por volumen para revender a otros instaladores o centros de alarmas con mejores condiciones.",
+    icon: Store,
+    name: "Negocios y mayoreo",
+    text: "Suma el rastreo GPS a los servicios que ya ofreces o compra por volumen con mejores condiciones.",
     items: ["Precios especiales", "Envío consolidado", "Atención de cuenta"],
   },
 ];
@@ -107,18 +109,18 @@ const plans = [
 const reasons = [
   {
     icon: HardHat,
-    title: "Operación flexible",
-    text: "Tú decides cómo atender a tu cliente: con tu propio equipo técnico o aliado. Nosotros te respaldamos con equipos y soporte.",
+    title: "Instalación flexible",
+    text: "Instálalo con nosotros en Guadalajara, con tu taller de confianza o con tus propios técnicos: tú decides.",
   },
   {
     icon: MonitorSmartphone,
     title: "Plataforma lista para usar",
-    text: "Interfaz moderna y configurable para que tus clientes operen desde el primer día.",
+    text: "Interfaz moderna y configurable para empezar a monitorear desde el primer día.",
   },
   {
     icon: Zap,
-    title: "Margen y recurrencia",
-    text: "Gana por la instalación y por las renovaciones anuales de plataforma y SIM.",
+    title: "Costo claro",
+    text: "Precio único del equipo con un año incluido y renovación anual transparente de plataforma y SIM.",
   },
 ];
 
@@ -126,13 +128,15 @@ function Servicios() {
   return (
     <div>
       <section className="mx-auto max-w-6xl px-5 py-14">
-        <p className="font-display text-sm uppercase tracking-[0.3em] text-primary">Alianza comercial</p>
+        <p className="font-display text-sm uppercase tracking-[0.3em] text-primary">
+          Personas · Empresas · Negocios
+        </p>
         <h1 className="mt-3 font-display text-4xl font-bold uppercase italic sm:text-5xl">
-          Suma GPS a tu negocio <span className="text-gradient-lime">con ORB-LITE</span>
+          Rastreo GPS satelital <span className="text-gradient-lime">a tu medida</span>
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-          Trabaja con ORB-LITE para ofrecer rastreo GPS satelital a tus clientes: equipos OL-01,
-          plataforma, datos incluidos y respaldo técnico.
+          Un mismo sistema para cuidar tu auto, controlar las unidades de tu empresa o sumar el
+          servicio a tu negocio: equipo OL-01, plataforma, datos incluidos y respaldo técnico.
         </p>
       </section>
 
@@ -153,7 +157,7 @@ function Servicios() {
 
       <section className="mx-auto max-w-6xl px-5 pb-16">
         <h2 className="font-display text-3xl font-bold uppercase italic">
-          Planes para <span className="text-gradient-lime">tu negocio</span>
+          Planes para <span className="text-gradient-lime">cada necesidad</span>
         </h2>
         <div className="mt-7 grid gap-5 lg:grid-cols-3">
           {plans.map(({ icon: Icon, name, text, items }) => (
@@ -177,7 +181,7 @@ function Servicios() {
           ))}
         </div>
         <p className="mt-5 text-sm text-muted-foreground">
-          Pregunta por precios mayoristas, paquetes para instaladores y condiciones por volumen.
+          Pregunta por paquetes individuales, planes multiunidad y condiciones por volumen.
         </p>
       </section>
 
@@ -187,7 +191,7 @@ function Servicios() {
             ¡Ya no necesitas recargar!
           </p>
           <p className="mt-2 max-w-xl text-muted-foreground">
-            El primer año de línea de datos celular va incluido con cada equipo que vendas o instales.
+            El primer año de línea de datos celular va incluido con cada equipo.
           </p>
           <p className="font-display mt-5 text-3xl font-bold uppercase italic sm:text-4xl">1 año</p>
           <p className="font-display text-sm uppercase tracking-[0.2em] text-primary">
@@ -218,7 +222,7 @@ function Servicios() {
 
       <section className="mx-auto max-w-6xl px-5 pb-16">
         <h2 className="font-display text-3xl font-bold uppercase italic">
-          ¿Por qué hacer mancuerna <span className="text-gradient-lime">con ORB-LITE?</span>
+          ¿Por qué elegir <span className="text-gradient-lime">ORB-LITE?</span>
         </h2>
         <div className="mt-7 grid gap-6 sm:grid-cols-3">
           {reasons.map(({ icon: Icon, title, text }) => (

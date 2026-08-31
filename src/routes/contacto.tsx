@@ -5,17 +5,17 @@ import { Phone, MessageCircle, Mail, MapPin, Clock } from "lucide-react";
 export const Route = createFileRoute("/contacto")({
   head: () => ({
     meta: [
-      { title: "Alianza comercial | ORB-LITE Rastreo GPS Satelital" },
+      { title: "Contacto | ORB-LITE Rastreo GPS Satelital" },
       {
         name: "description",
         content:
-          "Solicita cotización de equipos GPS ORB-LITE para tu negocio: precios de mayoreo, planes de servicio y alianza comercial.",
+          "Solicita información y cotización de equipos GPS ORB-LITE: uso personal, flotas de empresa, negocios y precios por volumen.",
       },
-      { property: "og:title", content: "Alianza comercial | ORB-LITE" },
+      { property: "og:title", content: "Contacto | ORB-LITE Rastreo GPS Satelital" },
       {
         property: "og:description",
         content:
-          "Escríbenos por WhatsApp o envía tu solicitud para cotizar equipos GPS y hacer mancuerna comercial.",
+          "Escríbenos por WhatsApp o envía tu solicitud para cotizar equipos GPS y planes de servicio.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -35,20 +35,22 @@ function Contacto() {
   const [cantidad, setCantidad] = useState("");
   const [mensaje, setMensaje] = useState("");
 
-  const texto = `Hola, soy ${nombre || "(nombre)"} de ${negocio || "(negocio)"}. Tel: ${telefono || "(teléfono)"}. Equipos estimados: ${cantidad || "(cantidad)"}. ${mensaje}`;
+  const texto = `Hola, soy ${nombre || "(nombre)"}${negocio ? ` de ${negocio}` : ""}. Tel: ${telefono || "(teléfono)"}. Equipos estimados: ${cantidad || "(cantidad)"}. ${mensaje}`;
 
   return (
     <div>
       <section className="mx-auto max-w-6xl px-5 py-14">
-        <p className="font-display text-sm uppercase tracking-[0.3em] text-primary">Hagamos mancuerna</p>
+        <p className="font-display text-sm uppercase tracking-[0.3em] text-primary">
+          Solicita información hoy
+        </p>
         <h1 className="mt-3 font-display text-4xl font-bold uppercase italic sm:text-5xl">
-          Cotiza equipos <span className="text-gradient-lime">para tu negocio</span>
+          Cotiza tu <span className="text-gradient-lime">rastreo GPS</span>
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-          Déjanos tus datos y te compartimos precios de mayoreo, condiciones por volumen y planes de
-          servicio. Tú atiendes a tus clientes y nosotros te respaldamos con tecnología GPS. Renovación
-          anual: plataforma <span className="font-bold text-primary">$350/año</span> y SIM{" "}
-          <span className="font-bold text-primary">$550/año</span>.
+          Déjanos tus datos y te compartimos paquetes, planes de servicio y condiciones por volumen,
+          ya sea para un vehículo, para las unidades de tu empresa o para tu negocio. Renovación
+          anual: plataforma <span className="font-bold text-primary">$406/año</span> y SIM{" "}
+          <span className="font-bold text-primary">$580/año</span> (IVA incluido).
         </p>
       </section>
 
@@ -89,12 +91,14 @@ function Contacto() {
 
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <label className="text-sm">
-              <span className="font-display uppercase tracking-wide">Nombre del negocio</span>
+              <span className="font-display uppercase tracking-wide">
+                Empresa o negocio (opcional)
+              </span>
               <input
                 value={negocio}
                 onChange={(e) => setNegocio(e.target.value)}
                 className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-primary"
-                placeholder="Ej. Alarmas del Centro"
+                placeholder="Si aplica"
               />
             </label>
             <label className="text-sm">
@@ -103,7 +107,7 @@ function Contacto() {
                 value={cantidad}
                 onChange={(e) => setCantidad(e.target.value)}
                 className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-primary"
-                placeholder="Ej. 5, 10, 50 equipos"
+                placeholder="Ej. 1, 5, 20 equipos"
               />
             </label>
           </div>
@@ -115,7 +119,7 @@ function Contacto() {
               value={mensaje}
               onChange={(e) => setMensaje(e.target.value)}
               className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-primary"
-              placeholder="Cuéntanos sobre tu negocio y qué necesitas: cotización de equipos, condiciones por volumen, alianza comercial, etc."
+              placeholder="Cuéntanos qué necesitas: rastreo para tu auto, control de flota, instalación, condiciones por volumen, etc."
             />
           </label>
 
