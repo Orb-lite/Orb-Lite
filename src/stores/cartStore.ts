@@ -22,23 +22,30 @@ export interface RenewalInfo {
 }
 
 export interface CartItem {
+  id: string;
   variant_id: string;
   quantity: number;
   add_ons?: string[];
+  renewal?: RenewalInfo | null;
 }
+
+export type NewCartItem = Omit<CartItem, "id"> & { id?: string };
 
 interface CartStore {
   items: CartItem[];
   shippingId: ShippingOption["id"];
   shippingInfo: ShippingInfo | null;
-  renewalInfo: RenewalInfo | null;
-  addItem: (item: CartItem) => void;
-  updateQuantity: (variantId: string, quantity: number) => void;
-  removeItem: (variantId: string) => void;
+  addItem: (item: NewCartItem) => void;
+  updateQuantity: (id: string, quantity: number) => void;
+  updateRenewal: (id: string, info: RenewalInfo) => void;
+  removeItem: (id: string) => void;
   setShipping: (id: ShippingOption["id"]) => void;
   setShippingInfo: (info: ShippingInfo | null) => void;
-  setRenewalInfo: (info: RenewalInfo | null) => void;
   clearCart: () => void;
+}
+
+function newId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -47,57 +54,84 @@ export const useCartStore = create<CartStore>()(
       items: [],
       shippingId: "local",
       shippingInfo: null,
-      renewalInfo: null,
 
-      addItem: ({ variant_id, quantity, add_ons }) => {
+      addItem: ({ variant_id, quantity, add_ons, renewal }) => {
         const items = get().items;
-        const existing = items.find((i) => i.variant_id === variant_id);
-        if (existing) {
-          set({
-            items: items.map((i) =>
-              i.variant_id === variant_id
-                ? {
-                    ...i,
-                    quantity: i.quantity + quantity,
-                    add_ons: Array.from(new Set([...(i.add_ons ?? []), ...(add_ons ?? [])])),
-                  }
-                : i,
-            ),
-          });
-          return;
-        }
-        set({ items: [...items, { variant_id, quantity, add_ons: add_ons ?? [] }] });
-      },
-
-      updateQuantity: (variantId, quantity) => {
-        if (quantity <= 0) {
-          get().removeItem(variantId);
-          return;
+        // Cada renovación es una línea independiente porque lleva los datos de su propio equipo
+        if (!renewal) {
+          const existing = items.find((i) => i.variant_id === variant_id && !i.renewal);
+          if (existing) {
+            set({
+              items: items.map((i) =>
+                i.id === existing.id
+                  ? {
+                      ...i,
+                      quantity: i.quantity + quantity,
+                      add_ons: Array.from(new Set([...(i.add_ons ?? []), ...(add_ons ?? [])])),
+                    }
+                  : i,
+              ),
+            });
+            return;
+          }
         }
         set({
-          items: get().items.map((i) =>
-            i.variant_id === variantId ? { ...i, quantity } : i,
-          ),
+          items: [
+            ...items,
+            {
+              id: newId(),
+              variant_id,
+              quantity,
+              add_ons: add_ons ?? [],
+              renewal: renewal ?? null,
+            },
+          ],
         });
       },
 
-      removeItem: (variantId) =>
-        set({ items: get().items.filter((i) => i.variant_id !== variantId) }),
+      updateQuantity: (id, quantity) => {
+        if (quantity <= 0) {
+          get().removeItem(id);
+          return;
+        }
+        set({
+          items: get().items.map((i) => (i.id === id ? { ...i, quantity } : i)),
+        });
+      },
+
+      updateRenewal: (id, info) =>
+        set({
+          items: get().items.map((i) => (i.id === id ? { ...i, renewal: info } : i)),
+        }),
+
+      removeItem: (id) => set({ items: get().items.filter((i) => i.id !== id) }),
 
       setShipping: (id) =>
         set(id === "local" ? { shippingId: id, shippingInfo: null } : { shippingId: id }),
       setShippingInfo: (info) => set({ shippingInfo: info }),
-      setRenewalInfo: (info) => set({ renewalInfo: info }),
       clearCart: () => set({ items: [] }),
     }),
     {
       name: "orb-lite-cart",
+      version: 2,
+      migrate: (state) => {
+        const s = state as { items?: Array<Partial<CartItem>> } | undefined;
+        return {
+          ...(state as object),
+          items: (s?.items ?? []).map((i) => ({
+            id: i.id ?? newId(),
+            variant_id: i.variant_id!,
+            quantity: i.quantity ?? 1,
+            add_ons: i.add_ons ?? [],
+            renewal: i.renewal ?? null,
+          })),
+        } as CartStore;
+      },
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         items: state.items,
         shippingId: state.shippingId,
         shippingInfo: state.shippingInfo,
-        renewalInfo: state.renewalInfo,
       }),
     },
   ),
@@ -109,6 +143,7 @@ export function addOnById(id: string) {
 
 export interface CartTotals {
   lines: Array<{
+    id: string;
     variantId: string;
     title: string;
     variantName: string;
@@ -116,6 +151,8 @@ export interface CartTotals {
     unitPrice: number;
     addOns: Array<{ name: string; price: number }>;
     lineTotal: number;
+    isRenewal: boolean;
+    renewal: RenewalInfo | null;
   }>;
   productsTotal: number;
   addOnsTotal: number;
@@ -147,6 +184,7 @@ export function computeTotals(items: CartItem[], shippingId: ShippingOption["id"
 
     return [
       {
+        id: item.id,
         variantId: item.variant_id,
         title: found.product.title,
         variantName: found.variant.name,
@@ -154,6 +192,8 @@ export function computeTotals(items: CartItem[], shippingId: ShippingOption["id"
         unitPrice: found.variant.price,
         addOns,
         lineTotal: productAmount + addOnAmount,
+        isRenewal: found.product.category === "RENOVATION",
+        renewal: item.renewal ?? null,
       },
     ];
   });

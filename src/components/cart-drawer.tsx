@@ -20,7 +20,7 @@ import {
 import { RenewalForm, formatRenewalInfo, validateRenewal } from "@/components/renewal-form";
 import { ShippingForm, formatShippingInfo, validateShipping } from "@/components/shipping-form";
 import { toast } from "sonner";
-import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn, findVariant } from "@/data/catalog";
+import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn } from "@/data/catalog";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -28,34 +28,40 @@ export function CartDrawer() {
     items,
     shippingId,
     shippingInfo,
-    renewalInfo,
     updateQuantity,
+    updateRenewal,
     removeItem,
     setShipping,
     setShippingInfo,
-    setRenewalInfo,
   } = useCartStore();
   const [renewalErrors, setRenewalErrors] = useState<
-    Partial<Record<keyof RenewalInfo, string>> | null
-  >(null);
-  const hasRenewal = items.some(
-    (i) => findVariant(i.variant_id)?.product.category === "RENOVATION",
-  );
+    Record<string, Partial<Record<keyof RenewalInfo, string>>>
+  >({});
   const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
   const totals = computeTotals(items, shippingId);
 
   const handleWhatsappCheckout = () => {
     let details = "";
-    if (hasRenewal) {
-      const { data, errors: nextErrors } = validateRenewal(renewalInfo);
-      if (!data) {
+    const renewalLines = totals.lines.filter((l) => l.isRenewal);
+    if (renewalLines.length > 0) {
+      const nextErrors: Record<string, Partial<Record<keyof RenewalInfo, string>>> = {};
+      for (const line of renewalLines) {
+        const { data, errors: lineErrors } = validateRenewal(line.renewal);
+        if (!data) {
+          nextErrors[line.id] = lineErrors;
+        } else {
+          updateRenewal(line.id, data);
+        }
+      }
+      if (Object.keys(nextErrors).length > 0) {
         setRenewalErrors(nextErrors);
-        toast.error("Completa los datos de renovación");
+        toast.error("Completa los datos de renovación de cada equipo");
         return;
       }
-      setRenewalErrors(null);
-      setRenewalInfo(data);
-      details += formatRenewalInfo(data);
+      setRenewalErrors({});
+      details += renewalLines
+        .map((l) => (l.renewal ? formatRenewalInfo(l.renewal) : ""))
+        .join("");
     }
     if (shippingId === "national") {
       const { data, errors: nextErrors } = validateShipping(shippingInfo);
@@ -73,6 +79,7 @@ export function CartDrawer() {
       .map(
         (l) =>
           `• ${l.variantName} x${l.quantity} — ${formatMxn(l.unitPrice * l.quantity)}` +
+          (l.renewal ? `\n   Unidad: ${l.renewal.unitName} (${l.renewal.fullName})` : "") +
           l.addOns.map((a) => `\n   + ${a.name} — ${formatMxn(a.price * l.quantity)}`).join(""),
       )
       .join("\n");
@@ -87,6 +94,7 @@ export function CartDrawer() {
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, "_blank");
     setIsOpen(false);
   };
+
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -123,7 +131,7 @@ export function CartDrawer() {
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
                 {totals.lines.map((line) => (
                   <motion.div
-                    key={line.variantId}
+                    key={line.id}
                     layout
                     initial={{ opacity: 0, x: 12 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -138,7 +146,7 @@ export function CartDrawer() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 shrink-0"
-                        onClick={() => removeItem(line.variantId)}
+                        onClick={() => removeItem(line.id)}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -154,13 +162,26 @@ export function CartDrawer() {
                       </ul>
                     )}
 
+                    {line.isRenewal && (
+                      <div className="mt-3 space-y-2 rounded-lg border border-border/60 p-3">
+                        <p className="font-display text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                          Datos del equipo
+                        </p>
+                        <RenewalForm
+                          value={line.renewal}
+                          onChange={(info) => updateRenewal(line.id, info)}
+                          errors={renewalErrors[line.id]}
+                        />
+                      </div>
+                    )}
+
                     <div className="mt-3 flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         <Button
                           variant="outline"
                           size="icon"
                           className="h-6 w-6"
-                          onClick={() => updateQuantity(line.variantId, line.quantity - 1)}
+                          onClick={() => updateQuantity(line.id, line.quantity - 1)}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -169,7 +190,7 @@ export function CartDrawer() {
                           variant="outline"
                           size="icon"
                           className="h-6 w-6"
-                          onClick={() => updateQuantity(line.variantId, line.quantity + 1)}
+                          onClick={() => updateQuantity(line.id, line.quantity + 1)}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -181,18 +202,6 @@ export function CartDrawer() {
                   </motion.div>
                 ))}
 
-                {hasRenewal && (
-                  <div className="space-y-3 rounded-xl border border-border/60 p-3">
-                    <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                      Datos de renovación
-                    </p>
-                    <RenewalForm
-                      value={renewalInfo}
-                      onChange={setRenewalInfo}
-                      errors={renewalErrors ?? undefined}
-                    />
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">

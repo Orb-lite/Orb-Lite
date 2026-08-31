@@ -28,12 +28,12 @@ export function ProductCard({ product }: { product: Product }) {
   const addItem = useCartStore((s) => s.addItem);
   const setShipping = useCartStore((s) => s.setShipping);
   const setShippingInfo = useCartStore((s) => s.setShippingInfo);
-  const setRenewalInfo = useCartStore((s) => s.setRenewalInfo);
   const [variantId, setVariantId] = useState(product.variants[0]!.id);
   const [needsShipping, setNeedsShipping] = useState(false);
   const [info, setInfo] = useState<ShippingInfo | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
   const [renewal, setRenewal] = useState<RenewalInfo | null>(null);
+  const [renewalKey, setRenewalKey] = useState(0);
   const [renewalErrors, setRenewalErrors] = useState<
     Partial<Record<keyof RenewalInfo, string>> | null
   >(null);
@@ -42,7 +42,7 @@ export function ProductCard({ product }: { product: Product }) {
   const isDigital = product.category === "RENOVATION";
   const total = variant.price + (!isDigital && needsShipping ? NATIONAL.price : 0);
 
-  const commitShipping = () => {
+  const commitShipping = (): RenewalInfo | null | false => {
     if (isDigital) {
       setShipping("local");
       setErrors(null);
@@ -53,13 +53,12 @@ export function ProductCard({ product }: { product: Product }) {
         return false;
       }
       setRenewalErrors(null);
-      setRenewalInfo(data);
-      return true;
+      return data;
     }
     if (!needsShipping) {
       setShipping("local");
       setErrors(null);
-      return true;
+      return null;
     }
     const { data, errors: nextErrors } = validateShipping(info);
     if (!data) {
@@ -70,29 +69,39 @@ export function ProductCard({ product }: { product: Product }) {
     setErrors(null);
     setShipping("national");
     setShippingInfo(data);
-    return true;
+    return null;
   };
 
   const handleAdd = () => {
-    if (!commitShipping()) return;
-    addItem({ variant_id: variant.id, quantity: 1, add_ons: [] });
-    toast.success("Agregado al carrito", { description: variant.name });
+    const result = commitShipping();
+    if (result === false) return;
+    addItem({ variant_id: variant.id, quantity: 1, add_ons: [], renewal: result });
+    toast.success("Agregado al carrito", {
+      description: result ? `${variant.name} · ${result.unitName}` : variant.name,
+    });
+    if (isDigital) {
+      setRenewal(null);
+      setRenewalKey((k) => k + 1);
+    }
   };
 
+
   const handleWhatsapp = () => {
-    if (!commitShipping()) return;
+    const result = commitShipping();
+    if (result === false) return;
     const shippingLine = isDigital
       ? ""
       : needsShipping
         ? `\n+ ${NATIONAL.label} — ${formatMxn(NATIONAL.price)}`
         : `\n+ ${SHIPPING_OPTIONS[0]!.label} — sin costo`;
     const details = isDigital
-      ? renewal
-        ? formatRenewalInfo(renewal)
+      ? result
+        ? formatRenewalInfo(result)
         : ""
       : needsShipping && info
         ? formatShippingInfo(info)
         : "";
+
     const text = `Hola ORB-LITE, me interesa:\n\n*${product.title}*\n· ${variant.name} — ${formatMxn(
       variant.price,
     )}${shippingLine}\n\nTotal estimado: ${formatMxn(total)} MXN${details}`;
@@ -192,15 +201,20 @@ export function ProductCard({ product }: { product: Product }) {
         {isDigital && (
           <div className="space-y-3 rounded-xl border border-border/60 p-3">
             <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Datos de renovación
+              Datos de renovación (por equipo)
             </p>
             <RenewalForm
+              key={renewalKey}
               value={renewal}
               onChange={setRenewal}
               errors={renewalErrors ?? undefined}
             />
+            <p className="text-[11px] text-muted-foreground">
+              Agrega un paquete por equipo: cada uno guarda sus propios datos en el carrito.
+            </p>
           </div>
         )}
+
 
         {!isDigital && (
         <div className="space-y-3 rounded-xl border border-border/60 p-3">
