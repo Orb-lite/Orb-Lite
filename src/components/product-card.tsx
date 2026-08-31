@@ -284,12 +284,16 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="mt-auto space-y-3 border-t border-border/60 pt-4">
           <div className="flex items-baseline justify-between">
             <span className="text-xs uppercase tracking-widest text-muted-foreground">Total</span>
-            <span className="font-display text-2xl font-bold text-primary">{formatMxn(total)}</span>
+            <div className="text-right">
+              <span className="font-display text-2xl font-bold text-primary">{formatMxn(total)}</span>
+              {variant.price_note && (
+                <p className="text-[11px] text-muted-foreground">{variant.price_note}</p>
+              )}
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">
             Todos los paquetes ya incluyen el 16% de IVA. La factura se incluye al registrar tu
             compra en sistema.
-
           </p>
           <Button onClick={handleAdd} className="w-full">
             <ShoppingCart className="mr-2 h-4 w-4" />

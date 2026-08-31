@@ -12,6 +12,7 @@ export interface ProductVariant {
   original_price?: number;
   badge?: string;
   includes: string[];
+  price_note?: string;
 }
 
 export interface Product {
@@ -139,8 +140,9 @@ export const PRODUCTS: Product[] = [
         id: "b2c-full",
         product_id: "usuario-final",
         name: "Servicio Completo Usuario Final",
-        price: 2540,
+        price: 2946,
         badge: "Todo incluido",
+        price_note: "Equivalente a $2,540 + IVA (16%)",
         includes: [
           "Equipo Teltonika FTC927",
           "Servicio de plataforma",
