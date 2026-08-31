@@ -56,7 +56,7 @@ export function SiteFooter() {
       </p>
       <p className="mt-2">
         <a
-          href="https://wa.me/523318359421"
+          href="https://api.whatsapp.com/send?phone=523318359421"
           target="_blank"
           rel="noreferrer"
           className="hover:text-primary"
