@@ -12,12 +12,6 @@ export const shippingSchema = z.object({
     .string()
     .trim()
     .regex(/^[\d\s()+-]{10,20}$/, { message: "Teléfono a 10 dígitos" }),
-  street: z
-    .string()
-    .trim()
-    .min(5, { message: "Calle y número" })
-    .max(150, { message: "Máximo 150 caracteres" }),
-  neighborhood: z.string().trim().min(3, { message: "Colonia" }).max(100),
   city: z.string().trim().min(3, { message: "Ciudad" }).max(100),
   state: z.string().trim().min(3, { message: "Estado" }).max(100),
   zip: z
@@ -31,8 +25,6 @@ const FIELDS: Array<{ name: keyof ShippingInfo; label: string; full?: boolean }>
   { name: "fullName", label: "Nombre completo", full: true },
   { name: "phone", label: "Teléfono" },
   { name: "zip", label: "Código postal" },
-  { name: "street", label: "Calle y número", full: true },
-  { name: "neighborhood", label: "Colonia" },
   { name: "city", label: "Ciudad" },
   { name: "state", label: "Estado" },
   { name: "notes", label: "Referencias (opcional)", full: true },
@@ -41,8 +33,6 @@ const FIELDS: Array<{ name: keyof ShippingInfo; label: string; full?: boolean }>
 const EMPTY: ShippingInfo = {
   fullName: "",
   phone: "",
-  street: "",
-  neighborhood: "",
   city: "",
   state: "",
   zip: "",
@@ -102,7 +92,7 @@ export function validateShipping(info: ShippingInfo | null) {
 
 export function formatShippingInfo(info: ShippingInfo) {
   return (
-    `\n\n*Datos de envío*\n${info.fullName}\nTel: ${info.phone}\n${info.street}, ${info.neighborhood}\n` +
+    `\n\n*Datos de envío*\n${info.fullName}\nTel: ${info.phone}\n` +
     `${info.city}, ${info.state}, C.P. ${info.zip}` +
     (info.notes ? `\nReferencias: ${info.notes}` : "")
   );

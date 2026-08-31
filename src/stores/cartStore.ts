@@ -11,8 +11,6 @@ import {
 export interface ShippingInfo {
   fullName: string;
   phone: string;
-  street: string;
-  neighborhood: string;
   city: string;
   state: string;
   zip: string;
