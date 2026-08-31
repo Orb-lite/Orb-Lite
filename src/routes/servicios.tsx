@@ -191,8 +191,9 @@ function Servicios() {
           </p>
           <p className="font-display mt-5 text-3xl font-bold uppercase italic sm:text-4xl">1 año</p>
           <p className="font-display text-sm uppercase tracking-[0.2em] text-primary">
-            incluido · renovación: plataforma $350/año · SIM $550/año
+            incluido · renovación: plataforma $406/año · SIM $580/año (IVA incluido)
           </p>
+
           <div className="mt-6">
             <Link
               to="/tienda"

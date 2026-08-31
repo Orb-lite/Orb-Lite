@@ -272,9 +272,11 @@ export function CartDrawer() {
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Precios en MXN con IVA incluido. Al realizar tu pedido aceptas el uso de datos y
-                  condiciones del sitio.
+                  Precios en MXN: todos los paquetes ya incluyen el 16% de IVA y la factura se
+                  incluye al registrar la compra en sistema. Al realizar tu pedido aceptas el uso de
+                  datos y condiciones del sitio.
                 </p>
+
                 <Button onClick={handleWhatsappCheckout} className="w-full" size="lg">
                   <MessageCircle className="mr-2 h-4 w-4" />
                   Finalizar pedido por WhatsApp
