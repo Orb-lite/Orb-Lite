@@ -15,6 +15,7 @@ import { Route as KitInstaladoresRouteImport } from './routes/kit-instaladores'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as TiendaRouteImport } from './routes/tienda'
+import { Route as UsuarioFinalRouteImport } from './routes/usuario-final'
 import { Route as ProductHandleRouteImport } from './routes/product.$handle'
 
 const IndexRoute = IndexRouteImport.update({
@@ -47,6 +48,11 @@ const TiendaRoute = TiendaRouteImport.update({
   path: '/tienda',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UsuarioFinalRoute = UsuarioFinalRouteImport.update({
+  id: '/usuario-final',
+  path: '/usuario-final',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProductHandleRoute = ProductHandleRouteImport.update({
   id: '/product/$handle',
   path: '/product/$handle',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/usuario-final': typeof UsuarioFinalRoute
   '/product/$handle': typeof ProductHandleRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/usuario-final': typeof UsuarioFinalRoute
   '/product/$handle': typeof ProductHandleRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/usuario-final': typeof UsuarioFinalRoute
   '/product/$handle': typeof ProductHandleRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/usuario-final'
     | '/product/$handle'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/usuario-final'
     | '/product/$handle'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/usuario-final'
     | '/product/$handle'
   fileRoutesById: FileRoutesById
 }
@@ -118,6 +130,7 @@ export interface RootRouteChildren {
   ServiciosRoute: typeof ServiciosRoute
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
+  UsuarioFinalRoute: typeof UsuarioFinalRoute
   ProductHandleRoute: typeof ProductHandleRoute
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TiendaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/usuario-final': {
+      id: '/usuario-final'
+      path: '/usuario-final'
+      fullPath: '/usuario-final'
+      preLoaderRoute: typeof UsuarioFinalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/product/$handle': {
       id: '/product/$handle'
       path: '/product/$handle'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServiciosRoute: ServiciosRoute,
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
+  UsuarioFinalRoute: UsuarioFinalRoute,
   ProductHandleRoute: ProductHandleRoute,
 }
 export const routeTree = rootRouteImport
