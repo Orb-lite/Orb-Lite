@@ -32,6 +32,7 @@ import { RenewalForm, formatRenewalInfo, validateRenewal } from "@/components/re
 import { ShippingForm, formatShippingInfo, validateShipping } from "@/components/shipping-form";
 import { toast } from "sonner";
 import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn } from "@/data/catalog";
+import { openWhatsApp } from "@/lib/whatsapp";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -120,7 +121,7 @@ export function CartDrawer() {
       `IVA (16%): ${formatMxn(totals.iva)}\n` +
       `*TOTAL: ${formatMxn(totals.total)} MXN*${details}`;
 
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, "_blank");
+    openWhatsApp(text);
     setIsOpen(false);
   };
 
