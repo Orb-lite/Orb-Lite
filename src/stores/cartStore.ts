@@ -8,6 +8,17 @@ import {
   type ShippingOption,
 } from "@/data/catalog";
 
+export interface ShippingInfo {
+  fullName: string;
+  phone: string;
+  street: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  zip: string;
+  notes?: string;
+}
+
 export interface CartItem {
   variant_id: string;
   quantity: number;
@@ -17,10 +28,12 @@ export interface CartItem {
 interface CartStore {
   items: CartItem[];
   shippingId: ShippingOption["id"];
+  shippingInfo: ShippingInfo | null;
   addItem: (item: CartItem) => void;
   updateQuantity: (variantId: string, quantity: number) => void;
   removeItem: (variantId: string) => void;
   setShipping: (id: ShippingOption["id"]) => void;
+  setShippingInfo: (info: ShippingInfo | null) => void;
   clearCart: () => void;
 }
 
@@ -29,6 +42,7 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       shippingId: "local",
+      shippingInfo: null,
 
       addItem: ({ variant_id, quantity, add_ons }) => {
         const items = get().items;
@@ -65,13 +79,19 @@ export const useCartStore = create<CartStore>()(
       removeItem: (variantId) =>
         set({ items: get().items.filter((i) => i.variant_id !== variantId) }),
 
-      setShipping: (id) => set({ shippingId: id }),
+      setShipping: (id) =>
+        set(id === "local" ? { shippingId: id, shippingInfo: null } : { shippingId: id }),
+      setShippingInfo: (info) => set({ shippingInfo: info }),
       clearCart: () => set({ items: [] }),
     }),
     {
       name: "orb-lite-cart",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ items: state.items, shippingId: state.shippingId }),
+      partialize: (state) => ({
+        items: state.items,
+        shippingId: state.shippingId,
+        shippingInfo: state.shippingInfo,
+      }),
     },
   ),
 );
