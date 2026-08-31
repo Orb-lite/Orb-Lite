@@ -18,7 +18,6 @@ export const shippingSchema = z.object({
     .string()
     .trim()
     .regex(/^\d{5}$/, { message: "C.P. de 5 dígitos" }),
-  notes: z.string().trim().max(300, { message: "Máximo 300 caracteres" }).optional(),
 });
 
 const FIELDS: Array<{ name: keyof ShippingInfo; label: string; full?: boolean }> = [
@@ -27,7 +26,6 @@ const FIELDS: Array<{ name: keyof ShippingInfo; label: string; full?: boolean }>
   { name: "zip", label: "Código postal" },
   { name: "city", label: "Ciudad" },
   { name: "state", label: "Estado" },
-  { name: "notes", label: "Referencias (opcional)", full: true },
 ];
 
 const EMPTY: ShippingInfo = {
@@ -36,7 +34,6 @@ const EMPTY: ShippingInfo = {
   city: "",
   state: "",
   zip: "",
-  notes: "",
 };
 
 export function ShippingForm({
@@ -67,7 +64,7 @@ export function ShippingForm({
             type="text"
             value={local[f.name] ?? ""}
             onChange={(e) => update(f.name, e.target.value)}
-            maxLength={f.name === "notes" ? 300 : 150}
+            maxLength={150}
             className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
           />
           {errors?.[f.name] && (
@@ -93,7 +90,6 @@ export function validateShipping(info: ShippingInfo | null) {
 export function formatShippingInfo(info: ShippingInfo) {
   return (
     `\n\n*Datos de envío*\n${info.fullName}\nTel: ${info.phone}\n` +
-    `${info.city}, ${info.state}, C.P. ${info.zip}` +
-    (info.notes ? `\nReferencias: ${info.notes}` : "")
+    `${info.city}, ${info.state}, C.P. ${info.zip}`
   );
 }

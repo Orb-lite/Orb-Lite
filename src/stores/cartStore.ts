@@ -14,7 +14,11 @@ export interface ShippingInfo {
   city: string;
   state: string;
   zip: string;
-  notes?: string;
+}
+
+export interface RenewalInfo {
+  fullName: string;
+  unitName: string;
 }
 
 export interface CartItem {
@@ -27,11 +31,13 @@ interface CartStore {
   items: CartItem[];
   shippingId: ShippingOption["id"];
   shippingInfo: ShippingInfo | null;
+  renewalInfo: RenewalInfo | null;
   addItem: (item: CartItem) => void;
   updateQuantity: (variantId: string, quantity: number) => void;
   removeItem: (variantId: string) => void;
   setShipping: (id: ShippingOption["id"]) => void;
   setShippingInfo: (info: ShippingInfo | null) => void;
+  setRenewalInfo: (info: RenewalInfo | null) => void;
   clearCart: () => void;
 }
 
@@ -41,6 +47,7 @@ export const useCartStore = create<CartStore>()(
       items: [],
       shippingId: "local",
       shippingInfo: null,
+      renewalInfo: null,
 
       addItem: ({ variant_id, quantity, add_ons }) => {
         const items = get().items;
@@ -80,6 +87,7 @@ export const useCartStore = create<CartStore>()(
       setShipping: (id) =>
         set(id === "local" ? { shippingId: id, shippingInfo: null } : { shippingId: id }),
       setShippingInfo: (info) => set({ shippingInfo: info }),
+      setRenewalInfo: (info) => set({ renewalInfo: info }),
       clearCart: () => set({ items: [] }),
     }),
     {
@@ -89,6 +97,7 @@ export const useCartStore = create<CartStore>()(
         items: state.items,
         shippingId: state.shippingId,
         shippingInfo: state.shippingInfo,
+        renewalInfo: state.renewalInfo,
       }),
     },
   ),
