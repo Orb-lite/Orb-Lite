@@ -15,7 +15,12 @@ import {
   formatShippingInfo,
   validateShipping,
 } from "@/components/shipping-form";
-import type { ShippingInfo } from "@/stores/cartStore";
+import {
+  RenewalForm,
+  formatRenewalInfo,
+  validateRenewal,
+} from "@/components/renewal-form";
+import type { ShippingInfo, RenewalInfo } from "@/stores/cartStore";
 
 const NATIONAL = SHIPPING_OPTIONS.find((s) => s.id === "national")!;
 
@@ -23,10 +28,15 @@ export function ProductCard({ product }: { product: Product }) {
   const addItem = useCartStore((s) => s.addItem);
   const setShipping = useCartStore((s) => s.setShipping);
   const setShippingInfo = useCartStore((s) => s.setShippingInfo);
+  const setRenewalInfo = useCartStore((s) => s.setRenewalInfo);
   const [variantId, setVariantId] = useState(product.variants[0]!.id);
   const [needsShipping, setNeedsShipping] = useState(false);
   const [info, setInfo] = useState<ShippingInfo | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
+  const [renewal, setRenewal] = useState<RenewalInfo | null>(null);
+  const [renewalErrors, setRenewalErrors] = useState<
+    Partial<Record<keyof RenewalInfo, string>> | null
+  >(null);
 
   const variant = product.variants.find((v) => v.id === variantId)!;
   const isDigital = product.category === "RENOVATION";
@@ -36,6 +46,14 @@ export function ProductCard({ product }: { product: Product }) {
     if (isDigital) {
       setShipping("local");
       setErrors(null);
+      const { data, errors: nextErrors } = validateRenewal(renewal);
+      if (!data) {
+        setRenewalErrors(nextErrors);
+        toast.error("Completa los datos de renovación");
+        return false;
+      }
+      setRenewalErrors(null);
+      setRenewalInfo(data);
       return true;
     }
     if (!needsShipping) {
@@ -68,7 +86,13 @@ export function ProductCard({ product }: { product: Product }) {
       : needsShipping
         ? `\n+ ${NATIONAL.label} — ${formatMxn(NATIONAL.price)}`
         : `\n+ ${SHIPPING_OPTIONS[0]!.label} — sin costo`;
-    const details = !isDigital && needsShipping && info ? formatShippingInfo(info) : "";
+    const details = isDigital
+      ? renewal
+        ? formatRenewalInfo(renewal)
+        : ""
+      : needsShipping && info
+        ? formatShippingInfo(info)
+        : "";
     const text = `Hola ORB-LITE, me interesa:\n\n*${product.title}*\n· ${variant.name} — ${formatMxn(
       variant.price,
     )}${shippingLine}\n\nTotal estimado: ${formatMxn(total)} MXN${details}`;
@@ -164,6 +188,19 @@ export function ProductCard({ product }: { product: Product }) {
             ))}
           </motion.ul>
         </AnimatePresence>
+
+        {isDigital && (
+          <div className="space-y-3 rounded-xl border border-border/60 p-3">
+            <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
+              Datos de renovación
+            </p>
+            <RenewalForm
+              value={renewal}
+              onChange={setRenewal}
+              errors={renewalErrors ?? undefined}
+            />
+          </div>
+        )}
 
         {!isDigital && (
         <div className="space-y-3 rounded-xl border border-border/60 p-3">
