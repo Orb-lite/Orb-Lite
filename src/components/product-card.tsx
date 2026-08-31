@@ -157,6 +157,7 @@ export function ProductCard({ product }: { product: Product }) {
           </motion.ul>
         </AnimatePresence>
 
+        {!isDigital && (
         <div className="space-y-3 rounded-xl border border-border/60 p-3">
           <label className="flex cursor-pointer items-start gap-2 text-sm">
             <input
