@@ -131,7 +131,7 @@ export function CartDrawer() {
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
                 {totals.lines.map((line) => (
                   <motion.div
-                    key={line.variantId}
+                    key={line.id}
                     layout
                     initial={{ opacity: 0, x: 12 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -146,7 +146,7 @@ export function CartDrawer() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 shrink-0"
-                        onClick={() => removeItem(line.variantId)}
+                        onClick={() => removeItem(line.id)}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -162,13 +162,26 @@ export function CartDrawer() {
                       </ul>
                     )}
 
+                    {line.isRenewal && (
+                      <div className="mt-3 space-y-2 rounded-lg border border-border/60 p-3">
+                        <p className="font-display text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                          Datos del equipo
+                        </p>
+                        <RenewalForm
+                          value={line.renewal}
+                          onChange={(info) => updateRenewal(line.id, info)}
+                          errors={renewalErrors[line.id]}
+                        />
+                      </div>
+                    )}
+
                     <div className="mt-3 flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         <Button
                           variant="outline"
                           size="icon"
                           className="h-6 w-6"
-                          onClick={() => updateQuantity(line.variantId, line.quantity - 1)}
+                          onClick={() => updateQuantity(line.id, line.quantity - 1)}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -177,7 +190,7 @@ export function CartDrawer() {
                           variant="outline"
                           size="icon"
                           className="h-6 w-6"
-                          onClick={() => updateQuantity(line.variantId, line.quantity + 1)}
+                          onClick={() => updateQuantity(line.id, line.quantity + 1)}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -189,18 +202,6 @@ export function CartDrawer() {
                   </motion.div>
                 ))}
 
-                {hasRenewal && (
-                  <div className="space-y-3 rounded-xl border border-border/60 p-3">
-                    <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                      Datos de renovación
-                    </p>
-                    <RenewalForm
-                      value={renewalInfo}
-                      onChange={setRenewalInfo}
-                      errors={renewalErrors ?? undefined}
-                    />
-                  </div>
-                )}
 
                 <div className="space-y-2">
                   <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
