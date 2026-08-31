@@ -29,9 +29,15 @@ export function ProductCard({ product }: { product: Product }) {
   const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
 
   const variant = product.variants.find((v) => v.id === variantId)!;
-  const total = variant.price + (needsShipping ? NATIONAL.price : 0);
+  const isDigital = product.category === "RENOVATION";
+  const total = variant.price + (!isDigital && needsShipping ? NATIONAL.price : 0);
 
   const commitShipping = () => {
+    if (isDigital) {
+      setShipping("local");
+      setErrors(null);
+      return true;
+    }
     if (!needsShipping) {
       setShipping("local");
       setErrors(null);
