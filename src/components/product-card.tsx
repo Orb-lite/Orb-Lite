@@ -29,9 +29,15 @@ export function ProductCard({ product }: { product: Product }) {
   const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
 
   const variant = product.variants.find((v) => v.id === variantId)!;
-  const total = variant.price + (needsShipping ? NATIONAL.price : 0);
+  const isDigital = product.category === "RENOVATION";
+  const total = variant.price + (!isDigital && needsShipping ? NATIONAL.price : 0);
 
   const commitShipping = () => {
+    if (isDigital) {
+      setShipping("local");
+      setErrors(null);
+      return true;
+    }
     if (!needsShipping) {
       setShipping("local");
       setErrors(null);
@@ -57,10 +63,12 @@ export function ProductCard({ product }: { product: Product }) {
 
   const handleWhatsapp = () => {
     if (!commitShipping()) return;
-    const shippingLine = needsShipping
-      ? `\n+ ${NATIONAL.label} — ${formatMxn(NATIONAL.price)}`
-      : `\n+ ${SHIPPING_OPTIONS[0]!.label} — sin costo`;
-    const details = needsShipping && info ? formatShippingInfo(info) : "";
+    const shippingLine = isDigital
+      ? ""
+      : needsShipping
+        ? `\n+ ${NATIONAL.label} — ${formatMxn(NATIONAL.price)}`
+        : `\n+ ${SHIPPING_OPTIONS[0]!.label} — sin costo`;
+    const details = !isDigital && needsShipping && info ? formatShippingInfo(info) : "";
     const text = `Hola ORB-LITE, me interesa:\n\n*${product.title}*\n· ${variant.name} — ${formatMxn(
       variant.price,
     )}${shippingLine}\n\nTotal estimado: ${formatMxn(total)} MXN${details}`;
@@ -157,6 +165,7 @@ export function ProductCard({ product }: { product: Product }) {
           </motion.ul>
         </AnimatePresence>
 
+        {!isDigital && (
         <div className="space-y-3 rounded-xl border border-border/60 p-3">
           <label className="flex cursor-pointer items-start gap-2 text-sm">
             <input
@@ -189,6 +198,7 @@ export function ProductCard({ product }: { product: Product }) {
             />
           )}
         </div>
+        )}
 
         <div className="mt-auto space-y-3 border-t border-border/60 pt-4">
           <div className="flex items-baseline justify-between">

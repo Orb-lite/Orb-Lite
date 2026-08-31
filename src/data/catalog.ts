@@ -176,6 +176,18 @@ export const PRODUCTS: Product[] = [
         badge: "12 meses de datos",
         includes: ["SIM 30MB M2M activa por 1 año"],
       },
+      {
+        id: "renov-completa",
+        product_id: "renovaciones",
+        name: "Renovación Completa (Plataforma + SIM)",
+        price: 800,
+        original_price: 850,
+        badge: "Recomendado · Ahorra en el paquete",
+        includes: [
+          "Acceso a plataforma web y app por 1 año",
+          "SIM 30MB M2M activa por 1 año",
+        ],
+      },
     ],
   },
 ];
