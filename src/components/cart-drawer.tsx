@@ -11,20 +11,52 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useCartStore, computeTotals, type ShippingInfo } from "@/stores/cartStore";
+import {
+  useCartStore,
+  computeTotals,
+  type ShippingInfo,
+  type RenewalInfo,
+} from "@/stores/cartStore";
+import { RenewalForm, formatRenewalInfo, validateRenewal } from "@/components/renewal-form";
 import { ShippingForm, formatShippingInfo, validateShipping } from "@/components/shipping-form";
 import { toast } from "sonner";
-import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn } from "@/data/catalog";
+import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn, findVariant } from "@/data/catalog";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
-  const { items, shippingId, shippingInfo, updateQuantity, removeItem, setShipping, setShippingInfo } =
-    useCartStore();
+  const {
+    items,
+    shippingId,
+    shippingInfo,
+    renewalInfo,
+    updateQuantity,
+    removeItem,
+    setShipping,
+    setShippingInfo,
+    setRenewalInfo,
+  } = useCartStore();
+  const [renewalErrors, setRenewalErrors] = useState<
+    Partial<Record<keyof RenewalInfo, string>> | null
+  >(null);
+  const hasRenewal = items.some(
+    (i) => findVariant(i.variant_id)?.product.category === "RENOVATION",
+  );
   const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
   const totals = computeTotals(items, shippingId);
 
   const handleWhatsappCheckout = () => {
     let details = "";
+    if (hasRenewal) {
+      const { data, errors: nextErrors } = validateRenewal(renewalInfo);
+      if (!data) {
+        setRenewalErrors(nextErrors);
+        toast.error("Completa los datos de renovación");
+        return;
+      }
+      setRenewalErrors(null);
+      setRenewalInfo(data);
+      details += formatRenewalInfo(data);
+    }
     if (shippingId === "national") {
       const { data, errors: nextErrors } = validateShipping(shippingInfo);
       if (!data) {
@@ -34,7 +66,7 @@ export function CartDrawer() {
       }
       setErrors(null);
       setShippingInfo(data);
-      details = formatShippingInfo(data);
+      details += formatShippingInfo(data);
     }
 
     const lines = totals.lines
@@ -148,6 +180,19 @@ export function CartDrawer() {
                     </div>
                   </motion.div>
                 ))}
+
+                {hasRenewal && (
+                  <div className="space-y-3 rounded-xl border border-border/60 p-3">
+                    <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                      Datos de renovación
+                    </p>
+                    <RenewalForm
+                      value={renewalInfo}
+                      onChange={setRenewalInfo}
+                      errors={renewalErrors ?? undefined}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
