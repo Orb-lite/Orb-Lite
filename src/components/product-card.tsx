@@ -190,6 +190,7 @@ export function ProductCard({ product }: { product: Product }) {
             />
           )}
         </div>
+        )}
 
         <div className="mt-auto space-y-3 border-t border-border/60 pt-4">
           <div className="flex items-baseline justify-between">
