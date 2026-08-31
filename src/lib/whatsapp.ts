@@ -6,7 +6,10 @@ import { WHATSAPP_NUMBER } from "@/data/catalog";
  * por eso usamos un <a target="_blank"> y, si falla, navegamos en la misma pestaña.
  */
 export function openWhatsApp(message: string, phone: string = WHATSAPP_NUMBER) {
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  // api.whatsapp.com es el destino final de wa.me: evitamos el redirect,
+  // que algunos navegadores/redes bloquean ("wa.me rechazó la conexión").
+  const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+
 
   try {
     const a = document.createElement("a");

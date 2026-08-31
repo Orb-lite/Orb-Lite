@@ -140,7 +140,7 @@ function Contacto() {
               icon: MessageCircle,
               title: "WhatsApp",
               text: TEL,
-              href: `https://wa.me/${WHATSAPP}`,
+              href: `https://api.whatsapp.com/send?phone=${WHATSAPP}`,
             },
             { icon: Mail, title: "Correo", text: EMAIL, href: `mailto:${EMAIL}` },
             { icon: MapPin, title: "Cobertura", text: "Todo el territorio nacional", href: null },
