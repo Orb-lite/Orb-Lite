@@ -11,15 +11,32 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useCartStore, computeTotals } from "@/stores/cartStore";
+import { useCartStore, computeTotals, type ShippingInfo } from "@/stores/cartStore";
+import { ShippingForm, formatShippingInfo, validateShipping } from "@/components/shipping-form";
+import { toast } from "sonner";
 import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn } from "@/data/catalog";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
-  const { items, shippingId, updateQuantity, removeItem, setShipping } = useCartStore();
+  const { items, shippingId, shippingInfo, updateQuantity, removeItem, setShipping, setShippingInfo } =
+    useCartStore();
+  const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
   const totals = computeTotals(items, shippingId);
 
   const handleWhatsappCheckout = () => {
+    let details = "";
+    if (shippingId === "national") {
+      const { data, errors: nextErrors } = validateShipping(shippingInfo);
+      if (!data) {
+        setErrors(nextErrors);
+        toast.error("Completa los datos de envío");
+        return;
+      }
+      setErrors(null);
+      setShippingInfo(data);
+      details = formatShippingInfo(data);
+    }
+
     const lines = totals.lines
       .map(
         (l) =>
@@ -33,7 +50,7 @@ export function CartDrawer() {
       `Entrega: ${totals.shipping.label} (${formatMxn(totals.shipping.price)})\n` +
       `Subtotal sin IVA: ${formatMxn(totals.subtotalWithoutIva)}\n` +
       `IVA (16%): ${formatMxn(totals.iva)}\n` +
-      `*TOTAL: ${formatMxn(totals.total)} MXN*`;
+      `*TOTAL: ${formatMxn(totals.total)} MXN*${details}`;
 
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, "_blank");
     setIsOpen(false);
@@ -161,6 +178,19 @@ export function CartDrawer() {
                       </button>
                     );
                   })}
+
+                  {shippingId === "national" && (
+                    <div className="space-y-3 rounded-xl border border-border/60 p-3">
+                      <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        Datos de envío
+                      </p>
+                      <ShippingForm
+                        value={shippingInfo}
+                        onChange={setShippingInfo}
+                        errors={errors ?? undefined}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -169,12 +199,6 @@ export function CartDrawer() {
                   <span>Productos</span>
                   <span>{formatMxn(totals.productsTotal)}</span>
                 </div>
-                {totals.addOnsTotal > 0 && (
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Renovaciones</span>
-                    <span>{formatMxn(totals.addOnsTotal)}</span>
-                  </div>
-                )}
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Envío</span>
                   <span>{formatMxn(totals.shipping.price)}</span>
