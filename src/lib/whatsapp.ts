@@ -1,16 +1,60 @@
 import { WHATSAPP_NUMBER } from "@/data/catalog";
+import { toast } from "sonner";
+
+function isMobileDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
+}
+
+function buildWhatsAppUrl(phone: string, message: string): string {
+  const encoded = encodeURIComponent(message);
+  // En móvil usamos el esquema universal que abre la app.
+  // En escritorio preferimos WhatsApp Web para evitar redirects bloqueados.
+  if (isMobileDevice()) {
+    return `https://api.whatsapp.com/send?phone=${phone}&text=${encoded}`;
+  }
+  return `https://web.whatsapp.com/send?phone=${phone}&text=${encoded}`;
+}
+
+async function copyMessage(message: string) {
+  try {
+    await navigator.clipboard.writeText(message);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
- * Abre WhatsApp de forma confiable.
- * window.open puede ser bloqueado (popup blockers, iframes con sandbox),
- * por eso usamos un <a target="_blank"> y, si falla, navegamos en la misma pestaña.
+ * Abre WhatsApp de forma confiable dentro del gesto del usuario.
+ * Si el navegador bloquea la ventana emergente (común en escritorio),
+ * copia el mensaje al portapapeles y avisa al usuario.
  */
 export function openWhatsApp(message: string, phone: string = WHATSAPP_NUMBER) {
-  // api.whatsapp.com es el destino final de wa.me: evitamos el redirect,
-  // que algunos navegadores/redes bloquean ("wa.me rechazó la conexión").
-  const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+  const url = buildWhatsAppUrl(phone, message);
+  const isMobile = isMobileDevice();
 
+  // Intento principal: abrir desde el gesto del usuario.
+  const win = window.open(url, "_blank", "noopener,noreferrer");
 
+  // Si window.open funcionó y no fue bloqueado, listo.
+  if (win && !win.closed) {
+    // En móvil a veces la ventana queda abierta vacía; la cerramos.
+    if (isMobile) {
+      setTimeout(() => {
+        try {
+          win.close();
+        } catch {
+          /* ignorar cross-origin */
+        }
+      }, 500);
+    }
+    return;
+  }
+
+  // Fallback: click en un <a> real (algunos navegadores lo permiten aunque bloqueen window.open).
   try {
     const a = document.createElement("a");
     a.href = url;
@@ -21,9 +65,22 @@ export function openWhatsApp(message: string, phone: string = WHATSAPP_NUMBER) {
     a.remove();
     return;
   } catch {
-    /* continúa con el fallback */
+    /* continúa con el fallback final */
   }
 
-  const win = window.open(url, "_blank", "noopener,noreferrer");
-  if (!win) window.location.href = url;
+  // Último recurso: copiar el mensaje.
+  copyMessage(message).then((copied) => {
+    if (copied) {
+      toast.error("No se pudo abrir WhatsApp", {
+        description: "El mensaje se copió al portapapeles. Ábrelo en WhatsApp y pégalo.",
+        duration: 6000,
+      });
+    } else {
+      toast.error("No se pudo abrir WhatsApp", {
+        description: "Por favor copia el mensaje manualmente y envíalo al 33 1835 9421.",
+        duration: 6000,
+      });
+    }
+  });
 }
+
