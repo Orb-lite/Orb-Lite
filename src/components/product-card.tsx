@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cartStore";
 import {
   SHIPPING_OPTIONS,
-  WHATSAPP_NUMBER,
   formatMxn,
   type Product,
 } from "@/data/catalog";
@@ -21,6 +20,7 @@ import {
   validateRenewal,
 } from "@/components/renewal-form";
 import type { ShippingInfo, RenewalInfo } from "@/stores/cartStore";
+import { openWhatsApp } from "@/lib/whatsapp";
 
 const NATIONAL = SHIPPING_OPTIONS.find((s) => s.id === "national")!;
 
@@ -105,7 +105,7 @@ export function ProductCard({ product }: { product: Product }) {
     const text = `Hola ORB-LITE, me interesa:\n\n*${product.title}*\n· ${variant.name} — ${formatMxn(
       variant.price,
     )}${shippingLine}\n\nTotal estimado: ${formatMxn(total)} MXN${details}`;
-    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, "_blank");
+    openWhatsApp(text);
   };
 
   return (

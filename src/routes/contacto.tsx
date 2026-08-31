@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Phone, MessageCircle, Mail, MapPin, Clock } from "lucide-react";
+import { openWhatsApp } from "@/lib/whatsapp";
 
 export const Route = createFileRoute("/contacto")({
   head: () => ({
@@ -59,11 +60,7 @@ function Contacto() {
           className="rounded-2xl border border-border/70 bg-card/50 p-7"
           onSubmit={(e) => {
             e.preventDefault();
-            window.open(
-              `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(texto)}`,
-              "_blank",
-              "noopener",
-            );
+            openWhatsApp(texto, WHATSAPP);
           }}
         >
           <div className="grid gap-5 sm:grid-cols-2">
