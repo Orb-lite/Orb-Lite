@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Minus, Plus, Trash2, ShoppingCart, MessageCircle, Truck, MapPin } from "lucide-react";
+import {
+  Minus,
+  Plus,
+  Trash2,
+  ShoppingCart,
+  MessageCircle,
+  Truck,
+  MapPin,
+  FileText,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,7 +25,9 @@ import {
   computeTotals,
   type ShippingInfo,
   type RenewalInfo,
+  type BillingInfo,
 } from "@/stores/cartStore";
+import { BillingForm, formatBillingInfo, validateBilling } from "@/components/billing-form";
 import { RenewalForm, formatRenewalInfo, validateRenewal } from "@/components/renewal-form";
 import { ShippingForm, formatShippingInfo, validateShipping } from "@/components/shipping-form";
 import { toast } from "sonner";
@@ -33,7 +44,14 @@ export function CartDrawer() {
     removeItem,
     setShipping,
     setShippingInfo,
+    wantsInvoice,
+    billingInfo,
+    setWantsInvoice,
+    setBillingInfo,
   } = useCartStore();
+  const [billingErrors, setBillingErrors] = useState<
+    Partial<Record<keyof BillingInfo, string>> | null
+  >(null);
   const [renewalErrors, setRenewalErrors] = useState<
     Record<string, Partial<Record<keyof RenewalInfo, string>>>
   >({});
@@ -73,6 +91,17 @@ export function CartDrawer() {
       setErrors(null);
       setShippingInfo(data);
       details += formatShippingInfo(data);
+    }
+    if (wantsInvoice) {
+      const { data, errors: nextErrors } = validateBilling(billingInfo);
+      if (!data) {
+        setBillingErrors(nextErrors);
+        toast.error("Completa los datos de facturación");
+        return;
+      }
+      setBillingErrors(null);
+      setBillingInfo(data);
+      details += formatBillingInfo(data);
     }
 
     const lines = totals.lines
@@ -243,6 +272,43 @@ export function CartDrawer() {
                         onChange={setShippingInfo}
                         errors={errors ?? undefined}
                       />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3 rounded-xl border border-border/60 p-3">
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      checked={wantsInvoice}
+                      onChange={(e) => setWantsInvoice(e.target.checked)}
+                      className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]"
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2 text-sm font-semibold">
+                        <FileText className="h-4 w-4 text-primary" />
+                        Requiero factura (CFDI 4.0)
+                      </span>
+                      <span className="block text-xs text-muted-foreground">
+                        Captura tus datos fiscales para emitirla al registrar tu compra.
+                      </span>
+                    </span>
+                  </label>
+
+                  {wantsInvoice && (
+                    <div className="space-y-3 border-t border-border/60 pt-3">
+                      <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        Datos de facturación
+                      </p>
+                      <BillingForm
+                        value={billingInfo}
+                        onChange={setBillingInfo}
+                        errors={billingErrors ?? undefined}
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Necesitamos razón social, RFC, régimen fiscal, uso de CFDI, C.P. fiscal y
+                        correo para emitir tu factura.
+                      </p>
                     </div>
                   )}
                 </div>
