@@ -11,12 +11,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useCartStore, computeTotals } from "@/stores/cartStore";
+import { useCartStore, computeTotals, type ShippingInfo } from "@/stores/cartStore";
+import { ShippingForm, formatShippingInfo, validateShipping } from "@/components/shipping-form";
+import { toast } from "sonner";
 import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn } from "@/data/catalog";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
-  const { items, shippingId, updateQuantity, removeItem, setShipping } = useCartStore();
+  const { items, shippingId, shippingInfo, updateQuantity, removeItem, setShipping, setShippingInfo } =
+    useCartStore();
+  const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
   const totals = computeTotals(items, shippingId);
 
   const handleWhatsappCheckout = () => {
