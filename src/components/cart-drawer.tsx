@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Minus, Plus, Trash2, ShoppingCart, MessageCircle, Truck, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,31 +11,32 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { ShoppingCart, Minus, Plus, Trash2, ExternalLink, Loader2 } from "lucide-react";
-import { useCartStore } from "@/stores/cartStore";
-import { formatMxn } from "@/lib/shopify";
+import { useCartStore, computeTotals } from "@/stores/cartStore";
+import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn } from "@/data/catalog";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
-  const { items, isLoading, isSyncing, updateQuantity, removeItem, getCheckoutUrl, syncCart } =
-    useCartStore();
+  const { items, shippingId, updateQuantity, removeItem, setShipping } = useCartStore();
+  const totals = computeTotals(items, shippingId);
 
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const totalPrice = items.reduce(
-    (sum, item) => sum + parseFloat(item.price.amount) * item.quantity,
-    0,
-  );
+  const handleWhatsappCheckout = () => {
+    const lines = totals.lines
+      .map(
+        (l) =>
+          `• ${l.variantName} x${l.quantity} — ${formatMxn(l.unitPrice * l.quantity)}` +
+          l.addOns.map((a) => `\n   + ${a.name} — ${formatMxn(a.price * l.quantity)}`).join(""),
+      )
+      .join("\n");
 
-  useEffect(() => {
-    if (isOpen) syncCart();
-  }, [isOpen, syncCart]);
+    const text =
+      `Hola ORB-LITE, quiero finalizar este pedido:\n\n${lines}\n\n` +
+      `Entrega: ${totals.shipping.label} (${formatMxn(totals.shipping.price)})\n` +
+      `Subtotal sin IVA: ${formatMxn(totals.subtotalWithoutIva)}\n` +
+      `IVA (16%): ${formatMxn(totals.iva)}\n` +
+      `*TOTAL: ${formatMxn(totals.total)} MXN*`;
 
-  const handleCheckout = () => {
-    const checkoutUrl = getCheckoutUrl();
-    if (checkoutUrl) {
-      window.open(checkoutUrl, "_blank");
-      setIsOpen(false);
-    }
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, "_blank");
+    setIsOpen(false);
   };
 
   return (
@@ -41,9 +44,9 @@ export function CartDrawer() {
       <SheetTrigger asChild>
         <Button variant="outline" size="icon" className="relative">
           <ShoppingCart className="h-5 w-5" />
-          {totalItems > 0 && (
-            <Badge className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full p-0 text-xs">
-              {totalItems}
+          {totals.totalItems > 0 && (
+            <Badge className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full p-0 text-xs">
+              {totals.totalItems}
             </Badge>
           )}
         </Button>
@@ -52,109 +55,161 @@ export function CartDrawer() {
         <SheetHeader className="flex-shrink-0">
           <SheetTitle>Tu carrito</SheetTitle>
           <SheetDescription>
-            {totalItems === 0
+            {totals.totalItems === 0
               ? "Tu carrito está vacío"
-              : `${totalItems} equipo${totalItems !== 1 ? "s" : ""} en tu carrito`}
+              : `${totals.totalItems} artículo${totals.totalItems !== 1 ? "s" : ""} · ${formatMxn(totals.total)}`}
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col pt-6">
-          {items.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center">
-              <div className="text-center">
+        <div className="flex min-h-0 flex-1 flex-col pt-4">
+          {totals.lines.length === 0 ? (
+            <div className="flex flex-1 items-center justify-center text-center">
+              <div>
                 <ShoppingCart className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-                <p className="text-muted-foreground">Tu carrito está vacío</p>
+                <p className="text-muted-foreground">Agrega un kit para comenzar</p>
               </div>
             </div>
           ) : (
             <>
-              <div className="min-h-0 flex-1 overflow-y-auto pr-2">
-                <div className="space-y-4">
-                  {items.map((item) => (
-                    <div key={item.variantId} className="flex gap-4 p-2">
-                      <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-md bg-secondary/20">
-                        {item.product.node.images?.edges?.[0]?.node && (
-                          <img
-                            src={item.product.node.images.edges[0].node.url}
-                            alt={item.product.node.title}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                          />
-                        )}
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
+                {totals.lines.map((line) => (
+                  <motion.div
+                    key={line.variantId}
+                    layout
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="rounded-xl border border-border/60 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">{line.variantName}</p>
+                        <p className="truncate text-xs text-muted-foreground">{line.title}</p>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <h4 className="truncate font-medium">{item.product.node.title}</h4>
-                        <p className="text-xs text-muted-foreground">
-                          {item.selectedOptions.map((o) => o.value).join(" · ")}
-                        </p>
-                        <p className="font-semibold">{formatMxn(parseFloat(item.price.amount))}</p>
-                      </div>
-                      <div className="flex flex-shrink-0 flex-col items-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 shrink-0"
+                        onClick={() => removeItem(line.variantId)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+
+                    {line.addOns.length > 0 && (
+                      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {line.addOns.map((a) => (
+                          <li key={a.name}>
+                            + {a.name} — {formatMxn(a.price)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-1">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="icon"
                           className="h-6 w-6"
-                          onClick={() => removeItem(item.variantId)}
+                          onClick={() => updateQuantity(line.variantId, line.quantity - 1)}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Minus className="h-3 w-3" />
                         </Button>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => updateQuantity(item.variantId, item.quantity - 1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center text-sm">{item.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-6 w-6"
-                            onClick={() => updateQuantity(item.variantId, item.quantity + 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        <span className="w-8 text-center text-sm">{line.quantity}</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => updateQuantity(line.variantId, line.quantity + 1)}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
                       </div>
+                      <span className="font-display font-bold text-primary">
+                        {formatMxn(line.lineTotal)}
+                      </span>
                     </div>
-                  ))}
+                  </motion.div>
+                ))}
+
+                <div className="space-y-2">
+                  <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                    Método de entrega
+                  </p>
+                  {SHIPPING_OPTIONS.map((opt) => {
+                    const active = opt.id === shippingId;
+                    const Icon = opt.id === "local" ? MapPin : Truck;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setShipping(opt.id)}
+                        className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
+                          active ? "border-primary bg-primary/10" : "border-border/60"
+                        }`}
+                      >
+                        <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold">{opt.label}</span>
+                          <span className="block text-xs text-muted-foreground">
+                            {opt.description}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-display font-bold text-primary">
+                          {opt.price === 0 ? "$0" : `+${formatMxn(opt.price)}`}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="flex-shrink-0 space-y-4 border-t bg-background pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold">Total estimado</span>
-                  <span className="text-xl font-bold">{formatMxn(totalPrice)}</span>
+              <div className="flex-shrink-0 space-y-2 border-t border-border/60 bg-background pt-4">
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Productos</span>
+                  <span>{formatMxn(totals.productsTotal)}</span>
+                </div>
+                {totals.addOnsTotal > 0 && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Renovaciones</span>
+                    <span>{formatMxn(totals.addOnsTotal)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Envío</span>
+                  <span>{formatMxn(totals.shipping.price)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Subtotal sin IVA</span>
+                  <span>{formatMxn(totals.subtotalWithoutIva)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>IVA (16%)</span>
+                  <span>{formatMxn(totals.iva)}</span>
+                </div>
+                <div className="flex items-center justify-between border-t border-border/60 pt-2">
+                  <span className="font-display text-lg font-bold uppercase">Total</span>
+                  <span className="font-display text-2xl font-bold text-primary">
+                    {formatMxn(totals.total)}
+                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Precios más IVA en caso de requerir factura.{" "}
-                  <a
-                    href="/contacto"
-                    className="underline hover:text-primary"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    Contáctanos para generarla.
-                  </a>
+                  Precios en MXN con IVA incluido. Al realizar tu pedido aceptas el uso de datos y
+                  condiciones del sitio.
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  Al pagar con Shopify aceptas el uso de datos y condiciones descritas en el sitio.
-                </p>
+                <Button onClick={handleWhatsappCheckout} className="w-full" size="lg">
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Finalizar pedido por WhatsApp
+                </Button>
                 <Button
-                  onClick={handleCheckout}
+                  variant="outline"
                   className="w-full"
-                  size="lg"
-                  disabled={items.length === 0 || isLoading || isSyncing}
+                  onClick={() => {
+                    setIsOpen(false);
+                    window.location.href = "/contacto";
+                  }}
                 >
-                  {isLoading || isSyncing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      Pagar con Shopify
-                    </>
-                  )}
+                  Datos de envío y facturación
                 </Button>
               </div>
             </>
