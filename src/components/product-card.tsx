@@ -1,45 +1,69 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, MessageCircle, ShoppingCart } from "lucide-react";
+import { CheckCircle2, MessageCircle, ShoppingCart, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cartStore";
 import {
-  ADD_ONS,
+  SHIPPING_OPTIONS,
   WHATSAPP_NUMBER,
   formatMxn,
   type Product,
 } from "@/data/catalog";
+import {
+  ShippingForm,
+  formatShippingInfo,
+  validateShipping,
+} from "@/components/shipping-form";
+import type { ShippingInfo } from "@/stores/cartStore";
+
+const NATIONAL = SHIPPING_OPTIONS.find((s) => s.id === "national")!;
 
 export function ProductCard({ product }: { product: Product }) {
   const addItem = useCartStore((s) => s.addItem);
+  const setShipping = useCartStore((s) => s.setShipping);
+  const setShippingInfo = useCartStore((s) => s.setShippingInfo);
   const [variantId, setVariantId] = useState(product.variants[0]!.id);
-  const [addOns, setAddOns] = useState<string[]>([]);
+  const [needsShipping, setNeedsShipping] = useState(false);
+  const [info, setInfo] = useState<ShippingInfo | null>(null);
+  const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
 
   const variant = product.variants.find((v) => v.id === variantId)!;
-  const isRenovation = product.category === "RENOVATION";
-  const addOnsTotal = addOns
-    .map((id) => ADD_ONS.find((a) => a.id === id)?.price ?? 0)
-    .reduce((a, b) => a + b, 0);
-  const total = variant.price + addOnsTotal;
+  const total = variant.price + (needsShipping ? NATIONAL.price : 0);
 
-  const toggleAddOn = (id: string) =>
-    setAddOns((prev) => (prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]));
+  const commitShipping = () => {
+    if (!needsShipping) {
+      setShipping("local");
+      setErrors(null);
+      return true;
+    }
+    const { data, errors: nextErrors } = validateShipping(info);
+    if (!data) {
+      setErrors(nextErrors);
+      toast.error("Revisa los datos de envío");
+      return false;
+    }
+    setErrors(null);
+    setShipping("national");
+    setShippingInfo(data);
+    return true;
+  };
 
   const handleAdd = () => {
-    addItem({ variant_id: variant.id, quantity: 1, add_ons: addOns });
+    if (!commitShipping()) return;
+    addItem({ variant_id: variant.id, quantity: 1, add_ons: [] });
     toast.success("Agregado al carrito", { description: variant.name });
   };
 
   const handleWhatsapp = () => {
-    const extras = addOns
-      .map((id) => ADD_ONS.find((a) => a.id === id))
-      .filter(Boolean)
-      .map((a) => `\n  + ${a!.name} — ${formatMxn(a!.price)}`)
-      .join("");
+    if (!commitShipping()) return;
+    const shippingLine = needsShipping
+      ? `\n+ ${NATIONAL.label} — ${formatMxn(NATIONAL.price)}`
+      : `\n+ ${SHIPPING_OPTIONS[0]!.label} — sin costo`;
+    const details = needsShipping && info ? formatShippingInfo(info) : "";
     const text = `Hola ORB-LITE, me interesa:\n\n*${product.title}*\n· ${variant.name} — ${formatMxn(
       variant.price,
-    )}${extras}\n\nTotal estimado: ${formatMxn(total)} MXN`;
+    )}${shippingLine}\n\nTotal estimado: ${formatMxn(total)} MXN${details}`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -133,27 +157,38 @@ export function ProductCard({ product }: { product: Product }) {
           </motion.ul>
         </AnimatePresence>
 
-        {!isRenovation && (
-          <div className="space-y-2 rounded-xl border border-border/60 p-3">
-            <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Agregar renovaciones
-            </p>
-            {ADD_ONS.map((a) => (
-              <label key={a.id} className="flex cursor-pointer items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={addOns.includes(a.id)}
-                  onChange={() => toggleAddOn(a.id)}
-                  className="mt-1 h-4 w-4 shrink-0 accent-[var(--primary)]"
-                />
-                <span className="min-w-0 flex-1">
-                  {a.name}{" "}
-                  <span className="font-semibold text-primary">+{formatMxn(a.price)}</span>
-                </span>
-              </label>
-            ))}
-          </div>
-        )}
+        <div className="space-y-3 rounded-xl border border-border/60 p-3">
+          <label className="flex cursor-pointer items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={needsShipping}
+              onChange={(e) => {
+                setNeedsShipping(e.target.checked);
+                setErrors(null);
+                setShipping(e.target.checked ? "national" : "local");
+              }}
+              className="mt-1 h-4 w-4 shrink-0 accent-[var(--primary)]"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2 font-semibold">
+                <Truck className="h-4 w-4 text-primary" />
+                Envío fuera de Guadalajara
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {NATIONAL.description}{" "}
+                <span className="font-semibold text-primary">+{formatMxn(NATIONAL.price)}</span>
+              </span>
+            </span>
+          </label>
+
+          {needsShipping && (
+            <ShippingForm
+              value={info}
+              onChange={setInfo}
+              errors={errors ?? undefined}
+            />
+          )}
+        </div>
 
         <div className="mt-auto space-y-3 border-t border-border/60 pt-4">
           <div className="flex items-baseline justify-between">
