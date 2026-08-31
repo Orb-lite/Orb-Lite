@@ -21,6 +21,17 @@ export interface RenewalInfo {
   unitName: string;
 }
 
+export interface BillingInfo {
+  legalName: string;
+  rfc: string;
+  taxRegime: string;
+  cfdiUse: string;
+  fiscalZip: string;
+  email: string;
+  phone: string;
+  fiscalAddress?: string;
+}
+
 export interface CartItem {
   id: string;
   variant_id: string;
