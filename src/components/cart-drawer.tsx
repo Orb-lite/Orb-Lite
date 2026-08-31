@@ -20,7 +20,7 @@ import {
 import { RenewalForm, formatRenewalInfo, validateRenewal } from "@/components/renewal-form";
 import { ShippingForm, formatShippingInfo, validateShipping } from "@/components/shipping-form";
 import { toast } from "sonner";
-import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn, findVariant } from "@/data/catalog";
+import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn } from "@/data/catalog";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
