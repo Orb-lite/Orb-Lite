@@ -201,15 +201,20 @@ export function ProductCard({ product }: { product: Product }) {
         {isDigital && (
           <div className="space-y-3 rounded-xl border border-border/60 p-3">
             <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
-              Datos de renovación
+              Datos de renovación (por equipo)
             </p>
             <RenewalForm
+              key={renewalKey}
               value={renewal}
               onChange={setRenewal}
               errors={renewalErrors ?? undefined}
             />
+            <p className="text-[11px] text-muted-foreground">
+              Agrega un paquete por equipo: cada uno guarda sus propios datos en el carrito.
+            </p>
           </div>
         )}
+
 
         {!isDigital && (
         <div className="space-y-3 rounded-xl border border-border/60 p-3">
