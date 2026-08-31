@@ -44,7 +44,7 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="border-t border-border/60 py-10 text-center text-sm text-muted-foreground">
-      <p>ORB-LITE · Rastreo GPS Satelital · Tecnología GPS para hacer crecer tu negocio</p>
+      <p>ORB-LITE · Rastreo GPS Satelital · Para personas, empresas y negocios</p>
       <p className="mt-2">
         <a href="tel:+523318359421" className="hover:text-primary">
           33 1835 9421
@@ -108,10 +108,11 @@ export function CtaBanner() {
         style={{ background: "var(--gradient-lime)" }}
       >
         <h2 className="font-display text-3xl font-bold uppercase italic text-primary-foreground sm:text-4xl">
-          Hagamos mancuerna
+          Solicita información hoy
         </h2>
         <p className="max-w-xl text-primary-foreground/85">
-          Pregunta por paquetes, planes de servicio y precios de renovación anual para tu negocio.
+          Pregunta por paquetes, planes de servicio y precios de renovación anual, ya sea para un
+          vehículo, tu flota o tu negocio.
         </p>
 
         <Link
