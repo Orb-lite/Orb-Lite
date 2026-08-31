@@ -56,7 +56,7 @@ export function ShippingForm({
 }: {
   value: ShippingInfo | null;
   onChange: (info: ShippingInfo) => void;
-  errors?: Partial<Record<keyof ShippingInfo, string>>;
+  errors?: Partial<Record<keyof ShippingInfo, string>> | undefined;
 }) {
   const [local, setLocal] = useState<ShippingInfo>(value ?? EMPTY);
 
