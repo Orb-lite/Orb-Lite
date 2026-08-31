@@ -37,10 +37,11 @@ function TiendaPage() {
     <main>
       <section className="mx-auto max-w-6xl px-5 pb-10 pt-14 text-center">
         <h1 className="font-display text-4xl font-bold uppercase italic sm:text-5xl">
-          Kit GPS Profesional para <span className="text-primary">Instaladores y Flotillas</span>
+          Tienda <span className="text-primary">ORB-LITE</span>
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-          Teltonika FTC927 4G LTE CAT 1 — la tecnología de rastreo más confiable de México.
+          Kits para instaladores y flotillas, servicio llave en mano para usuario final y
+          renovaciones anuales — todo en un solo lugar. Teltonika FTC927 4G LTE CAT 1.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           {BADGES.map(({ icon: Icon, label }) => (
