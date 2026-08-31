@@ -4,7 +4,9 @@ import { CartDrawer } from "@/components/cart-drawer";
 
 const nav = [
   { to: "/", label: "Inicio" },
-  { to: "/servicios", label: "Servicios" },
+  { to: "/kit-instaladores", label: "Kit Instaladores" },
+  { to: "/usuario-final", label: "Usuario Final" },
+  { to: "/renovaciones", label: "Renovaciones" },
   { to: "/tienda", label: "Tienda" },
   { to: "/contacto", label: "Contacto" },
 ] as const;
