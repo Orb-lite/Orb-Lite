@@ -31,7 +31,7 @@ import { BillingForm, formatBillingInfo, validateBilling } from "@/components/bi
 import { RenewalForm, formatRenewalInfo, validateRenewal } from "@/components/renewal-form";
 import { ShippingForm, formatShippingInfo, validateShipping } from "@/components/shipping-form";
 import { toast } from "sonner";
-import { SHIPPING_OPTIONS, WHATSAPP_NUMBER, formatMxn } from "@/data/catalog";
+import { SHIPPING_OPTIONS, formatMxn } from "@/data/catalog";
 import { openWhatsApp } from "@/lib/whatsapp";
 
 export function CartDrawer() {

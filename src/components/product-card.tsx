@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cartStore";
 import {
   SHIPPING_OPTIONS,
-  WHATSAPP_NUMBER,
   formatMxn,
   type Product,
 } from "@/data/catalog";
