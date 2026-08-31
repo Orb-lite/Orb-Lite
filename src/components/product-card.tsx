@@ -257,7 +257,9 @@ export function ProductCard({ product }: { product: Product }) {
             <span className="font-display text-2xl font-bold text-primary">{formatMxn(total)}</span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Precio con IVA incluido. Solicita factura al contactarnos.
+            Todos los paquetes ya incluyen el 16% de IVA. La factura se incluye al registrar tu
+            compra en sistema.
+
           </p>
           <Button onClick={handleAdd} className="w-full">
             <ShoppingCart className="mr-2 h-4 w-4" />
