@@ -87,19 +87,21 @@ export function ProductCard({ product }: { product: Product }) {
 
 
   const handleWhatsapp = () => {
-    if (!commitShipping()) return;
+    const result = commitShipping();
+    if (result === false) return;
     const shippingLine = isDigital
       ? ""
       : needsShipping
         ? `\n+ ${NATIONAL.label} — ${formatMxn(NATIONAL.price)}`
         : `\n+ ${SHIPPING_OPTIONS[0]!.label} — sin costo`;
     const details = isDigital
-      ? renewal
-        ? formatRenewalInfo(renewal)
+      ? result
+        ? formatRenewalInfo(result)
         : ""
       : needsShipping && info
         ? formatShippingInfo(info)
         : "";
+
     const text = `Hola ORB-LITE, me interesa:\n\n*${product.title}*\n· ${variant.name} — ${formatMxn(
       variant.price,
     )}${shippingLine}\n\nTotal estimado: ${formatMxn(total)} MXN${details}`;
