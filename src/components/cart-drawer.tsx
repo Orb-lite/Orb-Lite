@@ -26,7 +26,9 @@ import {
   type ShippingInfo,
   type RenewalInfo,
   type BillingInfo,
+  type PickupInfo,
 } from "@/stores/cartStore";
+import { PickupForm, formatPickupInfo, validatePickup } from "@/components/pickup-form";
 import { BillingForm, formatBillingInfo, validateBilling } from "@/components/billing-form";
 import { RenewalForm, formatRenewalInfo, validateRenewal } from "@/components/renewal-form";
 import { ShippingForm, formatShippingInfo, validateShipping } from "@/components/shipping-form";
@@ -40,6 +42,8 @@ export function CartDrawer() {
     items,
     shippingId,
     shippingInfo,
+    pickupInfo,
+    setPickupInfo,
     updateQuantity,
     updateRenewal,
     removeItem,
@@ -57,6 +61,9 @@ export function CartDrawer() {
     Record<string, Partial<Record<keyof RenewalInfo, string>>>
   >({});
   const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
+  const [pickupErrors, setPickupErrors] = useState<
+    Partial<Record<keyof PickupInfo, string>> | null
+  >(null);
   const totals = computeTotals(items, shippingId);
 
   const handleWhatsappCheckout = () => {
@@ -92,6 +99,16 @@ export function CartDrawer() {
       setErrors(null);
       setShippingInfo(data);
       details += formatShippingInfo(data);
+    } else if (totals.lines.some((l) => !l.isRenewal)) {
+      const { data, errors: nextErrors } = validatePickup(pickupInfo);
+      if (!data) {
+        setPickupErrors(nextErrors);
+        toast.error("Déjanos tu nombre y teléfono para coordinar la entrega");
+        return;
+      }
+      setPickupErrors(null);
+      setPickupInfo(data);
+      details += formatPickupInfo(data);
     }
     if (wantsInvoice) {
       const { data, errors: nextErrors } = validateBilling(billingInfo);
@@ -262,6 +279,22 @@ export function CartDrawer() {
                       </button>
                     );
                   })}
+
+                  {shippingId === "local" && totals.lines.some((l) => !l.isRenewal) && (
+                    <div className="space-y-3 rounded-xl border border-border/60 p-3">
+                      <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        Datos de contacto para la entrega
+                      </p>
+                      <PickupForm
+                        value={pickupInfo}
+                        onChange={setPickupInfo}
+                        errors={pickupErrors ?? undefined}
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Te contactamos para coordinar la entrega.
+                      </p>
+                    </div>
+                  )}
 
                   {shippingId === "national" && (
                     <div className="space-y-3 rounded-xl border border-border/60 p-3">

@@ -16,6 +16,11 @@ export interface ShippingInfo {
   zip: string;
 }
 
+export interface PickupInfo {
+  fullName: string;
+  phone: string;
+}
+
 export interface RenewalInfo {
   fullName: string;
   unitName: string;
@@ -46,6 +51,7 @@ interface CartStore {
   items: CartItem[];
   shippingId: ShippingOption["id"];
   shippingInfo: ShippingInfo | null;
+  pickupInfo: PickupInfo | null;
   wantsInvoice: boolean;
   billingInfo: BillingInfo | null;
   addItem: (item: NewCartItem) => void;
@@ -54,6 +60,7 @@ interface CartStore {
   removeItem: (id: string) => void;
   setShipping: (id: ShippingOption["id"]) => void;
   setShippingInfo: (info: ShippingInfo | null) => void;
+  setPickupInfo: (info: PickupInfo | null) => void;
   setWantsInvoice: (value: boolean) => void;
   setBillingInfo: (info: BillingInfo | null) => void;
   clearCart: () => void;
@@ -69,6 +76,7 @@ export const useCartStore = create<CartStore>()(
       items: [],
       shippingId: "local",
       shippingInfo: null,
+      pickupInfo: null,
       wantsInvoice: false,
       billingInfo: null,
 
@@ -126,6 +134,7 @@ export const useCartStore = create<CartStore>()(
       setShipping: (id) =>
         set(id === "local" ? { shippingId: id, shippingInfo: null } : { shippingId: id }),
       setShippingInfo: (info) => set({ shippingInfo: info }),
+      setPickupInfo: (info) => set({ pickupInfo: info }),
       setWantsInvoice: (value) => set({ wantsInvoice: value }),
       setBillingInfo: (info) => set({ billingInfo: info }),
       clearCart: () => set({ items: [] }),
@@ -151,6 +160,7 @@ export const useCartStore = create<CartStore>()(
         items: state.items,
         shippingId: state.shippingId,
         shippingInfo: state.shippingInfo,
+        pickupInfo: state.pickupInfo,
         wantsInvoice: state.wantsInvoice,
         billingInfo: state.billingInfo,
       }),

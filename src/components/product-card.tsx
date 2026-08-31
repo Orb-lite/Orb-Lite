@@ -19,7 +19,8 @@ import {
   formatRenewalInfo,
   validateRenewal,
 } from "@/components/renewal-form";
-import type { ShippingInfo, RenewalInfo } from "@/stores/cartStore";
+import { PickupForm, formatPickupInfo, validatePickup } from "@/components/pickup-form";
+import type { ShippingInfo, RenewalInfo, PickupInfo } from "@/stores/cartStore";
 import { openWhatsApp } from "@/lib/whatsapp";
 
 const NATIONAL = SHIPPING_OPTIONS.find((s) => s.id === "national")!;
@@ -28,10 +29,15 @@ export function ProductCard({ product }: { product: Product }) {
   const addItem = useCartStore((s) => s.addItem);
   const setShipping = useCartStore((s) => s.setShipping);
   const setShippingInfo = useCartStore((s) => s.setShippingInfo);
+  const setPickupInfo = useCartStore((s) => s.setPickupInfo);
   const [variantId, setVariantId] = useState(product.variants[0]!.id);
   const [needsShipping, setNeedsShipping] = useState(false);
   const [info, setInfo] = useState<ShippingInfo | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
+  const [pickup, setPickup] = useState<PickupInfo | null>(null);
+  const [pickupErrors, setPickupErrors] = useState<
+    Partial<Record<keyof PickupInfo, string>> | null
+  >(null);
   const [renewal, setRenewal] = useState<RenewalInfo | null>(null);
   const [renewalKey, setRenewalKey] = useState(0);
   const [renewalErrors, setRenewalErrors] = useState<
@@ -58,6 +64,14 @@ export function ProductCard({ product }: { product: Product }) {
     if (!needsShipping) {
       setShipping("local");
       setErrors(null);
+      const { data, errors: nextErrors } = validatePickup(pickup);
+      if (!data) {
+        setPickupErrors(nextErrors);
+        toast.error("Déjanos tu nombre y teléfono para coordinar la entrega");
+        return false;
+      }
+      setPickupErrors(null);
+      setPickupInfo(data);
       return null;
     }
     const { data, errors: nextErrors } = validateShipping(info);
@@ -100,7 +114,9 @@ export function ProductCard({ product }: { product: Product }) {
         : ""
       : needsShipping && info
         ? formatShippingInfo(info)
-        : "";
+        : pickup
+          ? formatPickupInfo(pickup)
+          : "";
 
     const text = `Hola ORB-LITE, me interesa:\n\n*${product.title}*\n· ${variant.name} — ${formatMxn(
       variant.price,
@@ -241,12 +257,26 @@ export function ProductCard({ product }: { product: Product }) {
             </span>
           </label>
 
-          {needsShipping && (
+          {needsShipping ? (
             <ShippingForm
               value={info}
               onChange={setInfo}
               errors={errors ?? undefined}
             />
+          ) : (
+            <div className="space-y-2 border-t border-border/60 pt-3">
+              <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                Datos de contacto para la entrega
+              </p>
+              <PickupForm
+                value={pickup}
+                onChange={setPickup}
+                errors={pickupErrors ?? undefined}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Te contactamos para coordinar la entrega en Guadalajara.
+              </p>
+            </div>
           )}
         </div>
         )}
