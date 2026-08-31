@@ -70,7 +70,7 @@ export const ADD_ONS: AddOn[] = [
     id: "renov-sim",
     name: "Renovación Anual SIM 30MB",
     price: 580,
-    description: "Datos M2M multi carrier por 12 meses.",
+    description: "SIM 30MB mensuales por 1 año. Datos M2M multi carrier.",
   },
 ];
 
@@ -96,7 +96,7 @@ export const PRODUCTS: Product[] = [
         name: "Opción 1: ¿Ya tienes plataforma?",
         price: 1508,
         badge: "Conéctalo a tu propia plataforma",
-        includes: ["Equipo Teltonika FTC927", "SIM 30MB"],
+        includes: ["Equipo Teltonika FTC927", "SIM 30MB mensuales por 1 año"],
       },
       {
         id: "kit-op2",
@@ -107,7 +107,7 @@ export const PRODUCTS: Product[] = [
         badge: "¡Ahorra hoy! · Recomendado",
         includes: [
           "Equipo Teltonika FTC927",
-          "SIM 30MB",
+          "SIM 30MB mensuales por 1 año",
           "Plataforma ORB-LITE por 1 año",
         ],
       },
@@ -132,7 +132,7 @@ export const PRODUCTS: Product[] = [
     features: [
       "Instalación profesional",
       "App móvil de monitoreo",
-      "SIM de datos incluida",
+      "SIM 30MB mensuales por 1 año",
       "Soporte técnico",
     ],
     variants: [
@@ -146,7 +146,7 @@ export const PRODUCTS: Product[] = [
         includes: [
           "Equipo Teltonika FTC927",
           "Servicio de plataforma",
-          "SIM de datos",
+          "SIM 30MB mensuales por 1 año",
           "Instalación profesional",
         ],
       },
@@ -176,7 +176,7 @@ export const PRODUCTS: Product[] = [
         name: "Renovación Anual SIM 30MB",
         price: 580,
         badge: "12 meses de datos",
-        includes: ["SIM 30MB M2M activa por 1 año"],
+        includes: ["SIM 30MB mensuales por 1 año (M2M)"],
       },
       {
         id: "renov-completa",
@@ -187,7 +187,7 @@ export const PRODUCTS: Product[] = [
         badge: "Recomendado · Ahorra en el paquete",
         includes: [
           "Acceso a plataforma web y app por 1 año",
-          "SIM 30MB M2M activa por 1 año",
+          "SIM 30MB mensuales por 1 año (M2M)",
         ],
       },
     ],
