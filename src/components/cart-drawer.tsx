@@ -28,34 +28,40 @@ export function CartDrawer() {
     items,
     shippingId,
     shippingInfo,
-    renewalInfo,
     updateQuantity,
+    updateRenewal,
     removeItem,
     setShipping,
     setShippingInfo,
-    setRenewalInfo,
   } = useCartStore();
   const [renewalErrors, setRenewalErrors] = useState<
-    Partial<Record<keyof RenewalInfo, string>> | null
-  >(null);
-  const hasRenewal = items.some(
-    (i) => findVariant(i.variant_id)?.product.category === "RENOVATION",
-  );
+    Record<string, Partial<Record<keyof RenewalInfo, string>>>
+  >({});
   const [errors, setErrors] = useState<Partial<Record<keyof ShippingInfo, string>> | null>(null);
   const totals = computeTotals(items, shippingId);
 
   const handleWhatsappCheckout = () => {
     let details = "";
-    if (hasRenewal) {
-      const { data, errors: nextErrors } = validateRenewal(renewalInfo);
-      if (!data) {
+    const renewalLines = totals.lines.filter((l) => l.isRenewal);
+    if (renewalLines.length > 0) {
+      const nextErrors: Record<string, Partial<Record<keyof RenewalInfo, string>>> = {};
+      for (const line of renewalLines) {
+        const { data, errors: lineErrors } = validateRenewal(line.renewal);
+        if (!data) {
+          nextErrors[line.id] = lineErrors;
+        } else {
+          updateRenewal(line.id, data);
+        }
+      }
+      if (Object.keys(nextErrors).length > 0) {
         setRenewalErrors(nextErrors);
-        toast.error("Completa los datos de renovación");
+        toast.error("Completa los datos de renovación de cada equipo");
         return;
       }
-      setRenewalErrors(null);
-      setRenewalInfo(data);
-      details += formatRenewalInfo(data);
+      setRenewalErrors({});
+      details += renewalLines
+        .map((l) => (l.renewal ? formatRenewalInfo(l.renewal) : ""))
+        .join("");
     }
     if (shippingId === "national") {
       const { data, errors: nextErrors } = validateShipping(shippingInfo);
@@ -73,6 +79,7 @@ export function CartDrawer() {
       .map(
         (l) =>
           `• ${l.variantName} x${l.quantity} — ${formatMxn(l.unitPrice * l.quantity)}` +
+          (l.renewal ? `\n   Unidad: ${l.renewal.unitName} (${l.renewal.fullName})` : "") +
           l.addOns.map((a) => `\n   + ${a.name} — ${formatMxn(a.price * l.quantity)}`).join(""),
       )
       .join("\n");
@@ -87,6 +94,7 @@ export function CartDrawer() {
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, "_blank");
     setIsOpen(false);
   };
+
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
