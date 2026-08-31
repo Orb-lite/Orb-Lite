@@ -46,12 +46,16 @@ interface CartStore {
   items: CartItem[];
   shippingId: ShippingOption["id"];
   shippingInfo: ShippingInfo | null;
+  wantsInvoice: boolean;
+  billingInfo: BillingInfo | null;
   addItem: (item: NewCartItem) => void;
   updateQuantity: (id: string, quantity: number) => void;
   updateRenewal: (id: string, info: RenewalInfo) => void;
   removeItem: (id: string) => void;
   setShipping: (id: ShippingOption["id"]) => void;
   setShippingInfo: (info: ShippingInfo | null) => void;
+  setWantsInvoice: (value: boolean) => void;
+  setBillingInfo: (info: BillingInfo | null) => void;
   clearCart: () => void;
 }
 
@@ -65,6 +69,8 @@ export const useCartStore = create<CartStore>()(
       items: [],
       shippingId: "local",
       shippingInfo: null,
+      wantsInvoice: false,
+      billingInfo: null,
 
       addItem: ({ variant_id, quantity, add_ons, renewal }) => {
         const items = get().items;
@@ -120,6 +126,8 @@ export const useCartStore = create<CartStore>()(
       setShipping: (id) =>
         set(id === "local" ? { shippingId: id, shippingInfo: null } : { shippingId: id }),
       setShippingInfo: (info) => set({ shippingInfo: info }),
+      setWantsInvoice: (value) => set({ wantsInvoice: value }),
+      setBillingInfo: (info) => set({ billingInfo: info }),
       clearCart: () => set({ items: [] }),
     }),
     {
@@ -143,6 +151,8 @@ export const useCartStore = create<CartStore>()(
         items: state.items,
         shippingId: state.shippingId,
         shippingInfo: state.shippingInfo,
+        wantsInvoice: state.wantsInvoice,
+        billingInfo: state.billingInfo,
       }),
     },
   ),
