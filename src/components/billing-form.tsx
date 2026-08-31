@@ -78,6 +78,53 @@ const EMPTY: BillingInfo = {
 const inputClass =
   "w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary";
 
+interface TextFieldDef {
+  name: keyof BillingInfo;
+  label: string;
+  full?: boolean;
+  placeholder?: string;
+}
+
+const TEXT_FIELDS: TextFieldDef[] = [
+  { name: "legalName", label: "Razón social / nombre fiscal", full: true },
+  { name: "rfc", label: "RFC", placeholder: "XAXX010101000" },
+  { name: "fiscalZip", label: "C.P. fiscal", placeholder: "44100" },
+  { name: "email", label: "Correo para recibir la factura" },
+  { name: "phone", label: "Teléfono de contacto" },
+  { name: "fiscalAddress", label: "Dirección fiscal (opcional)", full: true },
+];
+
+function TextField({
+  field,
+  local,
+  errors,
+  update,
+}: {
+  field: TextFieldDef;
+  local: BillingInfo;
+  errors?: Partial<Record<keyof BillingInfo, string>> | undefined;
+  update: (name: keyof BillingInfo, val: string) => void;
+}) {
+  return (
+    <label className={field.full ? "sm:col-span-2" : undefined}>
+      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {field.label}
+      </span>
+      <input
+        type="text"
+        value={local[field.name] ?? ""}
+        placeholder={field.placeholder}
+        onChange={(e) => update(field.name, e.target.value)}
+        maxLength={250}
+        className={inputClass}
+      />
+      {errors?.[field.name] && (
+        <span className="mt-1 block text-[11px] text-destructive">{errors[field.name]}</span>
+      )}
+    </label>
+  );
+}
+
 export function BillingForm({
   value,
   onChange,
@@ -95,40 +142,11 @@ export function BillingForm({
     onChange(next);
   };
 
-  const Field = ({
-    name,
-    label,
-    full,
-    placeholder,
-  }: {
-    name: keyof BillingInfo;
-    label: string;
-    full?: boolean;
-    placeholder?: string;
-  }) => (
-    <label className={full ? "sm:col-span-2" : undefined}>
-      <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <input
-        type="text"
-        value={local[name] ?? ""}
-        placeholder={placeholder}
-        onChange={(e) => update(name, e.target.value)}
-        maxLength={250}
-        className={inputClass}
-      />
-      {errors?.[name] && (
-        <span className="mt-1 block text-[11px] text-destructive">{errors[name]}</span>
-      )}
-    </label>
-  );
-
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Field name="legalName" label="Razón social / nombre fiscal" full />
-      <Field name="rfc" label="RFC" placeholder="XAXX010101000" />
-      <Field name="fiscalZip" label="C.P. fiscal" placeholder="44100" />
+      {TEXT_FIELDS.slice(0, 3).map((f) => (
+        <TextField key={f.name} field={f} local={local} errors={errors} update={update} />
+      ))}
 
       <label className="sm:col-span-2">
         <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -172,9 +190,9 @@ export function BillingForm({
         )}
       </label>
 
-      <Field name="email" label="Correo para recibir la factura" />
-      <Field name="phone" label="Teléfono de contacto" />
-      <Field name="fiscalAddress" label="Dirección fiscal (opcional)" full />
+      {TEXT_FIELDS.slice(3).map((f) => (
+        <TextField key={f.name} field={f} local={local} errors={errors} update={update} />
+      ))}
     </div>
   );
 }
