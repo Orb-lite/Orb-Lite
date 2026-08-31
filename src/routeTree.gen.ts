@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ContactoRouteImport } from './routes/contacto'
 import { Route as KitInstaladoresRouteImport } from './routes/kit-instaladores'
+import { Route as RenovacionesRouteImport } from './routes/renovaciones'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as TiendaRouteImport } from './routes/tienda'
@@ -31,6 +32,11 @@ const ContactoRoute = ContactoRouteImport.update({
 const KitInstaladoresRoute = KitInstaladoresRouteImport.update({
   id: '/kit-instaladores',
   path: '/kit-instaladores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RenovacionesRoute = RenovacionesRouteImport.update({
+  id: '/renovaciones',
+  path: '/renovaciones',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ServiciosRoute = ServiciosRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/contacto': typeof ContactoRoute
   '/kit-instaladores': typeof KitInstaladoresRoute
+  '/renovaciones': typeof RenovacionesRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/contacto': typeof ContactoRoute
   '/kit-instaladores': typeof KitInstaladoresRoute
+  '/renovaciones': typeof RenovacionesRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/contacto': typeof ContactoRoute
   '/kit-instaladores': typeof KitInstaladoresRoute
+  '/renovaciones': typeof RenovacionesRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/contacto'
     | '/kit-instaladores'
+    | '/renovaciones'
     | '/servicios'
     | '/terminos'
     | '/tienda'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/contacto'
     | '/kit-instaladores'
+    | '/renovaciones'
     | '/servicios'
     | '/terminos'
     | '/tienda'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/contacto'
     | '/kit-instaladores'
+    | '/renovaciones'
     | '/servicios'
     | '/terminos'
     | '/tienda'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ContactoRoute: typeof ContactoRoute
   KitInstaladoresRoute: typeof KitInstaladoresRoute
+  RenovacionesRoute: typeof RenovacionesRoute
   ServiciosRoute: typeof ServiciosRoute
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/kit-instaladores'
       fullPath: '/kit-instaladores'
       preLoaderRoute: typeof KitInstaladoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/renovaciones': {
+      id: '/renovaciones'
+      path: '/renovaciones'
+      fullPath: '/renovaciones'
+      preLoaderRoute: typeof RenovacionesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/servicios': {
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ContactoRoute: ContactoRoute,
   KitInstaladoresRoute: KitInstaladoresRoute,
+  RenovacionesRoute: RenovacionesRoute,
   ServiciosRoute: ServiciosRoute,
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
