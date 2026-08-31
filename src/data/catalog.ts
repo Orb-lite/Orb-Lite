@@ -139,7 +139,7 @@ export const PRODUCTS: Product[] = [
         id: "b2c-full",
         product_id: "usuario-final",
         name: "Servicio Completo Usuario Final",
-        price: 2990,
+        price: 2540,
         badge: "Todo incluido",
         includes: [
           "Equipo Teltonika FTC927",
