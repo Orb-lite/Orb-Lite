@@ -33,6 +33,7 @@ const billingInfoSchema = z.object({
 
 const orderSchema = z.object({
   orderId: z.string().min(1).max(64),
+  customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
   items: z
     .array(
       z.object({
@@ -90,6 +91,29 @@ export const notifyNewOrder = createServerFn({ method: "POST" })
     const total = productsTotal + shipping.price;
     const subtotalWithoutIva = total / (1 + IVA_RATE);
     const isNational = data.shippingId === "national";
+
+    // Bitácora en base de datos: cada solicitud nace como "pendiente" y el
+    // equipo de ventas la marca como "vendido" o "no_vendido" desde la BD.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const contact = isNational ? data.shippingInfo : data.pickupInfo;
+      const { error } = await supabaseAdmin.from("solicitudes").insert({
+        order_id: data.orderId,
+        customer_number: data.customerNumber ?? null,
+        full_name: contact?.fullName ?? data.billingInfo?.legalName ?? null,
+        phone: contact?.phone ?? data.billingInfo?.phone ?? null,
+        email: data.billingInfo?.email ?? null,
+        items: lines,
+        shipping_label: shipping.label,
+        wants_invoice: data.wantsInvoice,
+        billing: data.wantsInvoice ? (data.billingInfo ?? null) : null,
+        total,
+        status: "pendiente",
+      });
+      if (error) console.error("No se pudo registrar la solicitud en BD", error);
+    } catch (error) {
+      console.error("No se pudo registrar la solicitud en BD", error);
+    }
 
     await sendTemplateEmail("nuevo-pedido", "ventas@orb-lite.com", {
       idempotencyKey: `nuevo-pedido-${data.orderId}`,

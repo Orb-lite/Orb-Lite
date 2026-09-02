@@ -59,6 +59,60 @@ export type Database = {
         }
         Relationships: []
       }
+      solicitudes: {
+        Row: {
+          billing: Json | null
+          created_at: string
+          customer_number: number | null
+          email: string | null
+          full_name: string | null
+          id: string
+          items: Json
+          notes: string | null
+          order_id: string
+          phone: string | null
+          shipping_label: string | null
+          status: string
+          total: number
+          updated_at: string
+          wants_invoice: boolean
+        }
+        Insert: {
+          billing?: Json | null
+          created_at?: string
+          customer_number?: number | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_id: string
+          phone?: string | null
+          shipping_label?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+          wants_invoice?: boolean
+        }
+        Update: {
+          billing?: Json | null
+          created_at?: string
+          customer_number?: number | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_id?: string
+          phone?: string | null
+          shipping_label?: string | null
+          status?: string
+          total?: number
+          updated_at?: string
+          wants_invoice?: boolean
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
