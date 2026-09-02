@@ -91,14 +91,23 @@ function AuthPage() {
           type="button"
           variant="outline"
           className="w-full"
-          onClick={() => navigate({ to: '/acceso-crm' })}
+          onClick={() => navigate({ to: '/acceso-crm', search: { olvide: false } })}
         >
-          Crear o restablecer contraseña
+          Crear contraseña
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full"
+          onClick={() => navigate({ to: '/acceso-crm', search: { olvide: true } })}
+        >
+          Olvidé mi contraseña
         </Button>
 
         <p className="text-xs text-muted-foreground">
-          ¿Primera vez? Pide un código de un solo uso y llegará a ventas@orb-lite.com para crear tu
-          contraseña.
+          ¿Primera vez o olvidaste tu contraseña? Pide un código de un solo uso y llegará a
+          ventas@orb-lite.com para crear una nueva.
         </p>
       </form>
     </main>
