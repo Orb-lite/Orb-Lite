@@ -22,16 +22,15 @@ export const Route = createFileRoute('/auth')({
 
 function AuthPage() {
   const navigate = useNavigate()
-  const [email, setEmail] = React.useState('ventas@orb-lite.com')
+  const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
 
   React.useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: '/crm', replace: true })
-    })
-  }, [navigate])
+    // Cada carga de página arranca sin sesión: siempre hay que iniciar sesión.
+    void ensureFreshSession()
+  }, [])
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -50,6 +49,7 @@ function AuthPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-16">
       <form
         onSubmit={onSubmit}
+        autoComplete="off"
         className="w-full max-w-sm space-y-5 rounded-2xl border border-border bg-card p-7"
       >
         <div className="space-y-1">
