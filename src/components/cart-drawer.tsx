@@ -415,7 +415,7 @@ export function CartDrawer() {
                     window.location.href = "/contacto";
                   }}
                 >
-                  Datos de envío y facturación
+                  Realizar solicitud
                 </Button>
               </div>
             </>
