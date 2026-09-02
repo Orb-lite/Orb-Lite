@@ -17,7 +17,6 @@ export function CustomerBlock() {
     setShippingInfo,
     setPickupInfo,
     setBillingInfo,
-    setWantsInvoice,
     shippingId,
   } = useCartStore();
   const [input, setInput] = useState(customerNumber ? String(customerNumber) : "");
@@ -51,13 +50,19 @@ export function CustomerBlock() {
         }
       }
       if (record.billing) {
+        // Guardamos sus datos fiscales por si pide factura, pero NO la activamos:
+        // el cliente decide en cada compra si la requiere.
         setBillingInfo({ ...record.billing, fiscalAddress: record.billing.fiscalAddress ?? "" });
-        setWantsInvoice(true);
       }
       toast.success(
         `¡Hola de nuevo, ${record.fullName}! Cargamos tus datos (${record.ordersCount} compra${
           record.ordersCount !== 1 ? "s" : ""
         } acumulada${record.ordersCount !== 1 ? "s" : ""})`,
+        {
+          description: record.billing
+            ? "Si necesitas factura, marca la casilla y tus datos fiscales ya estarán listos."
+            : undefined,
+        },
       );
     } catch (error) {
       console.error(error);

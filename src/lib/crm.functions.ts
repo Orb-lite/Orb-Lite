@@ -80,5 +80,44 @@ export const crmListCustomers = createServerFn({ method: 'POST' })
       .limit(500)
 
     if (error) throw new Error(error.message)
-    return { rows: rows ?? [] }
+
+    const { data: sols, error: solError } = await supabaseAdmin
+      .from('solicitudes')
+      .select('customer_number, status, total, created_at')
+      .not('customer_number', 'is', null)
+      .limit(5000)
+    if (solError) throw new Error(solError.message)
+
+    const agg = new Map<
+      number,
+      { first_order_at: string | null; pending: number; pending_total: number; orders: number; total: number }
+    >()
+    for (const s of sols ?? []) {
+      const key = Number(s.customer_number)
+      const cur =
+        agg.get(key) ?? { first_order_at: null, pending: 0, pending_total: 0, orders: 0, total: 0 }
+      cur.orders += 1
+      cur.total += Number(s.total ?? 0)
+      if (s.status === 'pendiente') {
+        cur.pending += 1
+        cur.pending_total += Number(s.total ?? 0)
+      }
+      if (!cur.first_order_at || new Date(s.created_at) < new Date(cur.first_order_at)) {
+        cur.first_order_at = s.created_at
+      }
+      agg.set(key, cur)
+    }
+
+    return {
+      rows: (rows ?? []).map((r) => {
+        const a = agg.get(Number(r.customer_number))
+        return {
+          ...r,
+          first_order_at: a?.first_order_at ?? r.created_at,
+          pending_count: a?.pending ?? 0,
+          pending_total: a?.pending_total ?? 0,
+          solicitudes_count: a?.orders ?? 0,
+        }
+      }),
+    }
   })
