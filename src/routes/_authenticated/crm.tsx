@@ -35,6 +35,12 @@ function CrmPage() {
   const list = useServerFn(crmListSolicitudes)
   const update = useServerFn(crmUpdateSolicitud)
   const [filter, setFilter] = React.useState<Filter>('pendiente')
+  const [page, setPage] = React.useState(1)
+  const PAGE_SIZE = 10
+
+  React.useEffect(() => {
+    setPage(1)
+  }, [filter])
 
   const query = useQuery({
     queryKey: ['crm-solicitudes'],
@@ -71,6 +77,9 @@ function CrmPage() {
   const totalCount = rows.length
   const totalValue = rows.reduce((s, r) => s + Number(r.total ?? 0), 0)
   const visible = filter === 'todas' ? rows : rows.filter((r) => r.status === filter)
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginated = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   async function signOut() {
     await queryClient.cancelQueries()
@@ -126,7 +135,7 @@ function CrmPage() {
           <p className="text-sm text-muted-foreground">No hay solicitudes en este filtro.</p>
         ) : (
           <div className="space-y-4">
-            {visible.map((row) => (
+            {paginated.map((row) => (
               <SolicitudCard
                 key={row.id}
                 row={row}
@@ -134,6 +143,34 @@ function CrmPage() {
                 onSave={(status, notes) => mutation.mutate({ id: row.id, status, notes })}
               />
             ))}
+            {visible.length > PAGE_SIZE && (
+              <nav className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <p className="text-xs text-muted-foreground">
+                  Mostrando {paginated.length} de {visible.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="px-2 text-sm text-muted-foreground">
+                    Página {safePage} de {totalPages}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </nav>
+            )}
           </div>
         )}
       </div>
