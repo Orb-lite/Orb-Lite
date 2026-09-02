@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   SolicitudCard,
+  SolicitudDetailDialog,
   STATUS_LABEL,
   mxn,
   type SolicitudStatus,
@@ -36,6 +37,7 @@ function CrmPage() {
   const update = useServerFn(crmUpdateSolicitud)
   const [filter, setFilter] = React.useState<Filter>('pendiente')
   const [page, setPage] = React.useState(1)
+  const [selectedRow, setSelectedRow] = React.useState<any>(null)
   const PAGE_SIZE = 10
 
   React.useEffect(() => {
@@ -141,8 +143,16 @@ function CrmPage() {
                 row={row}
                 pending={mutation.isPending}
                 onSave={(status, notes) => mutation.mutate({ id: row.id, status, notes })}
+                onExpand={() => setSelectedRow(row)}
               />
             ))}
+            <SolicitudDetailDialog
+              row={selectedRow}
+              open={!!selectedRow}
+              onOpenChange={(open) => {
+                if (!open) setSelectedRow(null)
+              }}
+            />
             {visible.length > PAGE_SIZE && (
               <nav className="flex flex-wrap items-center justify-between gap-3 pt-2">
                 <p className="text-xs text-muted-foreground">
