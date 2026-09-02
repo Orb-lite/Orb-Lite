@@ -24,7 +24,7 @@ function summarizeItems(items: unknown): string {
 }
 
 async function handle(request: Request) {
-  const secret = process.env['LOVABLE_CRON_SECRET']
+  const secret = process.env['CRON_RESUMEN_SECRET'] ?? process.env['LOVABLE_CRON_SECRET']
   const provided =
     request.headers.get('x-cron-secret') ??
     (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
