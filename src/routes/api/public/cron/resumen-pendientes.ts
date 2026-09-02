@@ -74,7 +74,7 @@ async function handle(request: Request) {
   const panelUrl = panelToken ? `${siteUrl}/panel/${panelToken}` : ''
 
   const result = await sendTemplateEmail('resumen-pendientes', 'ventas@orb-lite.com', {
-    idempotencyKey: `resumen-pendientes-${dateKey}-${Date.now()}`,
+    idempotencyKey: `resumen-pendientes-${dateKey}-${now.getUTCHours()}`,
     templateData: {
       panelUrl,
       date: now.toLocaleDateString('es-MX', { timeZone: 'UTC' }),
