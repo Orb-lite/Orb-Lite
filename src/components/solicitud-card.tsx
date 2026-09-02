@@ -37,10 +37,12 @@ export function SolicitudCard({
   row,
   pending,
   onSave,
+  onExpand,
 }: {
   row: any
   pending: boolean
   onSave: (status: SolicitudStatus, notes: string) => void
+  onExpand?: () => void
 }) {
   const [status, setStatus] = React.useState<SolicitudStatus>(row.status)
   const [notes, setNotes] = React.useState<string>(row.notes ?? '')
@@ -54,7 +56,7 @@ export function SolicitudCard({
 
   return (
     <article className="space-y-3 rounded-xl border border-border bg-card p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-sm text-primary">
             Pedido #{row.order_id}
