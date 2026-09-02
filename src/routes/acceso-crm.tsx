@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export const Route = createFileRoute('/acceso-crm')({
+  validateSearch: (search: Record<string, unknown>) => ({
+    olvide: search['olvide'] === '1' || search['olvide'] === true,
+  }),
   head: () => ({
     meta: [
       { title: 'Crear contraseña del CRM · ORB-LITE' },
@@ -25,6 +28,7 @@ export const Route = createFileRoute('/acceso-crm')({
 
 function AccesoCrmPage() {
   const navigate = useNavigate()
+  const { olvide } = Route.useSearch()
   const request = useServerFn(requestCrmAccessCode)
   const redeem = useServerFn(redeemCrmAccessCode)
   const [code, setCode] = React.useState('')
@@ -32,6 +36,15 @@ function AccesoCrmPage() {
   const [confirm, setConfirm] = React.useState('')
   const [sending, setSending] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
+  const autoSent = React.useRef(false)
+
+  React.useEffect(() => {
+    if (olvide && !autoSent.current) {
+      autoSent.current = true
+      void sendCode()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [olvide])
 
   async function sendCode() {
     setSending(true)
@@ -74,14 +87,18 @@ function AccesoCrmPage() {
       >
         <div className="space-y-1">
           <p className="text-xs tracking-[0.2em] text-primary">ORB-LITE</p>
-          <h1 className="font-display text-2xl text-foreground">Crear contraseña del CRM</h1>
+          <h1 className="font-display text-2xl text-foreground">
+            {olvide ? 'Restablecer contraseña' : 'Crear contraseña del CRM'}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Te enviamos un código de un solo uso a ventas@orb-lite.com.
+            {olvide
+              ? 'Ya te enviamos un código de un solo uso a ventas@orb-lite.com para restablecer tu contraseña.'
+              : 'Te enviamos un código de un solo uso a ventas@orb-lite.com.'}
           </p>
         </div>
 
         <Button type="button" variant="outline" className="w-full" onClick={sendCode} disabled={sending}>
-          {sending ? 'Enviando…' : 'Enviarme el código por correo'}
+          {sending ? 'Enviando…' : olvide ? 'Reenviar el código por correo' : 'Enviarme el código por correo'}
         </Button>
 
         <div className="space-y-2">
@@ -123,7 +140,16 @@ function AccesoCrmPage() {
         </div>
 
         <Button type="submit" className="w-full" disabled={saving}>
-          {saving ? 'Guardando…' : 'Crear contraseña y entrar'}
+          {saving ? 'Guardando…' : olvide ? 'Restablecer contraseña y entrar' : 'Crear contraseña y entrar'}
+        </Button>
+
+        <Button
+          type="button"
+          variant="ghost"
+          className="w-full"
+          onClick={() => navigate({ to: '/auth' })}
+        >
+          Volver a iniciar sesión
         </Button>
 
         <p className="text-xs text-muted-foreground">
