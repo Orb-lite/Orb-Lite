@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   SolicitudCard,
+  SolicitudDetailDialog,
   STATUS_LABEL,
   mxn,
   type SolicitudStatus,
