@@ -128,9 +128,31 @@ export function ResumenPendientesEmail({
             )}
 
             <Hr style={{ borderColor: border, margin: '16px 0' }} />
+            {panelUrl ? (
+              <Section style={{ marginBottom: '12px' }}>
+                <Link
+                  href={panelUrl}
+                  style={{
+                    display: 'inline-block',
+                    backgroundColor: lime,
+                    color: navy,
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Actualizar estados de solicitudes
+                </Link>
+                <Text style={{ color: muted, fontSize: '12px', margin: '8px 0 0' }}>
+                  Enlace privado y no listado en el sitio: no lo compartas.
+                </Text>
+              </Section>
+            ) : null}
             <Text style={{ color: muted, fontSize: '12px', margin: 0 }}>
               Estas solicitudes seguirán apareciendo en el resumen diario hasta que cambies su
-              estado a vendido o no vendido en la base de datos.
+              estado a vendido o no vendido (desde el enlace de arriba o en la base de datos).
             </Text>
           </Section>
         </Container>
