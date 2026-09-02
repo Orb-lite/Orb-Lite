@@ -35,6 +35,7 @@ import { ShippingForm, formatShippingInfo, validateShipping } from "@/components
 import { toast } from "sonner";
 import { SHIPPING_OPTIONS, formatMxn } from "@/data/catalog";
 import { openWhatsApp } from "@/lib/whatsapp";
+import { notifyNewOrder } from "@/lib/order.functions";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -66,7 +67,7 @@ export function CartDrawer() {
   >(null);
   const totals = computeTotals(items, shippingId);
 
-  const handleWhatsappCheckout = () => {
+  const handleWhatsappCheckout = async () => {
     let details = "";
     const renewalLines = totals.lines.filter((l) => l.isRenewal);
     if (renewalLines.length > 0) {
@@ -137,6 +138,31 @@ export function CartDrawer() {
       `Subtotal sin IVA: ${formatMxn(totals.subtotalWithoutIva)}\n` +
       `IVA (16%): ${formatMxn(totals.iva)}\n` +
       `*TOTAL: ${formatMxn(totals.total)} MXN*${details}`;
+
+    // Registra el pedido por correo (bitácora de ventas). Si el correo falla,
+    // el pedido por WhatsApp continúa de todas formas.
+    try {
+      await notifyNewOrder({
+        data: {
+          orderId: `${Date.now().toString(36).toUpperCase()}`,
+          items: items.map((i) => ({
+            id: i.id,
+            variant_id: i.variant_id,
+            quantity: i.quantity,
+            add_ons: i.add_ons ?? [],
+            renewal: i.renewal ?? null,
+          })),
+          shippingId,
+          shippingInfo: shippingId === "national" ? shippingInfo : null,
+          pickupInfo: shippingId === "local" ? pickupInfo : null,
+          wantsInvoice,
+          billingInfo: wantsInvoice ? billingInfo : null,
+        },
+      });
+      toast.success("Pedido registrado, lo recibirás por WhatsApp");
+    } catch (error) {
+      console.error("No se pudo enviar el correo de pedido", error);
+    }
 
     openWhatsApp(text);
     setIsOpen(false);
