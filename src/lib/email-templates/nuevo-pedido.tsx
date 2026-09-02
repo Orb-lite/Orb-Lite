@@ -27,6 +27,10 @@ interface OrderLine {
 
 interface Props {
   orderId?: string
+  customerNumber?: number | null
+  ordersCount?: number | null
+  totalSpent?: number | null
+  isFirstPurchase?: boolean | null
   lines?: OrderLine[]
   shippingLabel?: string
   shippingPrice?: number
