@@ -14,6 +14,7 @@ import { Route as ContactoRouteImport } from './routes/contacto'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as TiendaRouteImport } from './routes/tienda'
+import { Route as PanelTokenRouteImport } from './routes/panel.$token'
 import { Route as ApiPublicCronResumenPendientesRouteImport } from './routes/api/public/cron/resumen-pendientes'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 
@@ -42,6 +43,11 @@ const TiendaRoute = TiendaRouteImport.update({
   path: '/tienda',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PanelTokenRoute = PanelTokenRouteImport.update({
+  id: '/panel/$token',
+  path: '/panel/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronResumenPendientesRoute =
   ApiPublicCronResumenPendientesRouteImport.update({
     id: '/api/public/cron/resumen-pendientes',
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/panel/$token': typeof PanelTokenRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/panel/$token': typeof PanelTokenRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/panel/$token': typeof PanelTokenRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
@@ -91,6 +100,7 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/panel/$token'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
   fileRoutesByTo: FileRoutesByTo
@@ -100,6 +110,7 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/panel/$token'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
   id:
@@ -109,6 +120,7 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/panel/$token'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
   fileRoutesById: FileRoutesById
@@ -119,6 +131,7 @@ export interface RootRouteChildren {
   ServiciosRoute: typeof ServiciosRoute
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
+  PanelTokenRoute: typeof PanelTokenRoute
   ApiPublicCronResumenPendientesRoute: typeof ApiPublicCronResumenPendientesRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
 }
@@ -160,6 +173,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TiendaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/panel/$token': {
+      id: '/panel/$token'
+      path: '/panel/$token'
+      fullPath: '/panel/$token'
+      preLoaderRoute: typeof PanelTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/resumen-pendientes': {
       id: '/api/public/cron/resumen-pendientes'
       path: '/api/public/cron/resumen-pendientes'
@@ -183,6 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServiciosRoute: ServiciosRoute,
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
+  PanelTokenRoute: PanelTokenRoute,
   ApiPublicCronResumenPendientesRoute: ApiPublicCronResumenPendientesRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
 }

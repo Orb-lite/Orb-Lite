@@ -31,6 +31,7 @@ interface Props {
   count?: number
   totalPending?: number
   orders?: PendingOrder[]
+  panelUrl?: string
 }
 
 const mxn = (n?: number | null) =>
