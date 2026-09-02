@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -103,9 +103,14 @@ function CrmPage() {
               Resumen y control de estado de todos los pedidos solicitados.
             </p>
           </div>
-          <Button size="sm" variant="outline" onClick={signOut}>
-            Salir
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/clientes">Panel de clientes</Link>
+            </Button>
+            <Button size="sm" variant="outline" onClick={signOut}>
+              Salir
+            </Button>
+          </div>
         </header>
 
         <div className="flex flex-wrap gap-2 border-b border-border pb-3">
