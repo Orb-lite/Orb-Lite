@@ -35,6 +35,12 @@ function CrmPage() {
   const list = useServerFn(crmListSolicitudes)
   const update = useServerFn(crmUpdateSolicitud)
   const [filter, setFilter] = React.useState<Filter>('pendiente')
+  const [page, setPage] = React.useState(1)
+  const PAGE_SIZE = 10
+
+  React.useEffect(() => {
+    setPage(1)
+  }, [filter])
 
   const query = useQuery({
     queryKey: ['crm-solicitudes'],
