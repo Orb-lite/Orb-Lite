@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { supabase } from '@/integrations/supabase/client'
+import { ensureFreshSession } from '@/lib/crm-session'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
