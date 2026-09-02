@@ -37,6 +37,7 @@ function CrmPage() {
   const update = useServerFn(crmUpdateSolicitud)
   const [filter, setFilter] = React.useState<Filter>('pendiente')
   const [page, setPage] = React.useState(1)
+  const [selectedRow, setSelectedRow] = React.useState<any>(null)
   const PAGE_SIZE = 10
 
   React.useEffect(() => {
