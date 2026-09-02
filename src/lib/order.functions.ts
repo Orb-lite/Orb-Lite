@@ -140,6 +140,10 @@ export const notifyNewOrder = createServerFn({ method: "POST" })
       idempotencyKey: `nuevo-pedido-${data.orderId}`,
       templateData: {
         orderId: data.orderId,
+        customerNumber: data.customerNumber ?? null,
+        ordersCount,
+        totalSpent,
+        isFirstPurchase,
         lines,
         shippingLabel: shipping.label,
         shippingPrice: shipping.price,
