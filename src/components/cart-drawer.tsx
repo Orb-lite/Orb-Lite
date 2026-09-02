@@ -196,6 +196,7 @@ export function CartDrawer() {
       await notifyNewOrder({
         data: {
           orderId,
+          customerNumber: assignedNumber ?? null,
           items: items.map((i) => ({
             id: i.id,
             variant_id: i.variant_id,
