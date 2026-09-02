@@ -33,6 +33,7 @@ const billingInfoSchema = z.object({
 
 const orderSchema = z.object({
   orderId: z.string().min(1).max(64),
+  customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
   items: z
     .array(
       z.object({
