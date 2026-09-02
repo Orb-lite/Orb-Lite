@@ -326,8 +326,10 @@ export function CartDrawer() {
                   </motion.div>
                 ))}
 
+                <CustomerBlock />
 
                 <div className="space-y-2">
+
                   <p className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
                     Método de entrega
                   </p>
