@@ -6,6 +6,7 @@ import {
   Heading,
   Hr,
   Html,
+  Link,
   Preview,
   Section,
   Text,
@@ -31,6 +32,7 @@ interface Props {
   count?: number
   totalPending?: number
   orders?: PendingOrder[]
+  panelUrl?: string
 }
 
 const mxn = (n?: number | null) =>
@@ -46,6 +48,7 @@ export function ResumenPendientesEmail({
   count = 0,
   totalPending = 0,
   orders = [],
+  panelUrl = '',
 }: Props) {
   return (
     <Html lang="es">
@@ -127,9 +130,31 @@ export function ResumenPendientesEmail({
             )}
 
             <Hr style={{ borderColor: border, margin: '16px 0' }} />
+            {panelUrl ? (
+              <Section style={{ marginBottom: '12px' }}>
+                <Link
+                  href={panelUrl}
+                  style={{
+                    display: 'inline-block',
+                    backgroundColor: lime,
+                    color: navy,
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    padding: '12px 20px',
+                    borderRadius: '8px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Actualizar estados de solicitudes
+                </Link>
+                <Text style={{ color: muted, fontSize: '12px', margin: '8px 0 0' }}>
+                  Enlace privado y no listado en el sitio: no lo compartas.
+                </Text>
+              </Section>
+            ) : null}
             <Text style={{ color: muted, fontSize: '12px', margin: 0 }}>
               Estas solicitudes seguirán apareciendo en el resumen diario hasta que cambies su
-              estado a vendido o no vendido en la base de datos.
+              estado a vendido o no vendido (desde el enlace de arriba o en la base de datos).
             </Text>
           </Section>
         </Container>
@@ -145,6 +170,7 @@ export const template: TemplateEntry = {
   displayName: 'Resumen diario de pendientes',
   to: 'ventas@orb-lite.com',
   previewData: {
+    panelUrl: 'https://orb-lite.com/panel/token-privado',
     date: '02/09/2026',
     count: 1,
     totalPending: 2946,
