@@ -6,6 +6,7 @@ import {
   Heading,
   Hr,
   Html,
+  Link,
   Preview,
   Section,
   Text,
@@ -47,6 +48,7 @@ export function ResumenPendientesEmail({
   count = 0,
   totalPending = 0,
   orders = [],
+  panelUrl = '',
 }: Props) {
   return (
     <Html lang="es">
@@ -168,6 +170,7 @@ export const template: TemplateEntry = {
   displayName: 'Resumen diario de pendientes',
   to: 'ventas@orb-lite.com',
   previewData: {
+    panelUrl: 'https://orb-lite.com/panel/token-privado',
     date: '02/09/2026',
     count: 1,
     totalPending: 2946,
