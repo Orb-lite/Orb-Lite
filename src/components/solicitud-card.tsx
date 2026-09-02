@@ -67,7 +67,14 @@ export function SolicitudCard({
           </p>
           {row.email ? <p className="text-sm text-muted-foreground">{row.email}</p> : null}
         </div>
-        <p className="text-base font-semibold text-foreground">{mxn(Number(row.total ?? 0))}</p>
+        <div className="flex flex-col items-end gap-2">
+          <p className="text-base font-semibold text-foreground">{mxn(Number(row.total ?? 0))}</p>
+          {onExpand ? (
+            <Button size="sm" variant="outline" onClick={onExpand}>
+              Ver completo
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground">{summarizeItems(row.items)}</p>
