@@ -405,16 +405,6 @@ export function CartDrawer() {
 
                 <Button onClick={handleWhatsappCheckout} className="w-full" size="lg">
                   <MessageCircle className="mr-2 h-4 w-4" />
-                  Finalizar pedido por WhatsApp
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setIsOpen(false);
-                    window.location.href = "/contacto";
-                  }}
-                >
                   Realizar solicitud
                 </Button>
               </div>
