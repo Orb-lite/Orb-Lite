@@ -64,3 +64,44 @@ export const updateSolicitudStatus = createServerFn({ method: 'POST' })
     if (error) throw new Error(error.message)
     return { ok: true as const }
   })
+
+/** Define (o restablece) la contraseña del CRM para ventas@orb-lite.com. */
+export const setCrmPassword = createServerFn({ method: 'POST' })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        token: z.string().min(8),
+        password: z.string().min(8).max(72),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    assertToken(data.token)
+    const email = 'ventas@orb-lite.com'
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+
+    const { data: listed, error: listError } = await supabaseAdmin.auth.admin.listUsers({
+      page: 1,
+      perPage: 200,
+    })
+    if (listError) throw new Error(listError.message)
+
+    const existing = listed.users.find((u) => (u.email ?? '').toLowerCase() === email)
+
+    if (existing) {
+      const { error } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
+        password: data.password,
+        email_confirm: true,
+      })
+      if (error) throw new Error(error.message)
+      return { ok: true as const, created: false }
+    }
+
+    const { error } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: data.password,
+      email_confirm: true,
+    })
+    if (error) throw new Error(error.message)
+    return { ok: true as const, created: true }
+  })
