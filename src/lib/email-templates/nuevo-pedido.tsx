@@ -209,6 +209,10 @@ export const template = {
   to: 'ventas@orb-lite.com',
   previewData: {
     orderId: 'ABC123',
+    customerNumber: 69228,
+    ordersCount: 3,
+    totalSpent: 5400,
+    isFirstPurchase: false,
     lines: [
       {
         variantName: 'Kit con SIM global M2M',
