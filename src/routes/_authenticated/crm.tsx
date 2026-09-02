@@ -143,8 +143,16 @@ function CrmPage() {
                 row={row}
                 pending={mutation.isPending}
                 onSave={(status, notes) => mutation.mutate({ id: row.id, status, notes })}
+                onExpand={() => setSelectedRow(row)}
               />
             ))}
+            <SolicitudDetailDialog
+              row={selectedRow}
+              open={!!selectedRow}
+              onOpenChange={(open) => {
+                if (!open) setSelectedRow(null)
+              }}
+            />
             {visible.length > PAGE_SIZE && (
               <nav className="flex flex-wrap items-center justify-between gap-3 pt-2">
                 <p className="text-xs text-muted-foreground">
