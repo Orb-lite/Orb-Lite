@@ -161,13 +161,16 @@ export function SolicitudDetailDialog({
             ))}
           </DetailSection>
 
-          <DetailSection title="Entrega y facturación">
+          <DetailSection title="Entrega">
             <Row label="Tipo de entrega" value={row.shipping_label || 'Entrega local'} />
             <Row label="Requiere factura" value={row.wants_invoice ? 'Sí' : 'No'} />
-            {Object.entries(billing).map(([k, v]) => (
-              <Row key={k} label={k} value={String(v ?? '')} />
-            ))}
           </DetailSection>
+
+          {row.wants_invoice || Object.keys(billing).length > 0 ? (
+            <DetailSection title="Datos de facturación (CFDI 4.0)">
+              <BillingRows billing={billing} />
+            </DetailSection>
+          ) : null}
 
           {items.length > 0 && (
             <DetailSection title="Productos">
@@ -221,3 +224,55 @@ function Row({ label, value }: { label: string; value: string }) {
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })
 }
+
+export const BILLING_LABELS: Record<string, string> = {
+  legalName: 'Razón social / Nombre fiscal',
+  rfc: 'RFC',
+  taxRegime: 'Régimen fiscal',
+  cfdiUse: 'Uso del CFDI',
+  fiscalZip: 'Código postal fiscal',
+  email: 'Correo para facturación',
+  phone: 'Teléfono',
+  address: 'Dirección fiscal',
+}
+
+const BILLING_ORDER = [
+  'legalName',
+  'rfc',
+  'taxRegime',
+  'cfdiUse',
+  'fiscalZip',
+  'address',
+  'email',
+  'phone',
+]
+
+export function BillingRows({
+  billing,
+  emptyText = 'No se capturaron datos fiscales.',
+}: {
+  billing: Record<string, any>
+  emptyText?: string
+}) {
+  const keys = Object.keys(billing ?? {})
+  if (keys.length === 0) {
+    return <p className="text-sm text-muted-foreground">{emptyText}</p>
+  }
+  const ordered = [
+    ...BILLING_ORDER.filter((k) => keys.includes(k)),
+    ...keys.filter((k) => !BILLING_ORDER.includes(k)),
+  ]
+  return (
+    <>
+      {ordered.map((k) => (
+        <Row key={k} label={BILLING_LABELS[k] ?? k} value={String(billing[k] ?? '')} />
+      ))}
+    </>
+  )
+}
+
+export function DetailRow({ label, value }: { label: string; value: string }) {
+  return <Row label={label} value={value} />
+}
+
+export { DetailSection }

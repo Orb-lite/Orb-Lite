@@ -3,13 +3,14 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { crmListSolicitudes, crmUpdateSolicitud } from '@/lib/crm.functions'
+import { crmListCustomers, crmListSolicitudes, crmUpdateSolicitud } from '@/lib/crm.functions'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   SolicitudCard,
   SolicitudDetailDialog,
   STATUS_LABEL,
+  BillingRows,
   mxn,
   type SolicitudStatus,
 } from '@/components/solicitud-card'
@@ -38,6 +39,7 @@ function CrmPage() {
   const [filter, setFilter] = React.useState<Filter>('pendiente')
   const [page, setPage] = React.useState(1)
   const [selectedRow, setSelectedRow] = React.useState<any>(null)
+  const [tab, setTab] = React.useState<'solicitudes' | 'clientes'>('solicitudes')
   const PAGE_SIZE = 10
 
   React.useEffect(() => {
@@ -106,6 +108,25 @@ function CrmPage() {
           </Button>
         </header>
 
+        <div className="flex flex-wrap gap-2 border-b border-border pb-3">
+          <Button
+            size="sm"
+            variant={tab === 'solicitudes' ? 'default' : 'ghost'}
+            onClick={() => setTab('solicitudes')}
+          >
+            Solicitudes
+          </Button>
+          <Button
+            size="sm"
+            variant={tab === 'clientes' ? 'default' : 'ghost'}
+            onClick={() => setTab('clientes')}
+          >
+            Clientes
+          </Button>
+        </div>
+
+        {tab === 'solicitudes' ? (
+          <>
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Pendientes" count={stats.pendiente.count} total={stats.pendiente.total} highlight />
           <StatCard label="Vendidos" count={stats.vendido.count} total={stats.vendido.total} />
@@ -183,6 +204,10 @@ function CrmPage() {
             )}
           </div>
         )}
+          </>
+        ) : (
+          <CustomersSection />
+        )}
       </div>
     </main>
   )
@@ -209,5 +234,106 @@ function StatCard({
       <p className="font-display text-2xl text-foreground">{count}</p>
       <p className="text-sm text-muted-foreground">{mxn(total)}</p>
     </div>
+  )
+}
+
+function CustomersSection() {
+  const listCustomers = useServerFn(crmListCustomers)
+  const [q, setQ] = React.useState('')
+  const query = useQuery({
+    queryKey: ['crm-customers'],
+    queryFn: () => listCustomers({ data: undefined as any }),
+  })
+
+  const rows = query.data?.rows ?? []
+  const term = q.trim().toLowerCase()
+  const filtered = term
+    ? rows.filter((c: any) =>
+        [c.full_name, c.phone, c.email, String(c.customer_number), (c.billing as any)?.rfc]
+          .filter(Boolean)
+          .some((v: any) => String(v).toLowerCase().includes(term)),
+      )
+    : rows
+
+  const totalSpent = rows.reduce((s: number, c: any) => s + Number(c.total_spent ?? 0), 0)
+
+  return (
+    <div className="space-y-4">
+      <section className="grid gap-3 sm:grid-cols-2">
+        <StatCard label="Clientes registrados" count={rows.length} total={totalSpent} />
+        <StatCard
+          label="Con datos de facturación"
+          count={rows.filter((c: any) => c.billing && Object.keys(c.billing).length > 0).length}
+          total={0}
+        />
+      </section>
+
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Buscar por nombre, número de cliente, teléfono, correo o RFC"
+        className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+      />
+
+      {query.isLoading ? (
+        <p className="text-sm text-muted-foreground">Cargando clientes…</p>
+      ) : query.isError ? (
+        <p className="text-sm text-destructive">No se pudieron cargar los clientes.</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Sin clientes para esta búsqueda.</p>
+      ) : (
+        filtered.map((c: any) => <CustomerCard key={c.id} customer={c} />)
+      )}
+    </div>
+  )
+}
+
+function CustomerCard({ customer }: { customer: any }) {
+  const billing = (customer.billing && typeof customer.billing === 'object' ? customer.billing : {}) as Record<string, any>
+  const contact = (customer.contact && typeof customer.contact === 'object' ? customer.contact : {}) as Record<string, any>
+
+  return (
+    <article className="space-y-3 rounded-xl border border-border bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <p className="text-sm text-primary">Cliente #{customer.customer_number}</p>
+          <p className="text-base text-foreground">{customer.full_name || 'Sin nombre'}</p>
+          <p className="text-sm text-muted-foreground">
+            {customer.phone || 'Sin teléfono'}
+            {customer.email ? ` · ${customer.email}` : ''}
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-base font-semibold text-foreground">{mxn(Number(customer.total_spent ?? 0))}</p>
+          <p className="text-xs text-muted-foreground">{customer.orders_count ?? 0} pedido(s)</p>
+        </div>
+      </div>
+
+      {Object.keys(contact).length > 0 ? (
+        <div className="space-y-1 text-sm">
+          <p className="text-xs uppercase tracking-wide text-primary">Datos de contacto</p>
+          <div className="grid gap-1">
+            {Object.entries(contact).map(([k, v]) => (
+              <p key={k} className="flex flex-wrap justify-between gap-2 text-muted-foreground">
+                <span className="capitalize">{k.replace(/_/g, ' ')}</span>
+                <span className="text-foreground text-right">{String(v ?? '') || '—'}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="space-y-2 text-sm">
+        <p className="text-xs uppercase tracking-wide text-primary">Datos de facturación</p>
+        <div className="grid gap-2">
+          <BillingRows billing={billing} />
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Alta: {new Date(customer.created_at).toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City' })}
+        {customer.last_order_id ? ` · Último pedido #${customer.last_order_id}` : ''}
+      </p>
+    </article>
   )
 }
