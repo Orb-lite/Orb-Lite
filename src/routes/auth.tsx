@@ -87,9 +87,18 @@ function AuthPage() {
           {loading ? 'Entrando…' : 'Entrar'}
         </Button>
 
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => navigate({ to: '/acceso-crm' })}
+        >
+          Crear o restablecer contraseña
+        </Button>
+
         <p className="text-xs text-muted-foreground">
-          ¿Primera vez? Define tu contraseña desde el enlace privado que recibes en el resumen
-          diario por correo.
+          ¿Primera vez? Pide un código de un solo uso y llegará a ventas@orb-lite.com para crear tu
+          contraseña.
         </p>
       </form>
     </main>
