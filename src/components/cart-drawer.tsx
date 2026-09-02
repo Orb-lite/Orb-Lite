@@ -35,6 +35,7 @@ import { ShippingForm, formatShippingInfo, validateShipping } from "@/components
 import { toast } from "sonner";
 import { SHIPPING_OPTIONS, formatMxn } from "@/data/catalog";
 import { openWhatsApp } from "@/lib/whatsapp";
+import { notifyNewOrder } from "@/lib/order.functions";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
