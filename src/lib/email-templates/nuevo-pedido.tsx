@@ -87,6 +87,26 @@ const NuevoPedidoEmail = (p: Props) => {
           </Text>
 
           <Section style={card}>
+            <Text style={sectionTitle}>CLIENTE</Text>
+            <Text style={detail}>
+              Número de cliente: {p.customerNumber ? `#${p.customerNumber}` : 'Sin asignar'}
+            </Text>
+            <Text style={detail}>
+              {p.isFirstPurchase === null || p.isFirstPurchase === undefined
+                ? 'Historial no disponible'
+                : p.isFirstPurchase
+                  ? 'Primera compra: SÍ'
+                  : 'Primera compra: No'}
+            </Text>
+            {p.isFirstPurchase === false ? (
+              <>
+                <Text style={detail}>Compras acumuladas: {p.ordersCount ?? 0}</Text>
+                <Text style={detail}>Total histórico comprado: {mxn(p.totalSpent ?? 0)} MXN</Text>
+              </>
+            ) : null}
+          </Section>
+
+          <Section style={card}>
             <Text style={sectionTitle}>PAQUETES</Text>
             {lines.map((l, i) => (
               <Section key={i} style={lineBlock}>
