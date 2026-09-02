@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AccesoCrmRouteImport } from './routes/acceso-crm'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ContactoRouteImport } from './routes/contacto'
 import { Route as ServiciosRouteImport } from './routes/servicios'
@@ -28,6 +29,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccesoCrmRoute = AccesoCrmRouteImport.update({
+  id: '/acceso-crm',
+  path: '/acceso-crm',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -80,6 +86,7 @@ const LovableEmailTransactionalPreviewRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/acceso-crm': typeof AccesoCrmRoute
   '/auth': typeof AuthRoute
   '/contacto': typeof ContactoRoute
   '/servicios': typeof ServiciosRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/acceso-crm': typeof AccesoCrmRoute
   '/auth': typeof AuthRoute
   '/contacto': typeof ContactoRoute
   '/servicios': typeof ServiciosRoute
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/acceso-crm': typeof AccesoCrmRoute
   '/auth': typeof AuthRoute
   '/contacto': typeof ContactoRoute
   '/servicios': typeof ServiciosRoute
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/acceso-crm'
     | '/auth'
     | '/contacto'
     | '/servicios'
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/acceso-crm'
     | '/auth'
     | '/contacto'
     | '/servicios'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/acceso-crm'
     | '/auth'
     | '/contacto'
     | '/servicios'
@@ -159,6 +171,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AccesoCrmRoute: typeof AccesoCrmRoute
   AuthRoute: typeof AuthRoute
   ContactoRoute: typeof ContactoRoute
   ServiciosRoute: typeof ServiciosRoute
@@ -183,6 +196,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/acceso-crm': {
+      id: '/acceso-crm'
+      path: '/acceso-crm'
+      fullPath: '/acceso-crm'
+      preLoaderRoute: typeof AccesoCrmRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -265,6 +285,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AccesoCrmRoute: AccesoCrmRoute,
   AuthRoute: AuthRoute,
   ContactoRoute: ContactoRoute,
   ServiciosRoute: ServiciosRoute,

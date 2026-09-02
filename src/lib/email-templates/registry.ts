@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import { template as nuevoPedidoTemplate } from './nuevo-pedido'
 import { template as resumenPendientesTemplate } from './resumen-pendientes'
+import { template as codigoAccesoCrmTemplate } from './codigo-acceso-crm'
 
 export interface TemplateEntry {
   component: ComponentType<any>
