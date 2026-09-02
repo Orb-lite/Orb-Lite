@@ -78,8 +78,9 @@ function AuthPage() {
           <Label htmlFor="password">Contraseña</Label>
           <Input
             id="password"
+            name="crm-clave"
             type="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
