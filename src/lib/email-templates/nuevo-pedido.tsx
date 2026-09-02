@@ -27,6 +27,10 @@ interface OrderLine {
 
 interface Props {
   orderId?: string
+  customerNumber?: number | null
+  ordersCount?: number | null
+  totalSpent?: number | null
+  isFirstPurchase?: boolean | null
   lines?: OrderLine[]
   shippingLabel?: string
   shippingPrice?: number
@@ -81,6 +85,26 @@ const NuevoPedidoEmail = (p: Props) => {
             Entrega: <strong>{p.shippingLabel ?? '—'}</strong>
             {p.isNational ? ' (envío foráneo)' : ' (entrega local)'}
           </Text>
+
+          <Section style={card}>
+            <Text style={sectionTitle}>CLIENTE</Text>
+            <Text style={detail}>
+              Número de cliente: {p.customerNumber ? `#${p.customerNumber}` : 'Sin asignar'}
+            </Text>
+            <Text style={detail}>
+              {p.isFirstPurchase === null || p.isFirstPurchase === undefined
+                ? 'Historial no disponible'
+                : p.isFirstPurchase
+                  ? 'Primera compra: SÍ'
+                  : 'Primera compra: No'}
+            </Text>
+            {p.isFirstPurchase === false ? (
+              <>
+                <Text style={detail}>Compras acumuladas: {p.ordersCount ?? 0}</Text>
+                <Text style={detail}>Total histórico comprado: {mxn(p.totalSpent ?? 0)} MXN</Text>
+              </>
+            ) : null}
+          </Section>
 
           <Section style={card}>
             <Text style={sectionTitle}>PAQUETES</Text>
@@ -185,6 +209,10 @@ export const template = {
   to: 'ventas@orb-lite.com',
   previewData: {
     orderId: 'ABC123',
+    customerNumber: 69228,
+    ordersCount: 3,
+    totalSpent: 5400,
+    isFirstPurchase: false,
     lines: [
       {
         variantName: 'Kit con SIM global M2M',

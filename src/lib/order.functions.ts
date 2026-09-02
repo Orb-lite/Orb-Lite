@@ -115,10 +115,35 @@ export const notifyNewOrder = createServerFn({ method: "POST" })
       console.error("No se pudo registrar la solicitud en BD", error);
     }
 
+    // Historial del cliente para la bitácora del correo.
+    let ordersCount: number | null = null;
+    let totalSpent: number | null = null;
+    if (data.customerNumber) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: customer } = await supabaseAdmin
+          .from("customers")
+          .select("orders_count, total_spent")
+          .eq("customer_number", data.customerNumber)
+          .maybeSingle();
+        if (customer) {
+          ordersCount = customer.orders_count;
+          totalSpent = Number(customer.total_spent);
+        }
+      } catch (error) {
+        console.error("No se pudo consultar el historial del cliente", error);
+      }
+    }
+    const isFirstPurchase = ordersCount !== null ? ordersCount <= 1 : null;
+
     await sendTemplateEmail("nuevo-pedido", "ventas@orb-lite.com", {
       idempotencyKey: `nuevo-pedido-${data.orderId}`,
       templateData: {
         orderId: data.orderId,
+        customerNumber: data.customerNumber ?? null,
+        ordersCount,
+        totalSpent,
+        isFirstPurchase,
         lines,
         shippingLabel: shipping.label,
         shippingPrice: shipping.price,
