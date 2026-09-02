@@ -54,6 +54,8 @@ interface CartStore {
   pickupInfo: PickupInfo | null;
   wantsInvoice: boolean;
   billingInfo: BillingInfo | null;
+  isFirstPurchase: boolean;
+  customerNumber: number | null;
   addItem: (item: NewCartItem) => void;
   updateQuantity: (id: string, quantity: number) => void;
   updateRenewal: (id: string, info: RenewalInfo) => void;
@@ -63,6 +65,8 @@ interface CartStore {
   setPickupInfo: (info: PickupInfo | null) => void;
   setWantsInvoice: (value: boolean) => void;
   setBillingInfo: (info: BillingInfo | null) => void;
+  setIsFirstPurchase: (value: boolean) => void;
+  setCustomerNumber: (value: number | null) => void;
   clearCart: () => void;
 }
 
@@ -79,6 +83,8 @@ export const useCartStore = create<CartStore>()(
       pickupInfo: null,
       wantsInvoice: false,
       billingInfo: null,
+      isFirstPurchase: true,
+      customerNumber: null,
 
       addItem: ({ variant_id, quantity, add_ons, renewal }) => {
         const items = get().items;
@@ -137,6 +143,9 @@ export const useCartStore = create<CartStore>()(
       setPickupInfo: (info) => set({ pickupInfo: info }),
       setWantsInvoice: (value) => set({ wantsInvoice: value }),
       setBillingInfo: (info) => set({ billingInfo: info }),
+      setIsFirstPurchase: (value) =>
+        set(value ? { isFirstPurchase: true, customerNumber: null } : { isFirstPurchase: false }),
+      setCustomerNumber: (value) => set({ customerNumber: value }),
       clearCart: () => set({ items: [] }),
     }),
     {
@@ -163,6 +172,8 @@ export const useCartStore = create<CartStore>()(
         pickupInfo: state.pickupInfo,
         wantsInvoice: state.wantsInvoice,
         billingInfo: state.billingInfo,
+        isFirstPurchase: state.isFirstPurchase,
+        customerNumber: state.customerNumber,
       }),
     },
   ),
