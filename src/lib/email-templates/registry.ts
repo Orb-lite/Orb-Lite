@@ -19,4 +19,5 @@ export interface TemplateEntry {
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'nuevo-pedido': nuevoPedidoTemplate,
   'resumen-pendientes': resumenPendientesTemplate,
+  'codigo-acceso-crm': codigoAccesoCrmTemplate,
 }
