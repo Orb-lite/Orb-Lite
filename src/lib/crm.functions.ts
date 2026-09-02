@@ -25,7 +25,7 @@ export const crmListSolicitudes = createServerFn({ method: 'POST' })
     let query = supabaseAdmin
       .from('solicitudes')
       .select(
-        'id, order_id, customer_number, full_name, phone, email, items, shipping_label, wants_invoice, total, status, notes, created_at',
+        'id, order_id, customer_number, full_name, phone, email, items, shipping_label, wants_invoice, billing, total, status, notes, created_at',
       )
       .order('created_at', { ascending: false })
       .limit(300)
@@ -63,4 +63,22 @@ export const crmUpdateSolicitud = createServerFn({ method: 'POST' })
 
     if (error) throw new Error(error.message)
     return { ok: true as const }
+  })
+
+export const crmListCustomers = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+
+    const { data: rows, error } = await supabaseAdmin
+      .from('customers')
+      .select(
+        'id, customer_number, full_name, phone, email, contact, billing, orders_count, total_spent, last_order_id, created_at, updated_at',
+      )
+      .order('customer_number', { ascending: true })
+      .limit(500)
+
+    if (error) throw new Error(error.message)
+    return { rows: rows ?? [] }
   })
