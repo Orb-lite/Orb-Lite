@@ -14,6 +14,7 @@ import { Route as ContactoRouteImport } from './routes/contacto'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as TiendaRouteImport } from './routes/tienda'
+import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +41,12 @@ const TiendaRoute = TiendaRouteImport.update({
   path: '/tienda',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LovableEmailTransactionalPreviewRoute =
+  LovableEmailTransactionalPreviewRouteImport.update({
+    id: '/lovable/email/transactional/preview',
+    path: '/lovable/email/transactional/preview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +54,7 @@ export interface FileRoutesByFullPath {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +62,7 @@ export interface FileRoutesByTo {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +71,33 @@ export interface FileRoutesById {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/contacto' | '/servicios' | '/terminos' | '/tienda'
+  fullPaths:
+    | '/'
+    | '/contacto'
+    | '/servicios'
+    | '/terminos'
+    | '/tienda'
+    | '/lovable/email/transactional/preview'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/contacto' | '/servicios' | '/terminos' | '/tienda'
-  id: '__root__' | '/' | '/contacto' | '/servicios' | '/terminos' | '/tienda'
+  to:
+    | '/'
+    | '/contacto'
+    | '/servicios'
+    | '/terminos'
+    | '/tienda'
+    | '/lovable/email/transactional/preview'
+  id:
+    | '__root__'
+    | '/'
+    | '/contacto'
+    | '/servicios'
+    | '/terminos'
+    | '/tienda'
+    | '/lovable/email/transactional/preview'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,6 +106,7 @@ export interface RootRouteChildren {
   ServiciosRoute: typeof ServiciosRoute
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
+  LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -116,6 +146,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TiendaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lovable/email/transactional/preview': {
+      id: '/lovable/email/transactional/preview'
+      path: '/lovable/email/transactional/preview'
+      fullPath: '/lovable/email/transactional/preview'
+      preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -125,6 +162,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServiciosRoute: ServiciosRoute,
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
+  LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
