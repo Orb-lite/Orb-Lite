@@ -67,7 +67,7 @@ export function CartDrawer() {
   >(null);
   const totals = computeTotals(items, shippingId);
 
-  const handleWhatsappCheckout = () => {
+  const handleWhatsappCheckout = async () => {
     let details = "";
     const renewalLines = totals.lines.filter((l) => l.isRenewal);
     if (renewalLines.length > 0) {
