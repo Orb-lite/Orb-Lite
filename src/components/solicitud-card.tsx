@@ -117,3 +117,107 @@ export function SolicitudCard({
     </article>
   )
 }
+
+export function SolicitudDetailDialog({
+  row,
+  open,
+  onOpenChange,
+}: {
+  row: any
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  if (!row) return null
+
+  const items = Array.isArray(row.items) ? row.items : []
+  const contact = typeof row.contact === 'object' && row.contact ? row.contact : {}
+  const billing = typeof row.billing === 'object' && row.billing ? row.billing : {}
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Pedido #{row.order_id}</DialogTitle>
+          <DialogDescription>
+            Información completa · {formatDate(row.created_at)}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 text-sm">
+          <DetailSection title="Estado y totales">
+            <Row label="Estado" value={STATUS_LABEL[row.status] ?? row.status} />
+            <Row label="Total" value={mxn(Number(row.total ?? 0))} />
+            {row.customer_number ? (
+              <Row label="Número de cliente" value={`#${row.customer_number}`} />
+            ) : null}
+          </DetailSection>
+
+          <DetailSection title="Contacto">
+            <Row label="Nombre" value={row.full_name} />
+            <Row label="Teléfono" value={row.phone} />
+            <Row label="Correo" value={row.email} />
+            {Object.entries(contact).map(([k, v]) => (
+              <Row key={k} label={k} value={String(v ?? '')} />
+            ))}
+          </DetailSection>
+
+          <DetailSection title="Entrega y facturación">
+            <Row label="Tipo de entrega" value={row.shipping_label || 'Entrega local'} />
+            <Row label="Requiere factura" value={row.wants_invoice ? 'Sí' : 'No'} />
+            {Object.entries(billing).map(([k, v]) => (
+              <Row key={k} label={k} value={String(v ?? '')} />
+            ))}
+          </DetailSection>
+
+          {items.length > 0 && (
+            <DetailSection title="Productos">
+              <ul className="list-disc pl-4 space-y-1">
+                {items.map((it: any, i: number) => (
+                  <li key={i}>
+                    {Number(it.quantity ?? 1)} × {String(it.title ?? it.variantName ?? 'Producto')}
+                    {it.price ? ` · ${mxn(Number(it.price))}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </DetailSection>
+          )}
+
+          {row.notes ? (
+            <div className="rounded-md border border-border bg-muted/40 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                Notas internas
+              </p>
+              <p className="text-foreground whitespace-pre-wrap">{row.notes}</p>
+            </div>
+          ) : null}
+        </div>
+
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-xs uppercase tracking-wide text-primary">{title}</p>
+      <div className="grid gap-2">{children}</div>
+    </div>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-wrap justify-between gap-2 border-b border-border pb-1 last:border-0 last:pb-0">
+      <span className="text-muted-foreground capitalize">{label.replace(/_/g, ' ')}</span>
+      <span className="text-foreground text-right">{value || '—'}</span>
+    </div>
+  )
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })
+}
