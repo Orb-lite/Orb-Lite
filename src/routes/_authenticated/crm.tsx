@@ -77,6 +77,9 @@ function CrmPage() {
   const totalCount = rows.length
   const totalValue = rows.reduce((s, r) => s + Number(r.total ?? 0), 0)
   const visible = filter === 'todas' ? rows : rows.filter((r) => r.status === filter)
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginated = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   async function signOut() {
     await queryClient.cancelQueries()
