@@ -51,7 +51,7 @@ export function CustomerBlock() {
         }
       }
       if (record.billing) {
-        setBillingInfo(record.billing);
+        setBillingInfo({ ...record.billing, fiscalAddress: record.billing.fiscalAddress ?? "" });
         setWantsInvoice(true);
       }
       toast.success(
