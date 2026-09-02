@@ -153,9 +153,9 @@ export function SolicitudDetailDialog({
           </DetailSection>
 
           <DetailSection title="Contacto">
-            <Row label="Nombre" value={row.full_name} />
-            <Row label="Teléfono" value={row.phone} />
-            <Row label="Correo" value={row.email} />
+            <Row label="Nombre" value={row.full_name || '—'} />
+            <Row label="Teléfono" value={row.phone || '—'} />
+            <Row label="Correo" value={row.email || '—'} />
             {Object.entries(contact).map(([k, v]) => (
               <Row key={k} label={k} value={String(v ?? '')} />
             ))}
