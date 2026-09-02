@@ -65,7 +65,7 @@ const NuevoPedidoEmail = (p: Props) => {
     <Html lang="es" dir="ltr">
       <Head />
       <Preview>
-        Nuevo pedido {p.orderId ?? ''} — {p.totalItems ?? 0} artículo(s) — {mxn(p.total)} MXN
+        {`Nuevo pedido ${p.orderId ?? ''} — ${p.totalItems ?? 0} artículo(s) — ${mxn(p.total)} MXN`}
       </Preview>
       <Body style={main}>
         <Container style={container}>
@@ -180,7 +180,7 @@ const NuevoPedidoEmail = (p: Props) => {
 export const template = {
   component: NuevoPedidoEmail,
   subject: (d: Record<string, any>) =>
-    `Nuevo pedido ORB-LITE${d.orderId ? ` #${d.orderId}` : ''} — ${mxn(d.total)} MXN`,
+    `Nuevo pedido ORB-LITE${d['orderId'] ? ` #${d['orderId']}` : ''} — ${mxn(d['total'])} MXN`,
   displayName: 'Notificación de nuevo pedido',
   to: 'ventas@orb-lite.com',
   previewData: {
