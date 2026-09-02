@@ -36,6 +36,8 @@ import { toast } from "sonner";
 import { SHIPPING_OPTIONS, formatMxn } from "@/data/catalog";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { notifyNewOrder } from "@/lib/order.functions";
+import { saveCustomerOrder } from "@/lib/customers.functions";
+import { CustomerBlock } from "@/components/customer-block";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,6 +56,9 @@ export function CartDrawer() {
     billingInfo,
     setWantsInvoice,
     setBillingInfo,
+    customerNumber,
+    setCustomerNumber,
+    setIsFirstPurchase,
   } = useCartStore();
   const [billingErrors, setBillingErrors] = useState<
     Partial<Record<keyof BillingInfo, string>> | null
@@ -123,6 +128,52 @@ export function CartDrawer() {
       details += formatBillingInfo(data);
     }
 
+    const orderId = `${Date.now().toString(36).toUpperCase()}`;
+
+    // Registro de cliente: asigna número nuevo o acumula la compra en el existente
+    let assignedNumber: number | null = customerNumber;
+    const contactName = shippingInfo?.fullName ?? pickupInfo?.fullName ?? billingInfo?.legalName;
+    const contactPhone = shippingInfo?.phone ?? pickupInfo?.phone ?? billingInfo?.phone;
+    if (contactName && contactPhone) {
+      try {
+        const result = await saveCustomerOrder({
+          data: {
+            customerNumber: customerNumber ?? null,
+            fullName: contactName,
+            phone: contactPhone,
+            email: billingInfo?.email ?? null,
+            contact: shippingInfo
+              ? {
+                  fullName: shippingInfo.fullName,
+                  phone: shippingInfo.phone,
+                  city: shippingInfo.city,
+                  state: shippingInfo.state,
+                  zip: shippingInfo.zip,
+                }
+              : pickupInfo
+                ? { fullName: pickupInfo.fullName, phone: pickupInfo.phone }
+                : null,
+            billing: wantsInvoice ? billingInfo : null,
+            orderId,
+            orderTotal: totals.total,
+          },
+        });
+        assignedNumber = result.customerNumber;
+        setCustomerNumber(result.customerNumber);
+        setIsFirstPurchase(false);
+        toast.success(
+          result.isNew
+            ? `Tu número de cliente es #${result.customerNumber}. Guárdalo para acumular compras y acceder a promociones.`
+            : `Compra acumulada al cliente #${result.customerNumber}.`,
+        );
+      } catch (error) {
+        console.error("No se pudo registrar el cliente", error);
+      }
+    }
+    if (assignedNumber) {
+      details = `\n\n*Cliente ORB-LITE:* #${assignedNumber}` + details;
+    }
+
     const lines = totals.lines
       .map(
         (l) =>
@@ -144,7 +195,7 @@ export function CartDrawer() {
     try {
       await notifyNewOrder({
         data: {
-          orderId: `${Date.now().toString(36).toUpperCase()}`,
+          orderId,
           items: items.map((i) => ({
             id: i.id,
             variant_id: i.variant_id,
