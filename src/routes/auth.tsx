@@ -91,7 +91,7 @@ function AuthPage() {
           type="button"
           variant="outline"
           className="w-full"
-          onClick={() => navigate({ to: '/acceso-crm' })}
+          onClick={() => navigate({ to: '/acceso-crm', search: { olvide: false } })}
         >
           Crear contraseña
         </Button>
