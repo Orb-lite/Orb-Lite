@@ -69,9 +69,14 @@ async function handle(request: Request) {
   const now = new Date()
   const dateKey = now.toISOString().slice(0, 10)
 
+  const panelToken = process.env['ADMIN_PANEL_TOKEN']
+  const siteUrl = process.env['PUBLIC_SITE_URL'] ?? 'https://orb-lite.com'
+  const panelUrl = panelToken ? `${siteUrl}/panel/${panelToken}` : ''
+
   const result = await sendTemplateEmail('resumen-pendientes', 'ventas@orb-lite.com', {
-    idempotencyKey: `resumen-pendientes-${dateKey}`,
+    idempotencyKey: `resumen-pendientes-${dateKey}-${Date.now()}`,
     templateData: {
+      panelUrl,
       date: now.toLocaleDateString('es-MX', { timeZone: 'UTC' }),
       count: orders.length,
       totalPending,
