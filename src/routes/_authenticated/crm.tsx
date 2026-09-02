@@ -135,7 +135,7 @@ function CrmPage() {
           <p className="text-sm text-muted-foreground">No hay solicitudes en este filtro.</p>
         ) : (
           <div className="space-y-4">
-            {visible.map((row) => (
+            {paginated.map((row) => (
               <SolicitudCard
                 key={row.id}
                 row={row}
@@ -143,6 +143,34 @@ function CrmPage() {
                 onSave={(status, notes) => mutation.mutate({ id: row.id, status, notes })}
               />
             ))}
+            {visible.length > PAGE_SIZE && (
+              <nav className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <p className="text-xs text-muted-foreground">
+                  Mostrando {paginated.length} de {visible.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="px-2 text-sm text-muted-foreground">
+                    Página {safePage} de {totalPages}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </nav>
+            )}
           </div>
         )}
       </div>
