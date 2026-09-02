@@ -62,8 +62,12 @@ function AuthPage() {
           <Label htmlFor="email">Correo</Label>
           <Input
             id="email"
+            name="crm-usuario"
             type="email"
-            autoComplete="username"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="ventas@orb-lite.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
