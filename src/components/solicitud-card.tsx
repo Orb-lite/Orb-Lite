@@ -247,14 +247,16 @@ const BILLING_ORDER = [
   'phone',
 ]
 
-export function BillingRows({ billing }: { billing: Record<string, any> }) {
+export function BillingRows({
+  billing,
+  emptyText = 'No se capturaron datos fiscales.',
+}: {
+  billing: Record<string, any>
+  emptyText?: string
+}) {
   const keys = Object.keys(billing ?? {})
   if (keys.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        El cliente solicitó factura pero no se capturaron datos fiscales.
-      </p>
-    )
+    return <p className="text-sm text-muted-foreground">{emptyText}</p>
   }
   const ordered = [
     ...BILLING_ORDER.filter((k) => keys.includes(k)),
