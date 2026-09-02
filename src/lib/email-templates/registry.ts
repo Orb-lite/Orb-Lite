@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import { template as nuevoPedidoTemplate } from './nuevo-pedido'
+import { template as resumenPendientesTemplate } from './resumen-pendientes'
 
 export interface TemplateEntry {
   component: ComponentType<any>
