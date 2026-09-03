@@ -3,6 +3,7 @@ import { CheckCircle2, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { uploadConstanciaFiscal } from "@/lib/constancia.functions";
 import type { ConstanciaFile } from "@/stores/cartStore";
+import { constanciaVenceEl, constanciaVigente } from "@/lib/constancia-validez";
 
 const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -32,6 +33,8 @@ export function ConstanciaUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const vigente = value ? constanciaVigente(value.uploadedAt) : false;
+  const vence = value ? constanciaVenceEl(value.uploadedAt) : null;
 
   const handleFile = async (file: File) => {
     if (!ALLOWED.includes(file.type)) {
@@ -57,6 +60,7 @@ export function ConstanciaUpload({
         path: result.path,
         fileName: result.fileName,
         signedUrl: result.signedUrl,
+        uploadedAt: new Date().toISOString(),
       });
       toast.success("Constancia de situación fiscal recibida");
     } catch (err) {
@@ -91,18 +95,34 @@ export function ConstanciaUpload({
       >
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
-        ) : value ? (
+        ) : vigente ? (
           <CheckCircle2 className="h-4 w-4" />
         ) : (
           <Upload className="h-4 w-4" />
         )}
-        {loading ? "Subiendo…" : value ? "Reemplazar archivo" : "Subir constancia (PDF o imagen)"}
+        {loading
+          ? "Subiendo…"
+          : vigente
+            ? "Reemplazar archivo"
+            : value
+              ? "Actualizar constancia (venció)"
+              : "Subir constancia (PDF o imagen)"}
       </button>
       {value && (
         <p className="truncate text-[11px] text-muted-foreground">Archivo: {value.fileName}</p>
       )}
+      {value && vigente && vence && (
+        <p className="text-[11px] text-primary">Vigente hasta el {vence}.</p>
+      )}
+      {value && !vigente && (
+        <p className="text-[11px] text-destructive">
+          Tu constancia tiene más de un mes. Sube una actualizada para facturar esta compra.
+        </p>
+      )}
       <p className="text-[11px] text-muted-foreground">
-        Se guarda de forma privada y solo la usamos para emitir tu CFDI. Máximo 10 MB.
+        Queda ligada a tu número de cliente y es válida por un mes: si entre compras pasa más de un
+        mes, te pediremos una constancia actualizada. Se guarda de forma privada y solo la usamos
+        para emitir tu CFDI. Máximo 10 MB.
       </p>
       {error && <p className="text-[11px] text-destructive">{error}</p>}
     </div>
