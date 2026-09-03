@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { constanciaVigente } from "@/lib/constancia-validez";
 
 const contactSchema = z.object({
   fullName: z.string().trim().min(1).max(150),
@@ -20,6 +21,14 @@ const billingSchema = z.object({
   fiscalAddress: z.string().trim().max(250).optional().or(z.literal("")),
 });
 
+export interface ConstanciaRecord {
+  path: string;
+  fileName: string;
+  signedUrl: string | null;
+  uploadedAt: string | null;
+  vigente: boolean;
+}
+
 export interface CustomerRecord {
   customerNumber: number;
   fullName: string;
@@ -28,6 +37,7 @@ export interface CustomerRecord {
   contact: z.infer<typeof contactSchema> | null;
   billing: z.infer<typeof billingSchema> | null;
   ordersCount: number;
+  constancia: ConstanciaRecord | null;
 }
 
 /** Consulta un cliente por su número para precargar sus datos. */
@@ -39,7 +49,9 @@ export const lookupCustomer = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("customers")
-      .select("customer_number, full_name, phone, email, contact, billing, orders_count")
+      .select(
+        "customer_number, full_name, phone, email, contact, billing, orders_count, constancia_path, constancia_file_name, constancia_url, constancia_uploaded_at",
+      )
       .eq("customer_number", data.customerNumber)
       .maybeSingle();
 
@@ -54,6 +66,15 @@ export const lookupCustomer = createServerFn({ method: "POST" })
       contact: (row.contact as CustomerRecord["contact"]) ?? null,
       billing: (row.billing as CustomerRecord["billing"]) ?? null,
       ordersCount: row.orders_count,
+      constancia: row.constancia_path
+        ? {
+            path: row.constancia_path,
+            fileName: row.constancia_file_name ?? "constancia",
+            signedUrl: row.constancia_url ?? null,
+            uploadedAt: row.constancia_uploaded_at ?? null,
+            vigente: constanciaVigente(row.constancia_uploaded_at),
+          }
+        : null,
     };
   });
 
@@ -66,6 +87,14 @@ const saveSchema = z.object({
   billing: billingSchema.nullish(),
   orderId: z.string().trim().min(1).max(64),
   orderTotal: z.number().min(0).max(10_000_000),
+  constancia: z
+    .object({
+      path: z.string().trim().min(1).max(400),
+      fileName: z.string().trim().min(1).max(200),
+      signedUrl: z.string().trim().max(2000).nullish(),
+      uploadedAt: z.string().trim().max(40).nullish(),
+    })
+    .nullish(),
 });
 
 function randomCustomerNumber() {
@@ -89,6 +118,14 @@ export const saveCustomerOrder = createServerFn({ method: "POST" })
       contact: data.contact ?? null,
       billing: data.billing ?? null,
       last_order_id: data.orderId,
+      ...(data.constancia
+        ? {
+            constancia_path: data.constancia.path,
+            constancia_file_name: data.constancia.fileName,
+            constancia_url: data.constancia.signedUrl ?? null,
+            constancia_uploaded_at: data.constancia.uploadedAt ?? new Date().toISOString(),
+          }
+        : {}),
     };
 
     if (data.customerNumber) {
