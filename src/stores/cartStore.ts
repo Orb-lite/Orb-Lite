@@ -60,6 +60,7 @@ interface CartStore {
   pickupInfo: PickupInfo | null;
   wantsInvoice: boolean;
   billingInfo: BillingInfo | null;
+  constancia: ConstanciaFile | null;
   isFirstPurchase: boolean;
   customerNumber: number | null;
   addItem: (item: NewCartItem) => void;
@@ -71,6 +72,7 @@ interface CartStore {
   setPickupInfo: (info: PickupInfo | null) => void;
   setWantsInvoice: (value: boolean) => void;
   setBillingInfo: (info: BillingInfo | null) => void;
+  setConstancia: (file: ConstanciaFile | null) => void;
   setIsFirstPurchase: (value: boolean) => void;
   setCustomerNumber: (value: number | null) => void;
   clearCart: () => void;
@@ -89,6 +91,7 @@ export const useCartStore = create<CartStore>()(
       pickupInfo: null,
       wantsInvoice: false,
       billingInfo: null,
+      constancia: null,
       isFirstPurchase: true,
       customerNumber: null,
 
@@ -149,6 +152,7 @@ export const useCartStore = create<CartStore>()(
       setPickupInfo: (info) => set({ pickupInfo: info }),
       setWantsInvoice: (value) => set({ wantsInvoice: value }),
       setBillingInfo: (info) => set({ billingInfo: info }),
+      setConstancia: (file) => set({ constancia: file }),
       setIsFirstPurchase: (value) =>
         set(value ? { isFirstPurchase: true, customerNumber: null } : { isFirstPurchase: false }),
       setCustomerNumber: (value) => set({ customerNumber: value }),
@@ -178,6 +182,7 @@ export const useCartStore = create<CartStore>()(
         pickupInfo: state.pickupInfo,
         wantsInvoice: state.wantsInvoice,
         billingInfo: state.billingInfo,
+        constancia: state.constancia,
         isFirstPurchase: state.isFirstPurchase,
         customerNumber: state.customerNumber,
       }),
