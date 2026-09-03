@@ -234,6 +234,9 @@ export const BILLING_LABELS: Record<string, string> = {
   email: 'Correo para facturación',
   phone: 'Teléfono',
   address: 'Dirección fiscal',
+  fiscalAddress: 'Dirección fiscal',
+  constanciaFileName: 'Constancia de Situación Fiscal',
+  constanciaUrl: 'Enlace a la constancia (30 días)',
 }
 
 const BILLING_ORDER = [
@@ -243,8 +246,11 @@ const BILLING_ORDER = [
   'cfdiUse',
   'fiscalZip',
   'address',
+  'fiscalAddress',
   'email',
   'phone',
+  'constanciaFileName',
+  'constanciaUrl',
 ]
 
 export function BillingRows({

@@ -57,6 +57,8 @@ interface Props {
     fiscalZip: string
     email: string
     phone: string
+    constanciaFileName?: string | null
+    constanciaUrl?: string | null
   } | null
 }
 
@@ -185,6 +187,17 @@ const NuevoPedidoEmail = (p: Props) => {
               <Text style={detail}>C.P. fiscal: {p.billingInfo.fiscalZip}</Text>
               <Text style={detail}>Correo: {p.billingInfo.email}</Text>
               <Text style={detail}>Teléfono: {p.billingInfo.phone}</Text>
+              {p.billingInfo.constanciaUrl ? (
+                <Text style={detail}>
+                  Constancia fiscal:{' '}
+                  <Link href={p.billingInfo.constanciaUrl} style={{ color: '#A3E635' }}>
+                    {p.billingInfo.constanciaFileName ?? 'Descargar archivo'}
+                  </Link>{' '}
+                  (enlace válido 30 días)
+                </Text>
+              ) : (
+                <Text style={detail}>Constancia fiscal: no adjuntada</Text>
+              )}
             </Section>
           ) : (
             <Text style={muted}>El cliente no requiere factura.</Text>
