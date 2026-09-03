@@ -29,6 +29,9 @@ const billingInfoSchema = z.object({
   fiscalZip: z.string().min(1),
   email: z.string().email(),
   phone: z.string().min(1),
+  fiscalAddress: z.string().optional().nullable(),
+  constanciaFileName: z.string().max(200).nullish(),
+  constanciaUrl: z.string().url().nullish(),
 });
 
 const orderSchema = z.object({

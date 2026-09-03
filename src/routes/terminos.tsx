@@ -78,6 +78,15 @@ function TerminosPage() {
             enviarte el comprobante fiscal correspondiente.
           </p>
           <p className="mt-2">
+            Para poder facturar es obligatorio adjuntar tu Constancia de
+            Situación Fiscal vigente (PDF o imagen, máximo 10 MB) desde el
+            carrito. El archivo se almacena en un repositorio privado con acceso
+            restringido al equipo de facturación de ORB-LITE, se usa solo para
+            emitir tu CFDI y para validar tus datos fiscales, y no se comparte
+            con terceros ajenos a esa finalidad. Puedes solicitar su eliminación
+            escribiendo a ventas@orb-lite.com una vez emitida la factura.
+          </p>
+          <p className="mt-2">
             Todos los paquetes publicados ya incluyen el 16% de IVA y la factura
             se emite al registrar tu compra en sistema. Es responsabilidad del
             cliente proporcionar datos fiscales correctos y vigentes; las

@@ -38,6 +38,7 @@ import { openWhatsApp } from "@/lib/whatsapp";
 import { notifyNewOrder } from "@/lib/order.functions";
 import { saveCustomerOrder } from "@/lib/customers.functions";
 import { CustomerBlock } from "@/components/customer-block";
+import { ConstanciaUpload } from "@/components/constancia-upload";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -56,10 +57,13 @@ export function CartDrawer() {
     billingInfo,
     setWantsInvoice,
     setBillingInfo,
+    constancia,
+    setConstancia,
     customerNumber,
     setCustomerNumber,
     setIsFirstPurchase,
   } = useCartStore();
+  const [constanciaError, setConstanciaError] = useState<string | null>(null);
   const [billingErrors, setBillingErrors] = useState<
     Partial<Record<keyof BillingInfo, string>> | null
   >(null);
@@ -123,9 +127,16 @@ export function CartDrawer() {
         toast.error("Completa los datos de facturación");
         return;
       }
+      if (!constancia) {
+        setConstanciaError("Sube tu Constancia de Situación Fiscal para poder facturar");
+        toast.error("Sube tu Constancia de Situación Fiscal");
+        return;
+      }
+      setConstanciaError(null);
       setBillingErrors(null);
       setBillingInfo(data);
       details += formatBillingInfo(data);
+      details += `\nConstancia fiscal: ${constancia.fileName}`;
     }
 
     const orderId = `${Date.now().toString(36).toUpperCase()}`;
@@ -153,7 +164,7 @@ export function CartDrawer() {
               : pickupInfo
                 ? { fullName: pickupInfo.fullName, phone: pickupInfo.phone }
                 : null,
-            billing: wantsInvoice ? billingInfo : null,
+            billing: wantsInvoice && billingInfo ? { ...billingInfo, constanciaFileName: constancia?.fileName ?? null, constanciaUrl: constancia?.signedUrl ?? null } : null,
             orderId,
             orderTotal: totals.total,
           },
@@ -208,7 +219,14 @@ export function CartDrawer() {
           shippingInfo: shippingId === "national" ? shippingInfo : null,
           pickupInfo: shippingId === "local" ? pickupInfo : null,
           wantsInvoice,
-          billingInfo: wantsInvoice ? billingInfo : null,
+          billingInfo:
+            wantsInvoice && billingInfo
+              ? {
+                  ...billingInfo,
+                  constanciaFileName: constancia?.fileName ?? null,
+                  constanciaUrl: constancia?.signedUrl ?? null,
+                }
+              : null,
         },
       });
       toast.success("Pedido registrado, lo recibirás por WhatsApp");
@@ -419,9 +437,18 @@ export function CartDrawer() {
                         onChange={setBillingInfo}
                         errors={billingErrors ?? undefined}
                       />
+                      <ConstanciaUpload
+                        value={constancia}
+                        rfc={billingInfo?.rfc}
+                        onChange={(file) => {
+                          setConstancia(file);
+                          if (file) setConstanciaError(null);
+                        }}
+                        error={constanciaError ?? undefined}
+                      />
                       <p className="text-[11px] text-muted-foreground">
                         Necesitamos razón social, RFC, régimen fiscal, uso de CFDI, C.P. fiscal y
-                        correo para emitir tu factura.
+                        correo, además de tu Constancia de Situación Fiscal, para emitir tu factura.
                       </p>
                     </div>
                   )}
