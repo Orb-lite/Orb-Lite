@@ -37,6 +37,12 @@ export interface BillingInfo {
   fiscalAddress?: string;
 }
 
+export interface ConstanciaFile {
+  path: string;
+  fileName: string;
+  signedUrl: string | null;
+}
+
 export interface CartItem {
   id: string;
   variant_id: string;
