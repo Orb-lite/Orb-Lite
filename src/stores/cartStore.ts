@@ -41,6 +41,8 @@ export interface ConstanciaFile {
   path: string;
   fileName: string;
   signedUrl: string | null;
+  /** Fecha ISO en que se recibió; define su vigencia de un mes. */
+  uploadedAt?: string | null;
 }
 
 export interface CartItem {
