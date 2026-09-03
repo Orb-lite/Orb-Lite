@@ -39,6 +39,7 @@ import { notifyNewOrder } from "@/lib/order.functions";
 import { saveCustomerOrder } from "@/lib/customers.functions";
 import { CustomerBlock } from "@/components/customer-block";
 import { ConstanciaUpload } from "@/components/constancia-upload";
+import { constanciaVigente } from "@/lib/constancia-validez";
 
 export function CartDrawer() {
   const [isOpen, setIsOpen] = useState(false);
@@ -127,9 +128,17 @@ export function CartDrawer() {
         toast.error("Completa los datos de facturación");
         return;
       }
-      if (!constancia) {
-        setConstanciaError("Sube tu Constancia de Situación Fiscal para poder facturar");
-        toast.error("Sube tu Constancia de Situación Fiscal");
+      if (!constancia || !constanciaVigente(constancia.uploadedAt)) {
+        setConstanciaError(
+          constancia
+            ? "Tu constancia tiene más de un mes, sube una actualizada"
+            : "Sube tu Constancia de Situación Fiscal para poder facturar",
+        );
+        toast.error(
+          constancia
+            ? "Tu Constancia de Situación Fiscal ya venció (un mes)"
+            : "Sube tu Constancia de Situación Fiscal",
+        );
         return;
       }
       setConstanciaError(null);
@@ -167,6 +176,7 @@ export function CartDrawer() {
             billing: wantsInvoice && billingInfo ? { ...billingInfo, constanciaFileName: constancia?.fileName ?? null, constanciaUrl: constancia?.signedUrl ?? null } : null,
             orderId,
             orderTotal: totals.total,
+            constancia: wantsInvoice && constancia ? constancia : null,
           },
         });
         assignedNumber = result.customerNumber;

@@ -44,6 +44,10 @@ export type Database = {
       customers: {
         Row: {
           billing: Json | null
+          constancia_file_name: string | null
+          constancia_path: string | null
+          constancia_uploaded_at: string | null
+          constancia_url: string | null
           contact: Json | null
           created_at: string
           customer_number: number
@@ -58,6 +62,10 @@ export type Database = {
         }
         Insert: {
           billing?: Json | null
+          constancia_file_name?: string | null
+          constancia_path?: string | null
+          constancia_uploaded_at?: string | null
+          constancia_url?: string | null
           contact?: Json | null
           created_at?: string
           customer_number: number
@@ -72,6 +80,10 @@ export type Database = {
         }
         Update: {
           billing?: Json | null
+          constancia_file_name?: string | null
+          constancia_path?: string | null
+          constancia_uploaded_at?: string | null
+          constancia_url?: string | null
           contact?: Json | null
           created_at?: string
           customer_number?: number

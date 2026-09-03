@@ -17,6 +17,7 @@ export function CustomerBlock() {
     setShippingInfo,
     setPickupInfo,
     setBillingInfo,
+    setConstancia,
     shippingId,
   } = useCartStore();
   const [input, setInput] = useState(customerNumber ? String(customerNumber) : "");
@@ -53,6 +54,21 @@ export function CustomerBlock() {
         // Guardamos sus datos fiscales por si pide factura, pero NO la activamos:
         // el cliente decide en cada compra si la requiere.
         setBillingInfo({ ...record.billing, fiscalAddress: record.billing.fiscalAddress ?? "" });
+      }
+      if (record.constancia && record.constancia.vigente) {
+        setConstancia({
+          path: record.constancia.path,
+          fileName: record.constancia.fileName,
+          signedUrl: record.constancia.signedUrl,
+          uploadedAt: record.constancia.uploadedAt,
+        });
+      } else {
+        setConstancia(null);
+        if (record.constancia) {
+          toast.info("Tu Constancia de Situación Fiscal tiene más de un mes", {
+            description: "Si requieres factura, sube una constancia actualizada.",
+          });
+        }
       }
       toast.success(
         `¡Hola de nuevo, ${record.fullName}! Cargamos tus datos (${record.ordersCount} compra${
