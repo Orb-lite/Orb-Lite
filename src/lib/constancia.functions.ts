@@ -25,10 +25,28 @@ export const uploadConstanciaFiscal = createServerFn({ method: "POST" })
       throw new Error("El archivo supera 10 MB");
     }
 
+    // 1) Validamos con IA que realmente sea una Constancia de Situación Fiscal.
+    const { analizarConstancia } = await import("@/lib/constancia-analisis.server");
+    const analisis = await analizarConstancia(data.base64, data.contentType);
+
+    if (!analisis.esConstancia) {
+      throw new Error(
+        analisis.motivo ??
+          "El archivo no parece ser una Constancia de Situación Fiscal del SAT. Sube el documento correcto.",
+      );
+    }
+
+    const rfcCapturado = (data.rfc ?? "").toUpperCase().replace(/[^A-ZÑ&0-9]/g, "");
+    if (rfcCapturado && analisis.rfc && analisis.rfc !== rfcCapturado) {
+      throw new Error(
+        `La constancia es del RFC ${analisis.rfc} y capturaste ${rfcCapturado}. Verifica los datos.`,
+      );
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const ext = data.fileName.includes(".") ? data.fileName.split(".").pop()!.toLowerCase() : "pdf";
-    const safeRfc = (data.rfc || "sin-rfc").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    const safeRfc = (analisis.rfc || data.rfc || "sin-rfc").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
     const path = `${safeRfc}/${Date.now()}-constancia.${ext}`;
 
     const { error } = await supabaseAdmin.storage
@@ -45,5 +63,11 @@ export const uploadConstanciaFiscal = createServerFn({ method: "POST" })
       path,
       fileName: data.fileName,
       signedUrl: signed?.signedUrl ?? null,
+      rfc: analisis.rfc,
+      razonSocial: analisis.razonSocial,
+      regimenFiscal: analisis.regimenFiscal,
+      cpFiscal: analisis.cpFiscal,
+      fechaEmision: analisis.fechaEmision,
     };
   });
+
