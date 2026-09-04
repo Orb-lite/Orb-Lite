@@ -113,7 +113,7 @@ export function ConstanciaUpload({
           <Upload className="h-4 w-4" />
         )}
         {loading
-          ? "Subiendo…"
+          ? "Revisando documento…"
           : vigente
             ? "Reemplazar archivo"
             : value
@@ -123,9 +123,18 @@ export function ConstanciaUpload({
       {value && (
         <p className="truncate text-[11px] text-muted-foreground">Archivo: {value.fileName}</p>
       )}
-      {value && vigente && vence && (
-        <p className="text-[11px] text-primary">Vigente hasta el {vence}.</p>
+      {value && detected && (detected.rfc || detected.razonSocial) && (
+        <p className="text-[11px] text-muted-foreground">
+          Datos leídos:{" "}
+          <span className="font-semibold text-foreground">
+            {[detected.razonSocial, detected.rfc].filter(Boolean).join(" · ")}
+          </span>
+        </p>
       )}
+      {value && vigente && vence && (
+        <p className="text-[11px] text-primary">Validada. Vigente hasta el {vence}.</p>
+      )}
+
       {value && !vigente && (
         <p className="text-[11px] text-destructive">
           Tu constancia tiene más de un mes. Sube una actualizada para facturar esta compra.
