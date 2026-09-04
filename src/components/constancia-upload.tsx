@@ -33,6 +33,9 @@ export function ConstanciaUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
+  const [detected, setDetected] = useState<{ rfc: string | null; razonSocial: string | null } | null>(
+    null,
+  );
   const vigente = value ? constanciaVigente(value.uploadedAt) : false;
   const vence = value ? constanciaVenceEl(value.uploadedAt) : null;
 
@@ -62,15 +65,24 @@ export function ConstanciaUpload({
         signedUrl: result.signedUrl,
         uploadedAt: new Date().toISOString(),
       });
-      toast.success("Constancia de situación fiscal recibida");
+      setDetected({ rfc: result.rfc ?? null, razonSocial: result.razonSocial ?? null });
+      toast.success("Constancia de situación fiscal validada", {
+        description: result.rfc ? `RFC detectado: ${result.rfc}` : undefined,
+      });
     } catch (err) {
       console.error("No se pudo subir la constancia", err);
-      toast.error("No se pudo subir la constancia, intenta de nuevo");
+      setDetected(null);
+      const msg =
+        err instanceof Error && err.message && !/fetch|network/i.test(err.message)
+          ? err.message
+          : "No se pudo subir la constancia, intenta de nuevo";
+      toast.error("Documento no aceptado", { description: msg });
     } finally {
       setLoading(false);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
+
 
   return (
     <div className="space-y-2 rounded-lg border border-border/60 p-3">
