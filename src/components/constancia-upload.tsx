@@ -3,7 +3,7 @@ import { CheckCircle2, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { uploadConstanciaFiscal } from "@/lib/constancia.functions";
 import type { ConstanciaFile } from "@/stores/cartStore";
-import { constanciaVenceEl, constanciaVigente } from "@/lib/constancia-validez";
+import { constanciaVenceEl, constanciaVigente, formatFechaEmision } from "@/lib/constancia-validez";
 
 const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -33,9 +33,11 @@ export function ConstanciaUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
-  const [detected, setDetected] = useState<{ rfc: string | null; razonSocial: string | null } | null>(
-    null,
-  );
+  const [detected, setDetected] = useState<{
+    rfc: string | null;
+    razonSocial: string | null;
+    fechaEmision: string | null;
+  } | null>(null);
   const vigente = value ? constanciaVigente(value.uploadedAt) : false;
   const vence = value ? constanciaVenceEl(value.uploadedAt) : null;
 
@@ -65,7 +67,11 @@ export function ConstanciaUpload({
         signedUrl: result.signedUrl,
         uploadedAt: new Date().toISOString(),
       });
-      setDetected({ rfc: result.rfc ?? null, razonSocial: result.razonSocial ?? null });
+      setDetected({
+        rfc: result.rfc ?? null,
+        razonSocial: result.razonSocial ?? null,
+        fechaEmision: formatFechaEmision(result.fechaEmision),
+      });
       toast.success("Constancia de situación fiscal validada", {
         description: result.rfc ? `RFC detectado: ${result.rfc}` : undefined,
       });
@@ -131,6 +137,11 @@ export function ConstanciaUpload({
           </span>
         </p>
       )}
+      {value && detected?.fechaEmision && (
+        <p className="text-[11px] text-muted-foreground">
+          Emitida el <span className="font-semibold text-foreground">{detected.fechaEmision}</span>
+        </p>
+      )}
       {value && vigente && vence && (
         <p className="text-[11px] text-primary">Validada. Vigente hasta el {vence}.</p>
       )}
@@ -141,7 +152,7 @@ export function ConstanciaUpload({
         </p>
       )}
       <p className="text-[11px] text-muted-foreground">
-        Queda ligada a tu número de cliente y es válida por un mes: si entre compras pasa más de un
+        Debe estar emitida en los últimos 30 días. Queda ligada a tu número de cliente y es válida por un mes: si entre compras pasa más de un
         mes, te pediremos una constancia actualizada. Se guarda de forma privada y solo la usamos
         para emitir tu CFDI. Máximo 10 MB.
       </p>

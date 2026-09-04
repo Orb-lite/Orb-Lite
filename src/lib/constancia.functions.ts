@@ -43,6 +43,11 @@ export const uploadConstanciaFiscal = createServerFn({ method: "POST" })
       );
     }
 
+    // 2) La constancia debe estar recién emitida (máximo un mes de antigüedad).
+    const { revisarFechaEmision } = await import("@/lib/constancia-validez");
+    const emision = revisarFechaEmision(analisis.fechaEmision);
+    if (!emision.ok) throw new Error(emision.motivo!);
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const ext = data.fileName.includes(".") ? data.fileName.split(".").pop()!.toLowerCase() : "pdf";
@@ -67,7 +72,7 @@ export const uploadConstanciaFiscal = createServerFn({ method: "POST" })
       razonSocial: analisis.razonSocial,
       regimenFiscal: analisis.regimenFiscal,
       cpFiscal: analisis.cpFiscal,
-      fechaEmision: analisis.fechaEmision,
+      fechaEmision: emision.fechaISO ?? analisis.fechaEmision,
     };
   });
 
