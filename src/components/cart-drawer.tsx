@@ -161,17 +161,22 @@ export function CartDrawer() {
             customerNumber: customerNumber ?? null,
             fullName: contactName,
             phone: contactPhone,
-            email: billingInfo?.email ?? null,
+            email: shippingInfo?.email ?? pickupInfo?.email ?? billingInfo?.email ?? null,
             contact: shippingInfo
               ? {
                   fullName: shippingInfo.fullName,
                   phone: shippingInfo.phone,
+                  ...(shippingInfo.email ? { email: shippingInfo.email } : {}),
                   city: shippingInfo.city,
                   state: shippingInfo.state,
                   zip: shippingInfo.zip,
                 }
               : pickupInfo
-                ? { fullName: pickupInfo.fullName, phone: pickupInfo.phone }
+                ? {
+                    fullName: pickupInfo.fullName,
+                    phone: pickupInfo.phone,
+                    ...(pickupInfo.email ? { email: pickupInfo.email } : {}),
+                  }
                 : null,
             billing: wantsInvoice && billingInfo ? { ...billingInfo, constanciaFileName: constancia?.fileName ?? null, constanciaUrl: constancia?.signedUrl ?? null } : null,
             orderId,

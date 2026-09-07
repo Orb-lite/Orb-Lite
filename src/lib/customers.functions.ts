@@ -5,6 +5,7 @@ import { constanciaVigente } from "@/lib/constancia-validez";
 const contactSchema = z.object({
   fullName: z.string().trim().min(1).max(150),
   phone: z.string().trim().min(1).max(30),
+  email: z.string().trim().email().max(150).optional(),
   city: z.string().trim().max(120).optional(),
   state: z.string().trim().max(120).optional(),
   zip: z.string().trim().max(10).optional(),
