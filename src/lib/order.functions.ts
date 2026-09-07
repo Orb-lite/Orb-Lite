@@ -11,6 +11,7 @@ const renewalSchema = z.object({
 const shippingInfoSchema = z.object({
   fullName: z.string().min(1),
   phone: z.string().min(1),
+  email: z.string().email().nullish(),
   city: z.string().min(1),
   state: z.string().min(1),
   zip: z.string().min(1),
@@ -19,6 +20,7 @@ const shippingInfoSchema = z.object({
 const pickupInfoSchema = z.object({
   fullName: z.string().min(1),
   phone: z.string().min(1),
+  email: z.string().email().nullish(),
 });
 
 const billingInfoSchema = z.object({
@@ -162,6 +164,34 @@ export const notifyNewOrder = createServerFn({ method: "POST" })
         billingInfo: data.wantsInvoice ? (data.billingInfo ?? null) : null,
       },
     });
+
+    // Confirmación para el cliente al correo que capturó en sus datos de entrega.
+    const contact = isNational ? data.shippingInfo : data.pickupInfo;
+    const customerEmail = contact?.email ?? data.billingInfo?.email ?? null;
+    if (customerEmail) {
+      try {
+        await sendTemplateEmail("confirmacion-pedido", customerEmail, {
+          idempotencyKey: `confirmacion-pedido-${data.orderId}`,
+          templateData: {
+            orderId: data.orderId,
+            customerName: contact?.fullName ?? data.billingInfo?.legalName ?? null,
+            customerNumber: data.customerNumber ?? null,
+            ordersCount,
+            lines,
+            shippingLabel: shipping.label,
+            shippingPrice: shipping.price,
+            productsTotal,
+            subtotalWithoutIva,
+            iva: total - subtotalWithoutIva,
+            total,
+            isNational,
+            wantsInvoice: data.wantsInvoice,
+          },
+        });
+      } catch (error) {
+        console.error("No se pudo enviar la confirmación al cliente", error);
+      }
+    }
 
     return { ok: true as const };
   });
