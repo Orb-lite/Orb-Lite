@@ -42,12 +42,18 @@ export function CustomerBlock() {
           setShippingInfo({
             fullName: record.contact.fullName,
             phone: record.contact.phone,
+            email: record.contact.email ?? record.email ?? "",
             city: record.contact.city ?? "",
             state: record.contact.state ?? "",
             zip: record.contact.zip ?? "",
           });
         } else {
-          setPickupInfo({ fullName: record.contact.fullName, phone: record.contact.phone });
+          setPickupInfo({
+            fullName: record.contact.fullName,
+            phone: record.contact.phone,
+            email: record.contact.email ?? record.email ?? "",
+          });
+
         }
       }
       if (record.billing) {
