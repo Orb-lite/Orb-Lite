@@ -12,13 +12,19 @@ export const pickupSchema = z.object({
     .string()
     .trim()
     .regex(/^[\d\s()+-]{10,20}$/, { message: "Teléfono a 10 dígitos" }),
+  email: z
+    .string()
+    .trim()
+    .max(150)
+    .email({ message: "Escribe un correo válido" }),
 });
 
-const EMPTY: PickupInfo = { fullName: "", phone: "" };
+const EMPTY: PickupInfo = { fullName: "", phone: "", email: "" };
 
 const FIELDS: Array<{ name: keyof PickupInfo; label: string; full?: boolean }> = [
   { name: "fullName", label: "Nombre completo", full: true },
   { name: "phone", label: "Teléfono de contacto" },
+  { name: "email", label: "Correo electrónico", full: true },
 ];
 
 export function PickupForm({
@@ -73,5 +79,5 @@ export function validatePickup(info: PickupInfo | null) {
 }
 
 export function formatPickupInfo(info: PickupInfo) {
-  return `\n\n*Datos de contacto para entrega*\n${info.fullName}\nTel: ${info.phone}`;
+  return `\n\n*Datos de contacto para entrega*\n${info.fullName}\nTel: ${info.phone}\nCorreo: ${info.email}`;
 }
