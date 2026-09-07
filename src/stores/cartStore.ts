@@ -11,6 +11,7 @@ import {
 export interface ShippingInfo {
   fullName: string;
   phone: string;
+  email: string;
   city: string;
   state: string;
   zip: string;
@@ -19,6 +20,7 @@ export interface ShippingInfo {
 export interface PickupInfo {
   fullName: string;
   phone: string;
+  email: string;
 }
 
 export interface RenewalInfo {
