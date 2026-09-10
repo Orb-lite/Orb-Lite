@@ -121,3 +121,247 @@ export const crmListCustomers = createServerFn({ method: 'POST' })
       }),
     }
   })
+
+/* ================== Ventas fuera de la página y registro de clientes ================== */
+
+const saleItemSchema = z.object({
+  variantId: z.string().min(1),
+  quantity: z.number().int().min(1).max(100),
+})
+
+const manualBillingSchema = z.object({
+  legalName: z.string().trim().min(1).max(200),
+  rfc: z.string().trim().min(1).max(20),
+  taxRegime: z.string().trim().max(200).optional().or(z.literal('')),
+  cfdiUse: z.string().trim().max(200).optional().or(z.literal('')),
+  fiscalZip: z.string().trim().max(10).optional().or(z.literal('')),
+  email: z.string().trim().max(150).optional().or(z.literal('')),
+  phone: z.string().trim().max(30).optional().or(z.literal('')),
+  fiscalAddress: z.string().trim().max(250).optional().or(z.literal('')),
+})
+
+function randomCustomerNumber() {
+  return 500 + Math.floor(Math.random() * 99_500)
+}
+
+async function upsertCustomerRecord(
+  supabaseAdmin: any,
+  input: {
+    customerNumber?: number | null
+    fullName: string
+    phone: string
+    email?: string | null
+    contact?: Record<string, unknown> | null
+    billing?: Record<string, unknown> | null
+    orderId?: string | null
+    orderTotal?: number
+  },
+) {
+  const payload: Record<string, unknown> = {
+    full_name: input.fullName,
+    phone: input.phone,
+    email: input.email ?? null,
+    ...(input.contact ? { contact: input.contact } : {}),
+    ...(input.billing ? { billing: input.billing } : {}),
+    ...(input.orderId ? { last_order_id: input.orderId } : {}),
+  }
+  const orderTotal = input.orderTotal ?? 0
+  const counts = input.orderId ? 1 : 0
+
+  if (input.customerNumber) {
+    const { data: existing } = await supabaseAdmin
+      .from('customers')
+      .select('orders_count, total_spent, billing, contact')
+      .eq('customer_number', input.customerNumber)
+      .maybeSingle()
+
+    if (existing) {
+      const { error } = await supabaseAdmin
+        .from('customers')
+        .update({
+          ...payload,
+          contact: input.contact ?? existing.contact,
+          billing: input.billing ?? existing.billing,
+          orders_count: Number(existing.orders_count ?? 0) + counts,
+          total_spent: Number(existing.total_spent ?? 0) + orderTotal,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('customer_number', input.customerNumber)
+      if (error) throw new Error(error.message)
+      return { customerNumber: input.customerNumber, isNew: false as const }
+    }
+  }
+
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const candidate = input.customerNumber ?? randomCustomerNumber()
+    const { data: inserted, error } = await supabaseAdmin
+      .from('customers')
+      .insert({
+        ...payload,
+        customer_number: candidate,
+        orders_count: counts,
+        total_spent: orderTotal,
+      })
+      .select('customer_number')
+      .single()
+    if (!error && inserted) return { customerNumber: inserted.customer_number, isNew: true as const }
+    if (input.customerNumber) throw new Error('No se pudo registrar el cliente')
+  }
+  throw new Error('No se pudo generar un número de cliente')
+}
+
+/** Registra una venta hecha fuera de la página (WhatsApp, mostrador, teléfono). */
+export const crmCreateSale = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
+        fullName: z.string().trim().min(1).max(150),
+        phone: z.string().trim().min(1).max(30),
+        email: z.string().trim().email().max(150).nullish(),
+        city: z.string().trim().max(120).optional().or(z.literal('')),
+        state: z.string().trim().max(120).optional().or(z.literal('')),
+        zip: z.string().trim().max(10).optional().or(z.literal('')),
+        items: z.array(saleItemSchema).min(1).max(50),
+        shippingId: z.enum(['local', 'national']),
+        wantsInvoice: z.boolean().default(false),
+        billing: manualBillingSchema.nullish(),
+        status: z.enum(STATUSES).default('vendido'),
+        notes: z.string().trim().max(2000).nullish(),
+        channel: z.string().trim().max(60).optional().or(z.literal('')),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { ADD_ONS: _unused, SHIPPING_OPTIONS, findVariant } = await import('@/data/catalog')
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+
+    const shipping = SHIPPING_OPTIONS.find((s) => s.id === data.shippingId) ?? SHIPPING_OPTIONS[0]!
+
+    let productsTotal = 0
+    const lines = data.items.flatMap((item) => {
+      const found = findVariant(item.variantId)
+      if (!found) return []
+      const lineTotal = found.variant.price * item.quantity
+      productsTotal += lineTotal
+      return [
+        {
+          variantName: found.variant.name,
+          title: found.product.title,
+          quantity: item.quantity,
+          unitPrice: found.variant.price,
+          lineTotal,
+          addOns: [] as { name: string; price: number }[],
+          isRenewal: found.product.category === 'RENOVATION',
+          renewal: null,
+        },
+      ]
+    })
+    if (lines.length === 0) throw new Error('Selecciona al menos un producto válido')
+
+    const total = productsTotal + shipping.price
+    const orderId = `MAN-${Date.now().toString(36).toUpperCase()}`
+    const channel = data.channel && data.channel.length > 0 ? data.channel : 'Venta directa'
+
+    const contact = {
+      fullName: data.fullName,
+      phone: data.phone,
+      ...(data.email ? { email: data.email } : {}),
+      ...(data.city ? { city: data.city } : {}),
+      ...(data.state ? { state: data.state } : {}),
+      ...(data.zip ? { zip: data.zip } : {}),
+    }
+
+    const { customerNumber, isNew } = await upsertCustomerRecord(supabaseAdmin, {
+      customerNumber: data.customerNumber ?? null,
+      fullName: data.fullName,
+      phone: data.phone,
+      email: data.email ?? data.billing?.email ?? null,
+      contact,
+      billing: data.wantsInvoice && data.billing ? data.billing : null,
+      orderId,
+      orderTotal: total,
+    })
+
+    const notes = [`Canal: ${channel}`, data.notes ?? ''].filter(Boolean).join(' · ')
+
+    const { error } = await supabaseAdmin.from('solicitudes').insert({
+      order_id: orderId,
+      customer_number: customerNumber,
+      full_name: data.fullName,
+      phone: data.phone,
+      email: data.email ?? data.billing?.email ?? null,
+      items: lines,
+      shipping_label: shipping.label,
+      wants_invoice: data.wantsInvoice,
+      billing: data.wantsInvoice ? (data.billing ?? null) : null,
+      total,
+      status: data.status,
+      notes,
+    })
+    if (error) throw new Error(error.message)
+
+    return { ok: true as const, orderId, customerNumber, isNewCustomer: isNew, total }
+  })
+
+/** Registra o actualiza un cliente sin generar una venta. */
+export const crmSaveCustomer = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
+        fullName: z.string().trim().min(1).max(150),
+        phone: z.string().trim().min(1).max(30),
+        email: z.string().trim().email().max(150).nullish(),
+        city: z.string().trim().max(120).optional().or(z.literal('')),
+        state: z.string().trim().max(120).optional().or(z.literal('')),
+        zip: z.string().trim().max(10).optional().or(z.literal('')),
+        billing: manualBillingSchema.nullish(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+
+    const contact = {
+      fullName: data.fullName,
+      phone: data.phone,
+      ...(data.email ? { email: data.email } : {}),
+      ...(data.city ? { city: data.city } : {}),
+      ...(data.state ? { state: data.state } : {}),
+      ...(data.zip ? { zip: data.zip } : {}),
+    }
+
+    const result = await upsertCustomerRecord(supabaseAdmin, {
+      customerNumber: data.customerNumber ?? null,
+      fullName: data.fullName,
+      phone: data.phone,
+      email: data.email ?? data.billing?.email ?? null,
+      contact,
+      billing: data.billing ?? null,
+    })
+
+    return { ok: true as const, ...result }
+  })
+
+/** Consulta un cliente por número para precargar los formularios del CRM. */
+export const crmLookupCustomer = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ customerNumber: z.number().int().min(500).max(9_999_999) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+    const { data: row, error } = await supabaseAdmin
+      .from('customers')
+      .select('customer_number, full_name, phone, email, contact, billing, orders_count, total_spent')
+      .eq('customer_number', data.customerNumber)
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return { customer: row ?? null }
+  })
