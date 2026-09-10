@@ -1,0 +1,580 @@
+import * as React from 'react'
+import { useServerFn } from '@tanstack/react-start'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { crmCreateSale, crmLookupCustomer, crmSaveCustomer } from '@/lib/crm.functions'
+import { PRODUCTS, SHIPPING_OPTIONS, formatMxn, findVariant } from '@/data/catalog'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+
+const CHANNELS = ['WhatsApp', 'Teléfono', 'Mostrador', 'Visita', 'Referido', 'Otro'] as const
+
+type Line = { variantId: string; quantity: number }
+
+interface ClienteFields {
+  customerNumber: string
+  fullName: string
+  phone: string
+  email: string
+  city: string
+  state: string
+  zip: string
+}
+
+const EMPTY_CLIENTE: ClienteFields = {
+  customerNumber: '',
+  fullName: '',
+  phone: '',
+  email: '',
+  city: '',
+  state: '',
+  zip: '',
+}
+
+interface BillingFields {
+  legalName: string
+  rfc: string
+  taxRegime: string
+  cfdiUse: string
+  fiscalZip: string
+  email: string
+  phone: string
+  fiscalAddress: string
+}
+
+const EMPTY_BILLING: BillingFields = {
+  legalName: '',
+  rfc: '',
+  taxRegime: '',
+  cfdiUse: '',
+  fiscalZip: '',
+  email: '',
+  phone: '',
+  fiscalAddress: '',
+}
+
+function Field({
+  id,
+  label,
+  value,
+  onChange,
+  type = 'text',
+  placeholder,
+}: {
+  id: string
+  label: string
+  value: string
+  onChange: (v: string) => void
+  type?: string
+  placeholder?: string
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs text-muted-foreground">
+        {label}
+      </Label>
+      <Input
+        id={id}
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        autoComplete="off"
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  )
+}
+
+function ClienteFieldsGrid({
+  prefix,
+  value,
+  onChange,
+}: {
+  prefix: string
+  value: ClienteFields
+  onChange: (next: ClienteFields) => void
+}) {
+  const set = (k: keyof ClienteFields) => (v: string) => onChange({ ...value, [k]: v })
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field id={`${prefix}-name`} label="Nombre completo" value={value.fullName} onChange={set('fullName')} />
+      <Field id={`${prefix}-phone`} label="Teléfono" value={value.phone} onChange={set('phone')} />
+      <Field id={`${prefix}-email`} label="Correo (opcional)" type="email" value={value.email} onChange={set('email')} />
+      <Field id={`${prefix}-city`} label="Ciudad (opcional)" value={value.city} onChange={set('city')} />
+      <Field id={`${prefix}-state`} label="Estado (opcional)" value={value.state} onChange={set('state')} />
+      <Field id={`${prefix}-zip`} label="Código postal (opcional)" value={value.zip} onChange={set('zip')} />
+    </div>
+  )
+}
+
+function BillingFieldsGrid({
+  prefix,
+  value,
+  onChange,
+}: {
+  prefix: string
+  value: BillingFields
+  onChange: (next: BillingFields) => void
+}) {
+  const set = (k: keyof BillingFields) => (v: string) => onChange({ ...value, [k]: v })
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field id={`${prefix}-legal`} label="Razón social" value={value.legalName} onChange={set('legalName')} />
+      <Field id={`${prefix}-rfc`} label="RFC" value={value.rfc} onChange={set('rfc')} />
+      <Field id={`${prefix}-regime`} label="Régimen fiscal" value={value.taxRegime} onChange={set('taxRegime')} />
+      <Field id={`${prefix}-cfdi`} label="Uso de CFDI" value={value.cfdiUse} onChange={set('cfdiUse')} />
+      <Field id={`${prefix}-zip`} label="CP fiscal" value={value.fiscalZip} onChange={set('fiscalZip')} />
+      <Field id={`${prefix}-bemail`} label="Correo de facturación" type="email" value={value.email} onChange={set('email')} />
+      <Field id={`${prefix}-bphone`} label="Teléfono de facturación" value={value.phone} onChange={set('phone')} />
+      <Field id={`${prefix}-address`} label="Dirección fiscal" value={value.fiscalAddress} onChange={set('fiscalAddress')} />
+    </div>
+  )
+}
+
+function buildBilling(b: BillingFields) {
+  return {
+    legalName: b.legalName.trim(),
+    rfc: b.rfc.trim(),
+    taxRegime: b.taxRegime.trim(),
+    cfdiUse: b.cfdiUse.trim(),
+    fiscalZip: b.fiscalZip.trim(),
+    email: b.email.trim(),
+    phone: b.phone.trim(),
+    fiscalAddress: b.fiscalAddress.trim(),
+  }
+}
+
+/** Generador de ventas hechas fuera de la página. */
+export function NuevaVentaSection() {
+  const createSale = useServerFn(crmCreateSale)
+  const lookup = useServerFn(crmLookupCustomer)
+  const queryClient = useQueryClient()
+
+  const [cliente, setCliente] = React.useState<ClienteFields>(EMPTY_CLIENTE)
+  const [lines, setLines] = React.useState<Line[]>([
+    { variantId: PRODUCTS[0]!.variants[0]!.id, quantity: 1 },
+  ])
+  const [shippingId, setShippingId] = React.useState<'local' | 'national'>('local')
+  const [channel, setChannel] = React.useState<string>('WhatsApp')
+  const [status, setStatus] = React.useState<'vendido' | 'pendiente' | 'no_vendido'>('vendido')
+  const [notes, setNotes] = React.useState('')
+  const [wantsInvoice, setWantsInvoice] = React.useState(false)
+  const [billing, setBilling] = React.useState<BillingFields>(EMPTY_BILLING)
+  const [result, setResult] = React.useState<{ orderId: string; customerNumber: number } | null>(null)
+
+  const shipping = SHIPPING_OPTIONS.find((s) => s.id === shippingId)!
+  const productsTotal = lines.reduce((sum, l) => {
+    const found = findVariant(l.variantId)
+    return sum + (found ? found.variant.price * l.quantity : 0)
+  }, 0)
+  const total = productsTotal + shipping.price
+
+  const lookupMutation = useMutation({
+    mutationFn: (n: number) => lookup({ data: { customerNumber: n } }),
+    onSuccess: (res) => {
+      const c: any = res.customer
+      if (!c) {
+        toast.info('No existe ese número; se creará un cliente nuevo.')
+        return
+      }
+      setCliente({
+        customerNumber: String(c.customer_number),
+        fullName: c.full_name ?? '',
+        phone: c.phone ?? '',
+        email: c.email ?? c.contact?.email ?? '',
+        city: c.contact?.city ?? '',
+        state: c.contact?.state ?? '',
+        zip: c.contact?.zip ?? '',
+      })
+      if (c.billing) {
+        setBilling({ ...EMPTY_BILLING, ...c.billing })
+      }
+      toast.success(`Cliente #${c.customer_number} cargado`)
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : 'No se pudo consultar el cliente'),
+  })
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      createSale({
+        data: {
+          customerNumber: cliente.customerNumber ? Number(cliente.customerNumber) : null,
+          fullName: cliente.fullName.trim(),
+          phone: cliente.phone.trim(),
+          email: cliente.email.trim() ? cliente.email.trim() : null,
+          city: cliente.city.trim(),
+          state: cliente.state.trim(),
+          zip: cliente.zip.trim(),
+          items: lines,
+          shippingId,
+          wantsInvoice,
+          billing: wantsInvoice ? buildBilling(billing) : null,
+          status,
+          notes: notes.trim() ? notes.trim() : null,
+          channel,
+        },
+      }),
+    onSuccess: (res) => {
+      setResult({ orderId: res.orderId, customerNumber: res.customerNumber })
+      toast.success(`Venta registrada · cliente #${res.customerNumber}`)
+      setCliente(EMPTY_CLIENTE)
+      setBilling(EMPTY_BILLING)
+      setWantsInvoice(false)
+      setNotes('')
+      setLines([{ variantId: PRODUCTS[0]!.variants[0]!.id, quantity: 1 }])
+      queryClient.invalidateQueries({ queryKey: ['crm-solicitudes'] })
+      queryClient.invalidateQueries({ queryKey: ['crm-customers'] })
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : 'No se pudo registrar la venta'),
+  })
+
+  const canSubmit =
+    cliente.fullName.trim().length > 1 &&
+    cliente.phone.trim().length > 6 &&
+    lines.length > 0 &&
+    (!wantsInvoice || (billing.legalName.trim() && billing.rfc.trim())) &&
+    !mutation.isPending
+
+  return (
+    <div className="space-y-6">
+      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <div>
+          <h2 className="text-base text-foreground">Registrar venta fuera de la página</h2>
+          <p className="text-sm text-muted-foreground">
+            Captura ventas hechas por WhatsApp, teléfono o mostrador; se guardan en la bitácora y en
+            el historial del cliente.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="venta-num" className="text-xs text-muted-foreground">
+              Número de cliente (opcional)
+            </Label>
+            <div className="flex gap-2">
+              <Input
+                id="venta-num"
+                value={cliente.customerNumber}
+                autoComplete="off"
+                placeholder="Ej. 1024"
+                onChange={(e) =>
+                  setCliente({ ...cliente, customerNumber: e.target.value.replace(/\D/g, '') })
+                }
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!cliente.customerNumber || lookupMutation.isPending}
+                onClick={() => lookupMutation.mutate(Number(cliente.customerNumber))}
+              >
+                Cargar
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Canal de la venta</Label>
+            <div className="flex flex-wrap gap-2">
+              {CHANNELS.map((c) => (
+                <Button
+                  key={c}
+                  type="button"
+                  size="sm"
+                  variant={channel === c ? 'default' : 'outline'}
+                  onClick={() => setChannel(c)}
+                >
+                  {c}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <ClienteFieldsGrid prefix="venta" value={cliente} onChange={setCliente} />
+      </section>
+
+      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <h3 className="text-sm uppercase tracking-wide text-primary">Productos</h3>
+        {lines.map((line, index) => (
+          <div key={index} className="grid gap-3 sm:grid-cols-[1fr_110px_auto] sm:items-end">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Producto</Label>
+              <select
+                value={line.variantId}
+                onChange={(e) =>
+                  setLines(lines.map((l, i) => (i === index ? { ...l, variantId: e.target.value } : l)))
+                }
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+              >
+                {PRODUCTS.map((p) => (
+                  <optgroup key={p.id} label={p.title}>
+                    {p.variants.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name} — {formatMxn(v.price)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Cantidad</Label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={line.quantity}
+                onChange={(e) =>
+                  setLines(
+                    lines.map((l, i) =>
+                      i === index
+                        ? { ...l, quantity: Math.max(1, Math.min(100, Number(e.target.value) || 1)) }
+                        : l,
+                    ),
+                  )
+                }
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={lines.length === 1}
+              onClick={() => setLines(lines.filter((_, i) => i !== index))}
+            >
+              Quitar
+            </Button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setLines([...lines, { variantId: PRODUCTS[0]!.variants[0]!.id, quantity: 1 }])}
+        >
+          Agregar producto
+        </Button>
+
+        <div className="space-y-2 pt-2">
+          <Label className="text-xs text-muted-foreground">Entrega</Label>
+          <div className="flex flex-wrap gap-2">
+            {SHIPPING_OPTIONS.map((s) => (
+              <Button
+                key={s.id}
+                type="button"
+                size="sm"
+                variant={shippingId === s.id ? 'default' : 'outline'}
+                onClick={() => setShippingId(s.id)}
+              >
+                {s.label} {s.price > 0 ? `(+${formatMxn(s.price)})` : ''}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-primary/40 bg-primary/5 p-4 text-sm">
+          <p className="flex justify-between text-muted-foreground">
+            <span>Productos</span>
+            <span className="text-foreground">{formatMxn(productsTotal)}</span>
+          </p>
+          <p className="flex justify-between text-muted-foreground">
+            <span>Entrega</span>
+            <span className="text-foreground">{formatMxn(shipping.price)}</span>
+          </p>
+          <p className="mt-2 flex justify-between border-t border-border pt-2 text-base">
+            <span className="text-foreground">Total (IVA incluido)</span>
+            <span className="font-semibold text-foreground">{formatMxn(total)}</span>
+          </p>
+        </div>
+      </section>
+
+      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <label className="flex items-center gap-3 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={wantsInvoice}
+            onChange={(e) => setWantsInvoice(e.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          El cliente pidió factura
+        </label>
+        {wantsInvoice ? <BillingFieldsGrid prefix="venta" value={billing} onChange={setBilling} /> : null}
+
+        <div className="space-y-2">
+          <Label className="text-xs text-muted-foreground">Estado de la venta</Label>
+          <div className="flex flex-wrap gap-2">
+            {(['vendido', 'pendiente', 'no_vendido'] as const).map((s) => (
+              <Button
+                key={s}
+                type="button"
+                size="sm"
+                variant={status === s ? 'default' : 'outline'}
+                onClick={() => setStatus(s)}
+              >
+                {s === 'no_vendido' ? 'No vendido' : s === 'vendido' ? 'Vendido' : 'Pendiente'}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="venta-notes" className="text-xs text-muted-foreground">
+            Notas internas
+          </Label>
+          <textarea
+            id="venta-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+            placeholder="Forma de pago, fecha de instalación, acuerdos…"
+          />
+        </div>
+
+        <Button disabled={!canSubmit} onClick={() => mutation.mutate()}>
+          {mutation.isPending ? 'Guardando…' : 'Registrar venta'}
+        </Button>
+
+        {result ? (
+          <p className="text-sm text-primary">
+            Venta {result.orderId} registrada para el cliente #{result.customerNumber}.
+          </p>
+        ) : null}
+      </section>
+    </div>
+  )
+}
+
+/** Registro manual de clientes sin venta asociada. */
+export function RegistrarClienteSection() {
+  const saveCustomer = useServerFn(crmSaveCustomer)
+  const lookup = useServerFn(crmLookupCustomer)
+  const queryClient = useQueryClient()
+
+  const [cliente, setCliente] = React.useState<ClienteFields>(EMPTY_CLIENTE)
+  const [withBilling, setWithBilling] = React.useState(false)
+  const [billing, setBilling] = React.useState<BillingFields>(EMPTY_BILLING)
+  const [created, setCreated] = React.useState<{ customerNumber: number; isNew: boolean } | null>(null)
+
+  const lookupMutation = useMutation({
+    mutationFn: (n: number) => lookup({ data: { customerNumber: n } }),
+    onSuccess: (res) => {
+      const c: any = res.customer
+      if (!c) return toast.info('No existe ese número; se creará como nuevo.')
+      setCliente({
+        customerNumber: String(c.customer_number),
+        fullName: c.full_name ?? '',
+        phone: c.phone ?? '',
+        email: c.email ?? c.contact?.email ?? '',
+        city: c.contact?.city ?? '',
+        state: c.contact?.state ?? '',
+        zip: c.contact?.zip ?? '',
+      })
+      if (c.billing) {
+        setBilling({ ...EMPTY_BILLING, ...c.billing })
+        setWithBilling(true)
+      }
+      toast.success(`Cliente #${c.customer_number} cargado`)
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : 'No se pudo consultar el cliente'),
+  })
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      saveCustomer({
+        data: {
+          customerNumber: cliente.customerNumber ? Number(cliente.customerNumber) : null,
+          fullName: cliente.fullName.trim(),
+          phone: cliente.phone.trim(),
+          email: cliente.email.trim() ? cliente.email.trim() : null,
+          city: cliente.city.trim(),
+          state: cliente.state.trim(),
+          zip: cliente.zip.trim(),
+          billing: withBilling ? buildBilling(billing) : null,
+        },
+      }),
+    onSuccess: (res) => {
+      setCreated({ customerNumber: res.customerNumber, isNew: res.isNew })
+      toast.success(
+        res.isNew
+          ? `Cliente #${res.customerNumber} registrado`
+          : `Cliente #${res.customerNumber} actualizado`,
+      )
+      setCliente(EMPTY_CLIENTE)
+      setBilling(EMPTY_BILLING)
+      setWithBilling(false)
+      queryClient.invalidateQueries({ queryKey: ['crm-customers'] })
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : 'No se pudo guardar el cliente'),
+  })
+
+  const canSubmit =
+    cliente.fullName.trim().length > 1 &&
+    cliente.phone.trim().length > 6 &&
+    (!withBilling || (billing.legalName.trim() && billing.rfc.trim())) &&
+    !mutation.isPending
+
+  return (
+    <div className="space-y-6">
+      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <div>
+          <h2 className="text-base text-foreground">Registrar cliente</h2>
+          <p className="text-sm text-muted-foreground">
+            Da de alta un cliente sin venta. Si dejas el número vacío se genera uno automáticamente.
+          </p>
+        </div>
+
+        <div className="space-y-1.5 sm:max-w-xs">
+          <Label htmlFor="cli-num" className="text-xs text-muted-foreground">
+            Número de cliente (opcional)
+          </Label>
+          <div className="flex gap-2">
+            <Input
+              id="cli-num"
+              value={cliente.customerNumber}
+              autoComplete="off"
+              placeholder="Ej. 1024"
+              onChange={(e) =>
+                setCliente({ ...cliente, customerNumber: e.target.value.replace(/\D/g, '') })
+              }
+            />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!cliente.customerNumber || lookupMutation.isPending}
+              onClick={() => lookupMutation.mutate(Number(cliente.customerNumber))}
+            >
+              Cargar
+            </Button>
+          </div>
+        </div>
+
+        <ClienteFieldsGrid prefix="cli" value={cliente} onChange={setCliente} />
+
+        <label className="flex items-center gap-3 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={withBilling}
+            onChange={(e) => setWithBilling(e.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          Guardar datos de facturación
+        </label>
+        {withBilling ? <BillingFieldsGrid prefix="cli" value={billing} onChange={setBilling} /> : null}
+
+        <Button disabled={!canSubmit} onClick={() => mutation.mutate()}>
+          {mutation.isPending ? 'Guardando…' : 'Guardar cliente'}
+        </Button>
+
+        {created ? (
+          <p className="text-sm text-primary">
+            {created.isNew ? 'Alta creada' : 'Datos actualizados'} · cliente #{created.customerNumber}
+          </p>
+        ) : null}
+      </section>
+    </div>
+  )
+}
