@@ -127,6 +127,7 @@ export const crmListCustomers = createServerFn({ method: 'POST' })
 const saleItemSchema = z.object({
   variantId: z.string().min(1),
   quantity: z.number().int().min(1).max(100),
+  unitPrice: z.number().finite().min(0).max(10_000_000),
 })
 
 const manualBillingSchema = z.object({
@@ -244,14 +245,14 @@ export const crmCreateSale = createServerFn({ method: 'POST' })
     const lines = data.items.flatMap((item) => {
       const found = findVariant(item.variantId)
       if (!found) return []
-      const lineTotal = found.variant.price * item.quantity
+       const lineTotal = item.unitPrice * item.quantity
       productsTotal += lineTotal
       return [
         {
           variantName: found.variant.name,
           title: found.product.title,
           quantity: item.quantity,
-          unitPrice: found.variant.price,
+           unitPrice: item.unitPrice,
           lineTotal,
           addOns: [] as { name: string; price: number }[],
           isRenewal: found.product.category === 'RENOVATION',
