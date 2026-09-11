@@ -10,7 +10,9 @@ import { Label } from '@/components/ui/label'
 
 const CHANNELS = ['WhatsApp', 'Teléfono', 'Mostrador', 'Visita', 'Referido', 'Otro'] as const
 
-type Line = { variantId: string; quantity: number }
+type Line = { variantId: string; quantity: number; unitPrice: number }
+
+const DEFAULT_VARIANT = PRODUCTS[0]?.variants[0]
 
 interface ClienteFields {
   customerNumber: string
@@ -153,7 +155,7 @@ export function NuevaVentaSection() {
 
   const [cliente, setCliente] = React.useState<ClienteFields>(EMPTY_CLIENTE)
   const [lines, setLines] = React.useState<Line[]>([
-    { variantId: PRODUCTS[0]!.variants[0]!.id, quantity: 1 },
+    { variantId: DEFAULT_VARIANT?.id ?? '', quantity: 1, unitPrice: DEFAULT_VARIANT?.price ?? 0 },
   ])
   const [shippingId, setShippingId] = React.useState<'local' | 'national'>('local')
   const [channel, setChannel] = React.useState<string>('WhatsApp')
@@ -165,8 +167,7 @@ export function NuevaVentaSection() {
 
   const shipping = SHIPPING_OPTIONS.find((s) => s.id === shippingId)!
   const productsTotal = lines.reduce((sum, l) => {
-    const found = findVariant(l.variantId)
-    return sum + (found ? found.variant.price * l.quantity : 0)
+    return sum + l.unitPrice * l.quantity
   }, 0)
   const total = productsTotal + shipping.price
 
@@ -223,7 +224,9 @@ export function NuevaVentaSection() {
       setBilling(EMPTY_BILLING)
       setWantsInvoice(false)
       setNotes('')
-      setLines([{ variantId: PRODUCTS[0]!.variants[0]!.id, quantity: 1 }])
+      setLines([
+        { variantId: DEFAULT_VARIANT?.id ?? '', quantity: 1, unitPrice: DEFAULT_VARIANT?.price ?? 0 },
+      ])
       queryClient.invalidateQueries({ queryKey: ['crm-solicitudes'] })
       queryClient.invalidateQueries({ queryKey: ['crm-customers'] })
     },
@@ -298,14 +301,25 @@ export function NuevaVentaSection() {
       <section className="space-y-4 rounded-xl border border-border bg-card p-5">
         <h3 className="text-sm uppercase tracking-wide text-primary">Productos</h3>
         {lines.map((line, index) => (
-          <div key={index} className="grid gap-3 sm:grid-cols-[1fr_110px_auto] sm:items-end">
+          <div key={index} className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px_100px_auto] sm:items-end">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Producto</Label>
               <select
                 value={line.variantId}
-                onChange={(e) =>
-                  setLines(lines.map((l, i) => (i === index ? { ...l, variantId: e.target.value } : l)))
-                }
+                onChange={(e) => {
+                  const selected = findVariant(e.target.value)
+                  setLines(
+                    lines.map((l, i) =>
+                      i === index
+                        ? {
+                            ...l,
+                            variantId: e.target.value,
+                            unitPrice: selected?.variant.price ?? l.unitPrice,
+                          }
+                        : l,
+                    ),
+                  )
+                }}
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
               >
                 {PRODUCTS.map((p) => (
@@ -318,6 +332,25 @@ export function NuevaVentaSection() {
                   </optgroup>
                 ))}
               </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Precio unitario</Label>
+              <Input
+                type="number"
+                min={0}
+                max={10000000}
+                step="0.01"
+                value={line.unitPrice}
+                onChange={(e) =>
+                  setLines(
+                    lines.map((l, i) =>
+                      i === index
+                        ? { ...l, unitPrice: Math.max(0, Math.min(10_000_000, Number(e.target.value) || 0)) }
+                        : l,
+                    ),
+                  )
+                }
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Cantidad</Label>
@@ -351,7 +384,16 @@ export function NuevaVentaSection() {
           type="button"
           size="sm"
           variant="outline"
-          onClick={() => setLines([...lines, { variantId: PRODUCTS[0]!.variants[0]!.id, quantity: 1 }])}
+          onClick={() =>
+            setLines([
+              ...lines,
+              {
+                variantId: DEFAULT_VARIANT?.id ?? '',
+                quantity: 1,
+                unitPrice: DEFAULT_VARIANT?.price ?? 0,
+              },
+            ])
+          }
         >
           Agregar producto
         </Button>
@@ -461,7 +503,10 @@ export function RegistrarClienteSection() {
     mutationFn: (n: number) => lookup({ data: { customerNumber: n } }),
     onSuccess: (res) => {
       const c: any = res.customer
-      if (!c) return toast.info('No existe ese número; se creará como nuevo.')
+      if (!c) {
+        toast.info('No existe ese número; se creará como nuevo.')
+        return
+      }
       setCliente({
         customerNumber: String(c.customer_number),
         fullName: c.full_name ?? '',

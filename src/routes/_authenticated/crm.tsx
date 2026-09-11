@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { crmListCustomers, crmListSolicitudes, crmUpdateSolicitud } from '@/lib/crm.functions'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
+import { NuevaVentaSection, RegistrarClienteSection } from '@/components/crm-manual-forms'
 import {
   SolicitudCard,
   SolicitudDetailDialog,
@@ -24,6 +25,13 @@ export const Route = createFileRoute('/_authenticated/crm')({
         name: 'description',
         content: 'CRM interno de ORB-LITE: solicitudes pendientes, vendidas y no vendidas.',
       },
+      { property: 'og:title', content: 'CRM de solicitudes · ORB-LITE' },
+      {
+        property: 'og:description',
+        content: 'CRM interno de ORB-LITE para ventas, solicitudes y clientes.',
+      },
+      { property: 'og:type', content: 'website' },
+      { name: 'twitter:card', content: 'summary' },
     ],
   }),
   component: CrmPage,
@@ -39,7 +47,9 @@ function CrmPage() {
   const [filter, setFilter] = React.useState<Filter>('pendiente')
   const [page, setPage] = React.useState(1)
   const [selectedRow, setSelectedRow] = React.useState<any>(null)
-  const [tab, setTab] = React.useState<'solicitudes' | 'clientes'>('solicitudes')
+  const [tab, setTab] = React.useState<
+    'solicitudes' | 'clientes' | 'nueva-venta' | 'registrar-cliente'
+  >('solicitudes')
   const PAGE_SIZE = 10
 
   React.useEffect(() => {
@@ -128,6 +138,20 @@ function CrmPage() {
           >
             Clientes
           </Button>
+          <Button
+            size="sm"
+            variant={tab === 'nueva-venta' ? 'default' : 'ghost'}
+            onClick={() => setTab('nueva-venta')}
+          >
+            Nueva venta
+          </Button>
+          <Button
+            size="sm"
+            variant={tab === 'registrar-cliente' ? 'default' : 'ghost'}
+            onClick={() => setTab('registrar-cliente')}
+          >
+            Registrar cliente
+          </Button>
         </div>
 
         {tab === 'solicitudes' ? (
@@ -210,8 +234,12 @@ function CrmPage() {
           </div>
         )}
           </>
-        ) : (
+        ) : tab === 'clientes' ? (
           <CustomersSection />
+        ) : tab === 'nueva-venta' ? (
+          <NuevaVentaSection />
+        ) : (
+          <RegistrarClienteSection />
         )}
       </div>
     </main>
