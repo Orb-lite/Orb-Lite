@@ -503,7 +503,10 @@ export function RegistrarClienteSection() {
     mutationFn: (n: number) => lookup({ data: { customerNumber: n } }),
     onSuccess: (res) => {
       const c: any = res.customer
-      if (!c) return toast.info('No existe ese número; se creará como nuevo.')
+      if (!c) {
+        toast.info('No existe ese número; se creará como nuevo.')
+        return
+      }
       setCliente({
         customerNumber: String(c.customer_number),
         fullName: c.full_name ?? '',
