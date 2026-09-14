@@ -4,6 +4,9 @@ import equipoGps from "@/assets/equipo-gps.jpg";
 
 export type ProductCategory = "B2B" | "B2C" | "RENOVATION";
 
+export type RenewalKind = "platform" | "sim" | "both";
+export type RenewalPeriod = "monthly" | "annual";
+
 export interface ProductVariant {
   id: string;
   product_id: string;
@@ -13,7 +16,12 @@ export interface ProductVariant {
   badge?: string;
   includes: string[];
   price_note?: string;
+  /** Solo renovaciones: qué se renueva y cada cuánto. */
+  renewal_kind?: RenewalKind;
+  renewal_period?: RenewalPeriod;
+  platform?: string;
 }
+
 
 export interface Product {
   id: string;
@@ -153,34 +161,62 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "renovaciones",
-    title: "Renovaciones Anuales ORB-LITE",
+    title: "Renovaciones ORB-LITE y Klifnet",
     slug: "renovaciones-anuales",
     category: "RENOVATION",
     description:
-      "Mantén activo tu servicio: renueva la plataforma de monitoreo y los datos de tu SIM cada año.",
+      "Mantén activo tu servicio: renueva la plataforma ORB-LITE (anual) o Klifnet (mensual o anual) y los datos de tu chip.",
+
     image_url: equipoGps,
     features: ["Sin contratos forzosos", "Activación inmediata", "Soporte incluido"],
     variants: [
       {
         id: "renov-plataforma",
         product_id: "renovaciones",
-        name: "Renovación de Plataforma ORB-LITE (1 año)",
+        name: "Renovación de Plataforma ORB-LITE (anual)",
         price: 406,
         badge: "12 meses de plataforma",
         includes: ["Acceso a plataforma web y app por 1 año"],
+        renewal_kind: "platform",
+        renewal_period: "annual",
+        platform: "ORB-LITE",
+      },
+      {
+        id: "renov-klifnet-mensual",
+        product_id: "renovaciones",
+        name: "Renovación de Plataforma Klifnet (mensual)",
+        price: 275,
+        badge: "Pago mes a mes",
+        includes: ["Acceso a plataforma Klifnet por 1 mes"],
+        renewal_kind: "platform",
+        renewal_period: "monthly",
+        platform: "Klifnet",
+      },
+      {
+        id: "renov-klifnet-anual",
+        product_id: "renovaciones",
+        name: "Renovación de Plataforma Klifnet (anual)",
+        price: 3000,
+        badge: "12 meses de plataforma Klifnet",
+        includes: ["Acceso a plataforma Klifnet por 1 año"],
+        renewal_kind: "platform",
+        renewal_period: "annual",
+        platform: "Klifnet",
       },
       {
         id: "renov-sim",
         product_id: "renovaciones",
-        name: "Renovación Anual SIM 30MB",
+        name: "Renovación Anual de Chip / SIM 30MB",
         price: 580,
         badge: "12 meses de datos",
         includes: ["SIM 30MB mensuales por 1 año (M2M)"],
+        renewal_kind: "sim",
+        renewal_period: "annual",
       },
       {
         id: "renov-completa",
         product_id: "renovaciones",
-        name: "Renovación Completa (Plataforma + SIM)",
+        name: "Renovación Completa ORB-LITE (Plataforma + Chip)",
         price: 928,
         original_price: 986,
         badge: "Recomendado · Ahorra en el paquete",
@@ -188,10 +224,25 @@ export const PRODUCTS: Product[] = [
           "Acceso a plataforma web y app por 1 año",
           "SIM 30MB mensuales por 1 año (M2M)",
         ],
+        renewal_kind: "both",
+        renewal_period: "annual",
+        platform: "ORB-LITE",
       },
     ],
   },
 ];
+
+export function renewalMeta(variantId: string) {
+  const found = findVariant(variantId);
+  if (!found || found.product.category !== "RENOVATION") return null;
+  const v = found.variant;
+  return {
+    kind: v.renewal_kind ?? "platform",
+    period: v.renewal_period ?? "annual",
+    platform: v.platform ?? "ORB-LITE",
+  } as const;
+}
+
 
 export const WHATSAPP_NUMBER = "523318359421";
 

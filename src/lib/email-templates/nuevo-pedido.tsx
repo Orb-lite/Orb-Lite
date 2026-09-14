@@ -23,7 +23,13 @@ interface OrderLine {
   lineTotal: number
   addOns: Array<{ name: string; price: number }>
   isRenewal: boolean
-  renewal?: { fullName: string; unitName: string } | null
+  renewal?: {
+    fullName: string
+    unitName?: string | null
+    imei?: string | null
+    iccid?: string | null
+    simPhone?: string | null
+  } | null
 }
 
 interface Props {
@@ -125,9 +131,23 @@ const NuevoPedidoEmail = (p: Props) => {
                       </Text>
                     ))}
                     {l.isRenewal && l.renewal ? (
-                      <Text style={lineDetail}>
-                        Equipo: {l.renewal.unitName} ({l.renewal.fullName})
-                      </Text>
+                      <>
+                        <Text style={lineDetail}>Titular: {l.renewal.fullName}</Text>
+                        {l.renewal.unitName ? (
+                          <Text style={lineDetail}>
+                            Equipo en plataforma: {l.renewal.unitName}
+                          </Text>
+                        ) : null}
+                        {l.renewal.imei ? (
+                          <Text style={lineDetail}>IMEI: {l.renewal.imei}</Text>
+                        ) : null}
+                        {l.renewal.iccid ? (
+                          <Text style={lineDetail}>ICCID: {l.renewal.iccid}</Text>
+                        ) : null}
+                        {l.renewal.simPhone ? (
+                          <Text style={lineDetail}>Tel. del chip: {l.renewal.simPhone}</Text>
+                        ) : null}
+                      </>
                     ) : null}
                   </Column>
                   <Column align="right">

@@ -25,8 +25,14 @@ export interface PickupInfo {
 
 export interface RenewalInfo {
   fullName: string;
-  unitName: string;
+  unitName?: string;
+  /** IMEI del equipo (renovaciones de plataforma). */
+  imei?: string;
+  /** ICCID y teléfono del chip (renovaciones de SIM). */
+  iccid?: string;
+  simPhone?: string;
 }
+
 
 export interface BillingInfo {
   legalName: string;

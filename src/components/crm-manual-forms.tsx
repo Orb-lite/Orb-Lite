@@ -8,7 +8,7 @@ import {
   crmSaveCustomer,
   crmUpdateCustomer,
 } from '@/lib/crm.functions'
-import { IVA_RATE, PRODUCTS, SHIPPING_OPTIONS, formatMxn, findVariant } from '@/data/catalog'
+import { IVA_RATE, PRODUCTS, SHIPPING_OPTIONS, formatMxn, findVariant, renewalMeta } from '@/data/catalog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -23,7 +23,46 @@ import {
 
 const CHANNELS = ['WhatsApp', 'Teléfono', 'Mostrador', 'Visita', 'Referido', 'Otro'] as const
 
-type Line = { variantId: string; customName: string; quantity: number; unitPrice: number }
+type RenewalFields = {
+  fullName: string
+  unitName: string
+  imei: string
+  iccid: string
+  simPhone: string
+}
+
+const EMPTY_RENEWAL: RenewalFields = {
+  fullName: '',
+  unitName: '',
+  imei: '',
+  iccid: '',
+  simPhone: '',
+}
+
+type Line = {
+  variantId: string
+  customName: string
+  quantity: number
+  unitPrice: number
+  renewal: RenewalFields
+}
+
+/** Campos que pide cada tipo de renovación. */
+function renewalFieldsFor(variantId: string): Array<keyof RenewalFields> {
+  const meta = renewalMeta(variantId)
+  if (!meta) return []
+  if (meta.kind === 'sim') return ['fullName', 'iccid', 'simPhone']
+  if (meta.kind === 'both') return ['fullName', 'unitName', 'imei', 'iccid', 'simPhone']
+  return ['fullName', 'unitName', 'imei']
+}
+
+const RENEWAL_LABELS: Record<keyof RenewalFields, string> = {
+  fullName: 'Nombre del titular',
+  unitName: 'Nombre del equipo en plataforma',
+  imei: 'IMEI del equipo',
+  iccid: 'ICCID del chip',
+  simPhone: 'Teléfono del chip',
+}
 
 const CUSTOM_ID = '__custom__'
 
@@ -175,6 +214,7 @@ export function NuevaVentaSection() {
       customName: '',
       quantity: 1,
       unitPrice: DEFAULT_VARIANT?.price ?? 0,
+      renewal: { ...EMPTY_RENEWAL },
     },
   ])
   const [shippingId, setShippingId] = React.useState<'local' | 'national'>('local')
@@ -231,7 +271,13 @@ export function NuevaVentaSection() {
           city: cliente.city.trim(),
           state: cliente.state.trim(),
           zip: cliente.zip.trim(),
-          items: lines,
+          items: lines.map((l) => ({
+            variantId: l.variantId,
+            customName: l.customName,
+            quantity: l.quantity,
+            unitPrice: l.unitPrice,
+            renewal: renewalFieldsFor(l.variantId).length > 0 ? l.renewal : null,
+          })),
           shippingId,
           wantsInvoice,
           billing: wantsInvoice ? buildBilling(billing) : null,
@@ -255,6 +301,7 @@ export function NuevaVentaSection() {
           customName: '',
           quantity: 1,
           unitPrice: DEFAULT_VARIANT?.price ?? 0,
+          renewal: { ...EMPTY_RENEWAL },
         },
       ])
       queryClient.invalidateQueries({ queryKey: ['crm-solicitudes'] })
@@ -380,6 +427,31 @@ export function NuevaVentaSection() {
                   }
                 />
               )}
+              {renewalFieldsFor(line.variantId).length > 0 && (
+                <div className="mt-2 space-y-2 rounded-md border border-border/60 bg-muted/30 p-3">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Datos de la renovación ({renewalMeta(line.variantId)?.platform} ·{' '}
+                    {renewalMeta(line.variantId)?.period === 'monthly' ? 'mensual' : 'anual'})
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {renewalFieldsFor(line.variantId).map((field) => (
+                      <Field
+                        key={field}
+                        id={`venta-renov-${index}-${field}`}
+                        label={RENEWAL_LABELS[field]}
+                        value={line.renewal[field]}
+                        onChange={(v) =>
+                          setLines(
+                            lines.map((l, i) =>
+                              i === index ? { ...l, renewal: { ...l.renewal, [field]: v } } : l,
+                            ),
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Precio unitario</Label>
@@ -440,7 +512,9 @@ export function NuevaVentaSection() {
                 customName: '',
                 quantity: 1,
                 unitPrice: DEFAULT_VARIANT?.price ?? 0,
+                renewal: { ...EMPTY_RENEWAL },
               },
+
             ])
           }
         >

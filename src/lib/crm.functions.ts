@@ -124,11 +124,20 @@ export const crmListCustomers = createServerFn({ method: 'POST' })
 
 /* ================== Ventas fuera de la página y registro de clientes ================== */
 
+const saleRenewalSchema = z.object({
+  fullName: z.string().trim().max(120).optional().or(z.literal('')),
+  unitName: z.string().trim().max(120).optional().or(z.literal('')),
+  imei: z.string().trim().max(25).optional().or(z.literal('')),
+  iccid: z.string().trim().max(25).optional().or(z.literal('')),
+  simPhone: z.string().trim().max(25).optional().or(z.literal('')),
+})
+
 const saleItemSchema = z.object({
   variantId: z.string().min(1),
   customName: z.string().trim().max(200).optional().or(z.literal('')),
   quantity: z.number().int().min(1).max(100),
   unitPrice: z.number().finite().min(0).max(10_000_000),
+  renewal: saleRenewalSchema.nullish(),
 })
 
 const manualBillingSchema = z.object({
@@ -251,6 +260,18 @@ export const crmCreateSale = createServerFn({ method: 'POST' })
       if (!isCustom && !found) return []
       const customName = (item.customName ?? '').trim()
       if (isCustom && customName.length === 0) return []
+      // Datos del equipo/chip que se renueva (IMEI y nombre en plataforma, o ICCID y teléfono)
+      const r = item.renewal ?? null
+      const renewalEntries = r
+        ? Object.entries(r).filter(([, v]) => typeof v === 'string' && v.trim().length > 0)
+        : []
+      const renewalData =
+        !isCustom && found!.product.category === 'RENOVATION' && renewalEntries.length > 0
+          ? (Object.fromEntries(renewalEntries.map(([k, v]) => [k, String(v).trim()])) as Record<
+              string,
+              string
+            >)
+          : null
       productsTotal += lineTotal
       return [
         {
@@ -261,7 +282,7 @@ export const crmCreateSale = createServerFn({ method: 'POST' })
           lineTotal,
           addOns: [] as { name: string; price: number }[],
           isRenewal: isCustom ? false : found!.product.category === 'RENOVATION',
-          renewal: null,
+          renewal: renewalData,
         },
       ]
     })
