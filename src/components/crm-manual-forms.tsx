@@ -512,7 +512,9 @@ export function NuevaVentaSection() {
                 customName: '',
                 quantity: 1,
                 unitPrice: DEFAULT_VARIANT?.price ?? 0,
+                renewal: { ...EMPTY_RENEWAL },
               },
+
             ])
           }
         >
