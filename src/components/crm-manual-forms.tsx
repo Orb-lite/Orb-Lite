@@ -2,11 +2,24 @@ import * as React from 'react'
 import { useServerFn } from '@tanstack/react-start'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { crmCreateSale, crmLookupCustomer, crmSaveCustomer } from '@/lib/crm.functions'
+import {
+  crmCreateSale,
+  crmLookupCustomer,
+  crmSaveCustomer,
+  crmUpdateCustomer,
+} from '@/lib/crm.functions'
 import { IVA_RATE, PRODUCTS, SHIPPING_OPTIONS, formatMxn, findVariant } from '@/data/catalog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+
 
 const CHANNELS = ['WhatsApp', 'Teléfono', 'Mostrador', 'Visita', 'Referido', 'Otro'] as const
 
@@ -672,5 +685,109 @@ export function RegistrarClienteSection() {
         ) : null}
       </section>
     </div>
+  )
+}
+
+/** Editor de datos de un cliente existente. */
+export function EditarClienteDialog({
+  customer,
+  open,
+  onOpenChange,
+}: {
+  customer: any | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const updateCustomer = useServerFn(crmUpdateCustomer)
+  const queryClient = useQueryClient()
+
+  const [cliente, setCliente] = React.useState<ClienteFields>(EMPTY_CLIENTE)
+  const [withBilling, setWithBilling] = React.useState(false)
+  const [billing, setBilling] = React.useState<BillingFields>(EMPTY_BILLING)
+
+  React.useEffect(() => {
+    if (!customer) return
+    const contact = (customer.contact ?? {}) as Record<string, any>
+    setCliente({
+      customerNumber: String(customer.customer_number ?? ''),
+      fullName: customer.full_name ?? '',
+      phone: customer.phone ?? '',
+      email: customer.email ?? contact['email'] ?? '',
+      city: contact['city'] ?? '',
+      state: contact['state'] ?? '',
+      zip: contact['zip'] ?? '',
+    })
+    const hasBilling = customer.billing && Object.keys(customer.billing).length > 0
+    setBilling(hasBilling ? { ...EMPTY_BILLING, ...customer.billing } : EMPTY_BILLING)
+    setWithBilling(Boolean(hasBilling))
+  }, [customer])
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      updateCustomer({
+        data: {
+          customerNumber: Number(cliente.customerNumber),
+          fullName: cliente.fullName.trim(),
+          phone: cliente.phone.trim(),
+          email: cliente.email.trim() ? cliente.email.trim() : null,
+          city: cliente.city.trim(),
+          state: cliente.state.trim(),
+          zip: cliente.zip.trim(),
+          billing: withBilling ? buildBilling(billing) : null,
+        },
+      }),
+    onSuccess: (res) => {
+      toast.success(`Cliente #${res.customerNumber} actualizado`)
+      queryClient.invalidateQueries({ queryKey: ['crm-customers'] })
+      queryClient.invalidateQueries({ queryKey: ['crm-clientes'] })
+      onOpenChange(false)
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : 'No se pudo actualizar el cliente'),
+  })
+
+  const canSubmit =
+    cliente.fullName.trim().length > 1 &&
+    cliente.phone.trim().length > 6 &&
+    (!withBilling || (billing.legalName.trim() && billing.rfc.trim())) &&
+    !mutation.isPending
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar cliente #{cliente.customerNumber}</DialogTitle>
+          <DialogDescription>
+            Actualiza contacto y facturación. El historial de compras no se modifica.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <ClienteFieldsGrid prefix="edit" value={cliente} onChange={setCliente} />
+
+          <label className="flex items-center gap-3 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={withBilling}
+              onChange={(e) => setWithBilling(e.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
+            Guardar datos de facturación
+          </label>
+          {withBilling ? (
+            <BillingFieldsGrid prefix="edit" value={billing} onChange={setBilling} />
+          ) : null}
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button disabled={!canSubmit} onClick={() => mutation.mutate()}>
+              {mutation.isPending ? 'Guardando…' : 'Guardar cambios'}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
