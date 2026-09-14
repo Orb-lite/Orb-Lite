@@ -2,11 +2,24 @@ import * as React from 'react'
 import { useServerFn } from '@tanstack/react-start'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { crmCreateSale, crmLookupCustomer, crmSaveCustomer } from '@/lib/crm.functions'
+import {
+  crmCreateSale,
+  crmLookupCustomer,
+  crmSaveCustomer,
+  crmUpdateCustomer,
+} from '@/lib/crm.functions'
 import { IVA_RATE, PRODUCTS, SHIPPING_OPTIONS, formatMxn, findVariant } from '@/data/catalog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+
 
 const CHANNELS = ['WhatsApp', 'Teléfono', 'Mostrador', 'Visita', 'Referido', 'Otro'] as const
 
