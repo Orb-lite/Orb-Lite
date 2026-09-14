@@ -5,7 +5,10 @@ import { sendTemplateEmail } from "@/lib/email-templates/send-email";
 
 const renewalSchema = z.object({
   fullName: z.string().min(1),
-  unitName: z.string().min(1),
+  unitName: z.string().max(100).optional().nullable(),
+  imei: z.string().max(20).optional().nullable(),
+  iccid: z.string().max(25).optional().nullable(),
+  simPhone: z.string().max(25).optional().nullable(),
 });
 
 const shippingInfoSchema = z.object({
