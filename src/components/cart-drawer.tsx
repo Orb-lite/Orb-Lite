@@ -83,7 +83,7 @@ export function CartDrawer() {
     if (renewalLines.length > 0) {
       const nextErrors: Record<string, Partial<Record<keyof RenewalInfo, string>>> = {};
       for (const line of renewalLines) {
-        const { data, errors: lineErrors } = validateRenewal(line.renewal);
+        const { data, errors: lineErrors } = validateRenewal(line.variantId, line.renewal);
         if (!data) {
           nextErrors[line.id] = lineErrors;
         } else {
@@ -97,7 +97,7 @@ export function CartDrawer() {
       }
       setRenewalErrors({});
       details += renewalLines
-        .map((l) => (l.renewal ? formatRenewalInfo(l.renewal) : ""))
+        .map((l) => (l.renewal ? formatRenewalInfo(l.renewal, l.variantName) : ""))
         .join("");
     }
     if (shippingId === "national") {
@@ -204,7 +204,13 @@ export function CartDrawer() {
       .map(
         (l) =>
           `• ${l.variantName} x${l.quantity} — ${formatMxn(l.unitPrice * l.quantity)}` +
-          (l.renewal ? `\n   Unidad: ${l.renewal.unitName} (${l.renewal.fullName})` : "") +
+          (l.renewal
+            ? `\n   Titular: ${l.renewal.fullName}` +
+              (l.renewal.unitName ? `\n   Equipo en plataforma: ${l.renewal.unitName}` : "") +
+              (l.renewal.imei ? `\n   IMEI: ${l.renewal.imei}` : "") +
+              (l.renewal.iccid ? `\n   ICCID: ${l.renewal.iccid}` : "") +
+              (l.renewal.simPhone ? `\n   Tel. del chip: ${l.renewal.simPhone}` : "")
+            : "") +
           l.addOns.map((a) => `\n   + ${a.name} — ${formatMxn(a.price * l.quantity)}`).join(""),
       )
       .join("\n");
@@ -326,6 +332,7 @@ export function CartDrawer() {
                           Datos del equipo
                         </p>
                         <RenewalForm
+                          variantId={line.variantId}
                           value={line.renewal}
                           onChange={(info) => updateRenewal(line.id, info)}
                           errors={renewalErrors[line.id]}
