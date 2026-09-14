@@ -329,6 +329,7 @@ function CustomersSection() {
 function CustomerCard({ customer }: { customer: any }) {
   const billing = (customer.billing && typeof customer.billing === 'object' ? customer.billing : {}) as Record<string, any>
   const contact = (customer.contact && typeof customer.contact === 'object' ? customer.contact : {}) as Record<string, any>
+  const [editing, setEditing] = React.useState(false)
 
   return (
     <article className="space-y-3 rounded-xl border border-border bg-card p-5">
@@ -341,11 +342,19 @@ function CustomerCard({ customer }: { customer: any }) {
             {customer.email ? ` · ${customer.email}` : ''}
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-base font-semibold text-foreground">{mxn(Number(customer.total_spent ?? 0))}</p>
-          <p className="text-xs text-muted-foreground">{customer.orders_count ?? 0} pedido(s)</p>
+        <div className="flex flex-col items-end gap-2">
+          <div className="text-right">
+            <p className="text-base font-semibold text-foreground">{mxn(Number(customer.total_spent ?? 0))}</p>
+            <p className="text-xs text-muted-foreground">{customer.orders_count ?? 0} pedido(s)</p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+            Editar
+          </Button>
         </div>
       </div>
+
+      <EditarClienteDialog customer={customer} open={editing} onOpenChange={setEditing} />
+
 
       {Object.keys(contact).length > 0 ? (
         <div className="space-y-1 text-sm">
