@@ -4,6 +4,9 @@ import equipoGps from "@/assets/equipo-gps.jpg";
 
 export type ProductCategory = "B2B" | "B2C" | "RENOVATION";
 
+export type RenewalKind = "platform" | "sim" | "both";
+export type RenewalPeriod = "monthly" | "annual";
+
 export interface ProductVariant {
   id: string;
   product_id: string;
@@ -13,7 +16,12 @@ export interface ProductVariant {
   badge?: string;
   includes: string[];
   price_note?: string;
+  /** Solo renovaciones: qué se renueva y cada cuánto. */
+  renewal_kind?: RenewalKind;
+  renewal_period?: RenewalPeriod;
+  platform?: string;
 }
+
 
 export interface Product {
   id: string;
