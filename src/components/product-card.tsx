@@ -52,7 +52,7 @@ export function ProductCard({ product }: { product: Product }) {
     if (isDigital) {
       setShipping("local");
       setErrors(null);
-      const { data, errors: nextErrors } = validateRenewal(renewal);
+      const { data, errors: nextErrors } = validateRenewal(variantId, renewal);
       if (!data) {
         setRenewalErrors(nextErrors);
         toast.error("Completa los datos de renovación");
@@ -220,7 +220,8 @@ export function ProductCard({ product }: { product: Product }) {
               Datos de renovación (por equipo)
             </p>
             <RenewalForm
-              key={renewalKey}
+              key={`${variantId}-${renewalKey}`}
+              variantId={variantId}
               value={renewal}
               onChange={setRenewal}
               errors={renewalErrors ?? undefined}
