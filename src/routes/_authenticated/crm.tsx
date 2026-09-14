@@ -6,7 +6,12 @@ import { toast } from 'sonner'
 import { crmListCustomers, crmListSolicitudes, crmUpdateSolicitud } from '@/lib/crm.functions'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
-import { NuevaVentaSection, RegistrarClienteSection } from '@/components/crm-manual-forms'
+import {
+  NuevaVentaSection,
+  RegistrarClienteSection,
+  EditarClienteDialog,
+} from '@/components/crm-manual-forms'
+
 import {
   SolicitudCard,
   SolicitudDetailDialog,
