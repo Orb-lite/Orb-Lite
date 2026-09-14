@@ -361,6 +361,55 @@ export const crmSaveCustomer = createServerFn({ method: 'POST' })
     return { ok: true as const, ...result }
   })
 
+/** Edita los datos de un cliente existente sin tocar su historial de compras. */
+export const crmUpdateCustomer = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        customerNumber: z.number().int().min(500).max(9_999_999),
+        fullName: z.string().trim().min(1).max(150),
+        phone: z.string().trim().min(1).max(30),
+        email: z.string().trim().email().max(150).nullish(),
+        city: z.string().trim().max(120).optional().or(z.literal('')),
+        state: z.string().trim().max(120).optional().or(z.literal('')),
+        zip: z.string().trim().max(10).optional().or(z.literal('')),
+        billing: manualBillingSchema.nullish(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+
+    const contact = {
+      fullName: data.fullName,
+      phone: data.phone,
+      ...(data.email ? { email: data.email } : {}),
+      ...(data.city ? { city: data.city } : {}),
+      ...(data.state ? { state: data.state } : {}),
+      ...(data.zip ? { zip: data.zip } : {}),
+    }
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('customers')
+      .update({
+        full_name: data.fullName,
+        phone: data.phone,
+        email: data.email ?? data.billing?.email ?? null,
+        contact,
+        billing: data.billing ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('customer_number', data.customerNumber)
+      .select('customer_number')
+      .maybeSingle()
+
+    if (error) throw new Error(error.message)
+    if (!updated) throw new Error('No se encontró el cliente')
+    return { ok: true as const, customerNumber: updated.customer_number }
+  })
+
 /** Consulta un cliente por número para precargar los formularios del CRM. */
 export const crmLookupCustomer = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
