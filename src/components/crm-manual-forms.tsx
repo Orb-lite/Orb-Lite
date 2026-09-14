@@ -712,10 +712,10 @@ export function EditarClienteDialog({
       customerNumber: String(customer.customer_number ?? ''),
       fullName: customer.full_name ?? '',
       phone: customer.phone ?? '',
-      email: customer.email ?? contact.email ?? '',
-      city: contact.city ?? '',
-      state: contact.state ?? '',
-      zip: contact.zip ?? '',
+      email: customer.email ?? contact['email'] ?? '',
+      city: contact['city'] ?? '',
+      state: contact['state'] ?? '',
+      zip: contact['zip'] ?? '',
     })
     const hasBilling = customer.billing && Object.keys(customer.billing).length > 0
     setBilling(hasBilling ? { ...EMPTY_BILLING, ...customer.billing } : EMPTY_BILLING)
