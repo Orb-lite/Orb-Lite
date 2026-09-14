@@ -10,7 +10,9 @@ import { Label } from '@/components/ui/label'
 
 const CHANNELS = ['WhatsApp', 'Teléfono', 'Mostrador', 'Visita', 'Referido', 'Otro'] as const
 
-type Line = { variantId: string; quantity: number; unitPrice: number }
+type Line = { variantId: string; customName: string; quantity: number; unitPrice: number }
+
+const CUSTOM_ID = '__custom__'
 
 const DEFAULT_VARIANT = PRODUCTS[0]?.variants[0]
 
@@ -155,7 +157,12 @@ export function NuevaVentaSection() {
 
   const [cliente, setCliente] = React.useState<ClienteFields>(EMPTY_CLIENTE)
   const [lines, setLines] = React.useState<Line[]>([
-    { variantId: DEFAULT_VARIANT?.id ?? '', quantity: 1, unitPrice: DEFAULT_VARIANT?.price ?? 0 },
+    {
+      variantId: DEFAULT_VARIANT?.id ?? '',
+      customName: '',
+      quantity: 1,
+      unitPrice: DEFAULT_VARIANT?.price ?? 0,
+    },
   ])
   const [shippingId, setShippingId] = React.useState<'local' | 'national'>('local')
   const [channel, setChannel] = React.useState<string>('WhatsApp')
@@ -225,7 +232,12 @@ export function NuevaVentaSection() {
       setWantsInvoice(false)
       setNotes('')
       setLines([
-        { variantId: DEFAULT_VARIANT?.id ?? '', quantity: 1, unitPrice: DEFAULT_VARIANT?.price ?? 0 },
+        {
+          variantId: DEFAULT_VARIANT?.id ?? '',
+          customName: '',
+          quantity: 1,
+          unitPrice: DEFAULT_VARIANT?.price ?? 0,
+        },
       ])
       queryClient.invalidateQueries({ queryKey: ['crm-solicitudes'] })
       queryClient.invalidateQueries({ queryKey: ['crm-customers'] })
@@ -238,6 +250,7 @@ export function NuevaVentaSection() {
     cliente.fullName.trim().length > 1 &&
     cliente.phone.trim().length > 6 &&
     lines.length > 0 &&
+    lines.every((l) => l.variantId !== CUSTOM_ID || l.customName.trim().length > 1) &&
     (!wantsInvoice || (billing.legalName.trim() && billing.rfc.trim())) &&
     !mutation.isPending
 
@@ -314,7 +327,10 @@ export function NuevaVentaSection() {
                         ? {
                             ...l,
                             variantId: e.target.value,
-                            unitPrice: selected?.variant.price ?? l.unitPrice,
+                            unitPrice:
+                              e.target.value === CUSTOM_ID
+                                ? l.unitPrice
+                                : (selected?.variant.price ?? l.unitPrice),
                           }
                         : l,
                     ),
@@ -331,7 +347,21 @@ export function NuevaVentaSection() {
                     ))}
                   </optgroup>
                 ))}
+                <option value={CUSTOM_ID}>Producto personalizado (nombre e importe libres)</option>
               </select>
+              {line.variantId === CUSTOM_ID && (
+                <Input
+                  className="mt-2"
+                  autoComplete="off"
+                  placeholder="Nombre del producto o servicio"
+                  value={line.customName}
+                  onChange={(e) =>
+                    setLines(
+                      lines.map((l, i) => (i === index ? { ...l, customName: e.target.value } : l)),
+                    )
+                  }
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Precio unitario</Label>
@@ -389,6 +419,7 @@ export function NuevaVentaSection() {
               ...lines,
               {
                 variantId: DEFAULT_VARIANT?.id ?? '',
+                customName: '',
                 quantity: 1,
                 unitPrice: DEFAULT_VARIANT?.price ?? 0,
               },
