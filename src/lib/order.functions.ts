@@ -196,5 +196,42 @@ export const notifyNewOrder = createServerFn({ method: "POST" })
       }
     }
 
+    // Comprobante de venta (formato de factura) al cliente y a ventas.
+    const comprobanteData = {
+      orderId: data.orderId,
+      issuedAt: new Date().toLocaleString("es-MX", { timeZone: "America/Mexico_City" }),
+      channel: "Tienda en línea",
+      customerName: contact?.fullName ?? data.billingInfo?.legalName ?? null,
+      customerNumber: data.customerNumber ?? null,
+      customerEmail: customerEmail,
+      customerPhone: contact?.phone ?? data.billingInfo?.phone ?? null,
+      lines,
+      shippingLabel: shipping.label,
+      shippingPrice: shipping.price,
+      productsTotal,
+      subtotalWithoutIva,
+      iva: total - subtotalWithoutIva,
+      total,
+      wantsInvoice: data.wantsInvoice,
+      billingInfo: data.wantsInvoice ? (data.billingInfo ?? null) : null,
+    };
+
+    const comprobanteTargets = [
+      { to: "ventas@orb-lite.com", key: `comprobante-${data.orderId}-ventas` },
+      ...(customerEmail
+        ? [{ to: customerEmail, key: `comprobante-${data.orderId}-cliente` }]
+        : []),
+    ];
+    for (const target of comprobanteTargets) {
+      try {
+        await sendTemplateEmail("comprobante-venta", target.to, {
+          idempotencyKey: target.key,
+          templateData: comprobanteData,
+        });
+      } catch (error) {
+        console.error("No se pudo enviar el comprobante de venta", error);
+      }
+    }
+
     return { ok: true as const };
   });
