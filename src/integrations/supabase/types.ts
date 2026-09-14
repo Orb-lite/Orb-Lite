@@ -98,6 +98,81 @@ export type Database = {
         }
         Relationships: []
       }
+      renovaciones: {
+        Row: {
+          amount: number
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_number: number | null
+          customer_phone: string | null
+          iccid: string | null
+          id: string
+          imei: string | null
+          last_order_id: string | null
+          last_paid_at: string | null
+          notices: Json
+          platform: string | null
+          renewal_date: string
+          renewal_kind: string
+          renewal_period: string
+          sim_phone: string | null
+          status: string
+          unit_name: string | null
+          updated_at: string
+          variant_id: string
+          variant_name: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_number?: number | null
+          customer_phone?: string | null
+          iccid?: string | null
+          id?: string
+          imei?: string | null
+          last_order_id?: string | null
+          last_paid_at?: string | null
+          notices?: Json
+          platform?: string | null
+          renewal_date: string
+          renewal_kind?: string
+          renewal_period?: string
+          sim_phone?: string | null
+          status?: string
+          unit_name?: string | null
+          updated_at?: string
+          variant_id: string
+          variant_name: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_number?: number | null
+          customer_phone?: string | null
+          iccid?: string | null
+          id?: string
+          imei?: string | null
+          last_order_id?: string | null
+          last_paid_at?: string | null
+          notices?: Json
+          platform?: string | null
+          renewal_date?: string
+          renewal_kind?: string
+          renewal_period?: string
+          sim_phone?: string | null
+          status?: string
+          unit_name?: string | null
+          updated_at?: string
+          variant_id?: string
+          variant_name?: string
+        }
+        Relationships: []
+      }
       solicitudes: {
         Row: {
           billing: Json | null

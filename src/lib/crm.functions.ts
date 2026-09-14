@@ -337,6 +337,39 @@ export const crmCreateSale = createServerFn({ method: 'POST' })
     })
     if (error) throw new Error(error.message)
 
+    // Programa los avisos de renovación (10, 5, 3 y 1 día antes del corte).
+    try {
+      const { registerRenewals } = await import('@/lib/renovaciones.server')
+      const renewalLines = data.items.flatMap((item) => {
+        if (item.variantId === '__custom__') return []
+        const found = findVariant(item.variantId)
+        if (!found || found.product.category !== 'RENOVATION') return []
+        return [
+          {
+            variantId: item.variantId,
+            variantName: found.variant.name,
+            amount: item.unitPrice * item.quantity,
+            renewal: (item.renewal ?? null) as Record<string, string | null | undefined> | null,
+          },
+        ]
+      })
+      if (renewalLines.length > 0) {
+        await registerRenewals(
+          supabaseAdmin,
+          {
+            orderId,
+            customerNumber,
+            customerName: data.fullName,
+            customerEmail: data.email ?? data.billing?.email ?? null,
+            customerPhone: data.phone,
+          },
+          renewalLines,
+        )
+      }
+    } catch (error) {
+      console.error('No se pudieron programar los avisos de renovación', error)
+    }
+
     // Comprobante de venta + resumen por correo (cliente y ventas@orb-lite.com)
     const subtotalWithoutIva = data.addIva ? subtotal : total / (1 + IVA_RATE)
     const iva = total - subtotalWithoutIva
