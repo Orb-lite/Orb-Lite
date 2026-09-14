@@ -244,19 +244,22 @@ export const crmCreateSale = createServerFn({ method: 'POST' })
 
     let productsTotal = 0
     const lines = data.items.flatMap((item) => {
-      const found = findVariant(item.variantId)
-      if (!found) return []
-       const lineTotal = item.unitPrice * item.quantity
+      const lineTotal = item.unitPrice * item.quantity
+      const isCustom = item.variantId === '__custom__'
+      const found = isCustom ? null : findVariant(item.variantId)
+      if (!isCustom && !found) return []
+      const customName = (item.customName ?? '').trim()
+      if (isCustom && customName.length === 0) return []
       productsTotal += lineTotal
       return [
         {
-          variantName: found.variant.name,
-          title: found.product.title,
+          variantName: isCustom ? customName : found!.variant.name,
+          title: isCustom ? 'Producto personalizado' : found!.product.title,
           quantity: item.quantity,
-           unitPrice: item.unitPrice,
+          unitPrice: item.unitPrice,
           lineTotal,
           addOns: [] as { name: string; price: number }[],
-          isRenewal: found.product.category === 'RENOVATION',
+          isRenewal: isCustom ? false : found!.product.category === 'RENOVATION',
           renewal: null,
         },
       ]
