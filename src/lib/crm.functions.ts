@@ -126,6 +126,7 @@ export const crmListCustomers = createServerFn({ method: 'POST' })
 
 const saleItemSchema = z.object({
   variantId: z.string().min(1),
+  customName: z.string().trim().max(200).optional().or(z.literal('')),
   quantity: z.number().int().min(1).max(100),
   unitPrice: z.number().finite().min(0).max(10_000_000),
 })
