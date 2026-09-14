@@ -179,9 +179,23 @@ export function SolicitudDetailDialog({
                   <li key={i}>
                     {Number(it.quantity ?? 1)} × {String(it.title ?? it.variantName ?? 'Producto')}
                     {it.price ? ` · ${mxn(Number(it.price))}` : ''}
+                    {it.renewal ? (
+                      <span className="block text-xs text-muted-foreground">
+                        {[
+                          it.renewal.fullName ? `Titular: ${it.renewal.fullName}` : null,
+                          it.renewal.unitName ? `Equipo: ${it.renewal.unitName}` : null,
+                          it.renewal.imei ? `IMEI: ${it.renewal.imei}` : null,
+                          it.renewal.iccid ? `ICCID: ${it.renewal.iccid}` : null,
+                          it.renewal.simPhone ? `Tel. chip: ${it.renewal.simPhone}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
+
             </DetailSection>
           )}
 
