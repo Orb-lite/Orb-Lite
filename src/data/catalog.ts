@@ -161,11 +161,12 @@ export const PRODUCTS: Product[] = [
   },
   {
     id: "renovaciones",
-    title: "Renovaciones Anuales ORB-LITE",
+    title: "Renovaciones ORB-LITE y Klifnet",
     slug: "renovaciones-anuales",
     category: "RENOVATION",
     description:
-      "Mantén activo tu servicio: renueva la plataforma de monitoreo y los datos de tu SIM cada año.",
+      "Mantén activo tu servicio: renueva la plataforma ORB-LITE (anual) o Klifnet (mensual o anual) y los datos de tu chip.",
+
     image_url: equipoGps,
     features: ["Sin contratos forzosos", "Activación inmediata", "Soporte incluido"],
     variants: [
