@@ -326,7 +326,10 @@ export function NuevaVentaSection() {
                         ? {
                             ...l,
                             variantId: e.target.value,
-                            unitPrice: selected?.variant.price ?? l.unitPrice,
+                            unitPrice:
+                              e.target.value === CUSTOM_ID
+                                ? l.unitPrice
+                                : (selected?.variant.price ?? l.unitPrice),
                           }
                         : l,
                     ),
@@ -343,7 +346,21 @@ export function NuevaVentaSection() {
                     ))}
                   </optgroup>
                 ))}
+                <option value={CUSTOM_ID}>Producto personalizado (nombre e importe libres)</option>
               </select>
+              {line.variantId === CUSTOM_ID && (
+                <Input
+                  className="mt-2"
+                  autoComplete="off"
+                  placeholder="Nombre del producto o servicio"
+                  value={line.customName}
+                  onChange={(e) =>
+                    setLines(
+                      lines.map((l, i) => (i === index ? { ...l, customName: e.target.value } : l)),
+                    )
+                  }
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Precio unitario</Label>
@@ -401,6 +418,7 @@ export function NuevaVentaSection() {
               ...lines,
               {
                 variantId: DEFAULT_VARIANT?.id ?? '',
+                customName: '',
                 quantity: 1,
                 unitPrice: DEFAULT_VARIANT?.price ?? 0,
               },
