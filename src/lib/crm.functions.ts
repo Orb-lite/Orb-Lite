@@ -230,6 +230,7 @@ export const crmCreateSale = createServerFn({ method: 'POST' })
         wantsInvoice: z.boolean().default(false),
         billing: manualBillingSchema.nullish(),
         status: z.enum(STATUSES).default('vendido'),
+        addIva: z.boolean().default(false),
         notes: z.string().trim().max(2000).nullish(),
         channel: z.string().trim().max(60).optional().or(z.literal('')),
       })
@@ -237,7 +238,7 @@ export const crmCreateSale = createServerFn({ method: 'POST' })
   )
   .handler(async ({ data, context }) => {
     assertCrmUser(context.claims)
-    const { ADD_ONS: _unused, SHIPPING_OPTIONS, findVariant } = await import('@/data/catalog')
+    const { IVA_RATE, SHIPPING_OPTIONS, findVariant } = await import('@/data/catalog')
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
 
     const shipping = SHIPPING_OPTIONS.find((s) => s.id === data.shippingId) ?? SHIPPING_OPTIONS[0]!
@@ -266,7 +267,8 @@ export const crmCreateSale = createServerFn({ method: 'POST' })
     })
     if (lines.length === 0) throw new Error('Selecciona al menos un producto válido')
 
-    const total = productsTotal + shipping.price
+    const subtotal = productsTotal + shipping.price
+    const total = data.addIva ? Math.round(subtotal * (1 + IVA_RATE) * 100) / 100 : subtotal
     const orderId = `MAN-${Date.now().toString(36).toUpperCase()}`
     const channel = data.channel && data.channel.length > 0 ? data.channel : 'Venta directa'
 
@@ -290,7 +292,13 @@ export const crmCreateSale = createServerFn({ method: 'POST' })
       orderTotal: total,
     })
 
-    const notes = [`Canal: ${channel}`, data.notes ?? ''].filter(Boolean).join(' · ')
+    const notes = [
+      `Canal: ${channel}`,
+      data.addIva ? 'IVA agregado (16%)' : '',
+      data.notes ?? '',
+    ]
+      .filter(Boolean)
+      .join(' · ')
 
     const { error } = await supabaseAdmin.from('solicitudes').insert({
       order_id: orderId,
