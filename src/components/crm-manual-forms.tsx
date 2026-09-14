@@ -10,7 +10,9 @@ import { Label } from '@/components/ui/label'
 
 const CHANNELS = ['WhatsApp', 'Teléfono', 'Mostrador', 'Visita', 'Referido', 'Otro'] as const
 
-type Line = { variantId: string; quantity: number; unitPrice: number }
+type Line = { variantId: string; customName: string; quantity: number; unitPrice: number }
+
+const CUSTOM_ID = '__custom__'
 
 const DEFAULT_VARIANT = PRODUCTS[0]?.variants[0]
 
