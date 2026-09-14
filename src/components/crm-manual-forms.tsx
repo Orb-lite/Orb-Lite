@@ -3,7 +3,7 @@ import { useServerFn } from '@tanstack/react-start'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { crmCreateSale, crmLookupCustomer, crmSaveCustomer } from '@/lib/crm.functions'
-import { PRODUCTS, SHIPPING_OPTIONS, formatMxn, findVariant } from '@/data/catalog'
+import { IVA_RATE, PRODUCTS, SHIPPING_OPTIONS, formatMxn, findVariant } from '@/data/catalog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -169,6 +169,7 @@ export function NuevaVentaSection() {
   const [status, setStatus] = React.useState<'vendido' | 'pendiente' | 'no_vendido'>('vendido')
   const [notes, setNotes] = React.useState('')
   const [wantsInvoice, setWantsInvoice] = React.useState(false)
+  const [addIva, setAddIva] = React.useState(false)
   const [billing, setBilling] = React.useState<BillingFields>(EMPTY_BILLING)
   const [result, setResult] = React.useState<{ orderId: string; customerNumber: number } | null>(null)
 
@@ -176,7 +177,9 @@ export function NuevaVentaSection() {
   const productsTotal = lines.reduce((sum, l) => {
     return sum + l.unitPrice * l.quantity
   }, 0)
-  const total = productsTotal + shipping.price
+  const subtotal = productsTotal + shipping.price
+  const iva = addIva ? Math.round(subtotal * IVA_RATE * 100) / 100 : 0
+  const total = subtotal + iva
 
   const lookupMutation = useMutation({
     mutationFn: (n: number) => lookup({ data: { customerNumber: n } }),
@@ -220,6 +223,7 @@ export function NuevaVentaSection() {
           wantsInvoice,
           billing: wantsInvoice ? buildBilling(billing) : null,
           status,
+          addIva,
           notes: notes.trim() ? notes.trim() : null,
           channel,
         },
@@ -230,6 +234,7 @@ export function NuevaVentaSection() {
       setCliente(EMPTY_CLIENTE)
       setBilling(EMPTY_BILLING)
       setWantsInvoice(false)
+      setAddIva(false)
       setNotes('')
       setLines([
         {
@@ -455,8 +460,23 @@ export function NuevaVentaSection() {
             <span>Entrega</span>
             <span className="text-foreground">{formatMxn(shipping.price)}</span>
           </p>
+          <label className="flex items-center gap-2 pt-1 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={addIva}
+              onChange={(e) => setAddIva(e.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
+            Agregar IVA (16%)
+          </label>
+          {addIva ? (
+            <p className="flex justify-between text-muted-foreground">
+              <span>IVA</span>
+              <span className="text-foreground">{formatMxn(iva)}</span>
+            </p>
+          ) : null}
           <p className="mt-2 flex justify-between border-t border-border pt-2 text-base">
-            <span className="text-foreground">Total (IVA incluido)</span>
+            <span className="text-foreground">{addIva ? 'Total con IVA' : 'Total (IVA incluido)'}</span>
             <span className="font-semibold text-foreground">{formatMxn(total)}</span>
           </p>
         </div>
