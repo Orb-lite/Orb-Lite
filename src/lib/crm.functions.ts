@@ -337,6 +337,95 @@ export const crmCreateSale = createServerFn({ method: 'POST' })
     })
     if (error) throw new Error(error.message)
 
+    // Comprobante de venta + resumen por correo (cliente y ventas@orb-lite.com)
+    const subtotalWithoutIva = data.addIva ? subtotal : total / (1 + IVA_RATE)
+    const iva = total - subtotalWithoutIva
+    const customerEmail = data.email ?? data.billing?.email ?? null
+    try {
+      const { sendTemplateEmail } = await import('@/lib/email-templates/send-email')
+
+      const comprobanteData = {
+        orderId,
+        issuedAt: new Date().toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }),
+        channel,
+        customerName: data.fullName,
+        customerNumber,
+        customerEmail,
+        customerPhone: data.phone,
+        lines,
+        shippingLabel: shipping.label,
+        shippingPrice: shipping.price,
+        productsTotal,
+        subtotalWithoutIva,
+        iva,
+        total,
+        wantsInvoice: data.wantsInvoice,
+        billingInfo: data.wantsInvoice ? (data.billing ?? null) : null,
+      }
+
+      const sends: Array<Promise<unknown>> = [
+        sendTemplateEmail('comprobante-venta', 'ventas@orb-lite.com', {
+          idempotencyKey: `comprobante-${orderId}-ventas`,
+          templateData: comprobanteData,
+        }),
+        // Resumen de la venta para ventas@orb-lite.com
+        sendTemplateEmail('nuevo-pedido', 'ventas@orb-lite.com', {
+          idempotencyKey: `nuevo-pedido-${orderId}`,
+          templateData: {
+            orderId,
+            customerNumber,
+            lines,
+            shippingLabel: shipping.label,
+            shippingPrice: shipping.price,
+            productsTotal,
+            subtotalWithoutIva,
+            iva,
+            total,
+            totalItems: data.items.reduce((sum, i) => sum + i.quantity, 0),
+            isNational: data.shippingId === 'national',
+            shippingInfo: null,
+            pickupInfo: { fullName: data.fullName, phone: data.phone },
+            wantsInvoice: data.wantsInvoice,
+            billingInfo: data.wantsInvoice ? (data.billing ?? null) : null,
+          },
+        }),
+      ]
+
+      if (customerEmail) {
+        sends.push(
+          sendTemplateEmail('comprobante-venta', customerEmail, {
+            idempotencyKey: `comprobante-${orderId}-cliente`,
+            templateData: comprobanteData,
+          }),
+          // Resumen de la venta para el cliente
+          sendTemplateEmail('confirmacion-pedido', customerEmail, {
+            idempotencyKey: `confirmacion-${orderId}-cliente`,
+            templateData: {
+              orderId,
+              customerName: data.fullName,
+              customerNumber,
+              lines,
+              shippingLabel: shipping.label,
+              shippingPrice: shipping.price,
+              productsTotal,
+              subtotalWithoutIva,
+              iva,
+              total,
+              isNational: data.shippingId === 'national',
+              wantsInvoice: data.wantsInvoice,
+            },
+          }),
+        )
+      }
+
+      const results = await Promise.allSettled(sends)
+      for (const r of results) {
+        if (r.status === 'rejected') console.error('No se pudo enviar correo de la venta', r.reason)
+      }
+    } catch (sendError) {
+      console.error('No se pudieron enviar los correos de la venta', sendError)
+    }
+
     return { ok: true as const, orderId, customerNumber, isNewCustomer: isNew, total }
   })
 
