@@ -157,7 +157,12 @@ export function NuevaVentaSection() {
 
   const [cliente, setCliente] = React.useState<ClienteFields>(EMPTY_CLIENTE)
   const [lines, setLines] = React.useState<Line[]>([
-    { variantId: DEFAULT_VARIANT?.id ?? '', quantity: 1, unitPrice: DEFAULT_VARIANT?.price ?? 0 },
+    {
+      variantId: DEFAULT_VARIANT?.id ?? '',
+      customName: '',
+      quantity: 1,
+      unitPrice: DEFAULT_VARIANT?.price ?? 0,
+    },
   ])
   const [shippingId, setShippingId] = React.useState<'local' | 'national'>('local')
   const [channel, setChannel] = React.useState<string>('WhatsApp')
@@ -227,7 +232,12 @@ export function NuevaVentaSection() {
       setWantsInvoice(false)
       setNotes('')
       setLines([
-        { variantId: DEFAULT_VARIANT?.id ?? '', quantity: 1, unitPrice: DEFAULT_VARIANT?.price ?? 0 },
+        {
+          variantId: DEFAULT_VARIANT?.id ?? '',
+          customName: '',
+          quantity: 1,
+          unitPrice: DEFAULT_VARIANT?.price ?? 0,
+        },
       ])
       queryClient.invalidateQueries({ queryKey: ['crm-solicitudes'] })
       queryClient.invalidateQueries({ queryKey: ['crm-customers'] })
