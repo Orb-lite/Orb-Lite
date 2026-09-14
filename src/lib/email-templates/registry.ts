@@ -4,6 +4,8 @@ import { template as resumenPendientesTemplate } from './resumen-pendientes'
 import { template as codigoAccesoCrmTemplate } from './codigo-acceso-crm'
 import { template as confirmacionPedidoTemplate } from './confirmacion-pedido'
 import { template as comprobanteVentaTemplate } from './comprobante-venta'
+import { template as avisoRenovacionTemplate } from './aviso-renovacion'
+import { template as avisoAdeudoTemplate } from './aviso-adeudo'
 
 export interface TemplateEntry {
   component: ComponentType<any>
@@ -24,4 +26,6 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'codigo-acceso-crm': codigoAccesoCrmTemplate,
   'confirmacion-pedido': confirmacionPedidoTemplate,
   'comprobante-venta': comprobanteVentaTemplate,
+  'aviso-renovacion': avisoRenovacionTemplate,
+  'aviso-adeudo': avisoAdeudoTemplate,
 }
