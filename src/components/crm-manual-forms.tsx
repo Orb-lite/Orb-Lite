@@ -250,6 +250,7 @@ export function NuevaVentaSection() {
     cliente.fullName.trim().length > 1 &&
     cliente.phone.trim().length > 6 &&
     lines.length > 0 &&
+    lines.every((l) => l.variantId !== CUSTOM_ID || l.customName.trim().length > 1) &&
     (!wantsInvoice || (billing.legalName.trim() && billing.rfc.trim())) &&
     !mutation.isPending
 
