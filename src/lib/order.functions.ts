@@ -233,5 +233,38 @@ export const notifyNewOrder = createServerFn({ method: "POST" })
       }
     }
 
+    // Programa los avisos de renovación (10, 5, 3 y 1 día antes del corte).
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { registerRenewals } = await import("@/lib/renovaciones.server");
+      const renewalLines = data.items.flatMap((item) => {
+        const found = findVariant(item.variant_id);
+        if (!found || found.product.category !== "RENOVATION") return [];
+        return [
+          {
+            variantId: item.variant_id,
+            variantName: found.variant.name,
+            amount: found.variant.price * item.quantity,
+            renewal: (item.renewal ?? null) as Record<string, string | null | undefined> | null,
+          },
+        ];
+      });
+      if (renewalLines.length > 0) {
+        await registerRenewals(
+          supabaseAdmin,
+          {
+            orderId: data.orderId,
+            customerNumber: data.customerNumber ?? null,
+            customerName: contact?.fullName ?? data.billingInfo?.legalName ?? null,
+            customerEmail: customerEmail,
+            customerPhone: contact?.phone ?? data.billingInfo?.phone ?? null,
+          },
+          renewalLines,
+        );
+      }
+    } catch (error) {
+      console.error("No se pudieron programar los avisos de renovación", error);
+    }
+
     return { ok: true as const };
   });

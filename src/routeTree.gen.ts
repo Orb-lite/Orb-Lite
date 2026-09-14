@@ -20,6 +20,7 @@ import { Route as TiendaRouteImport } from './routes/tienda'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as PanelTokenRouteImport } from './routes/panel.$token'
+import { Route as ApiPublicCronAvisosRenovacionRouteImport } from './routes/api/public/cron/avisos-renovacion'
 import { Route as ApiPublicCronResumenPendientesRouteImport } from './routes/api/public/cron/resumen-pendientes'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 
@@ -77,6 +78,12 @@ const PanelTokenRoute = PanelTokenRouteImport.update({
   path: '/panel/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronAvisosRenovacionRoute =
+  ApiPublicCronAvisosRenovacionRouteImport.update({
+    id: '/api/public/cron/avisos-renovacion',
+    path: '/api/public/cron/avisos-renovacion',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronResumenPendientesRoute =
   ApiPublicCronResumenPendientesRouteImport.update({
     id: '/api/public/cron/resumen-pendientes',
@@ -101,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
@@ -115,6 +123,7 @@ export interface FileRoutesByTo {
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
@@ -131,6 +140,7 @@ export interface FileRoutesById {
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
@@ -147,6 +157,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/crm'
     | '/panel/$token'
+    | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
   fileRoutesByTo: FileRoutesByTo
@@ -161,6 +172,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/crm'
     | '/panel/$token'
+    | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
   id:
@@ -176,6 +188,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes'
     | '/_authenticated/crm'
     | '/panel/$token'
+    | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
   fileRoutesById: FileRoutesById
@@ -190,6 +203,7 @@ export interface RootRouteChildren {
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
   PanelTokenRoute: typeof PanelTokenRoute
+  ApiPublicCronAvisosRenovacionRoute: typeof ApiPublicCronAvisosRenovacionRoute
   ApiPublicCronResumenPendientesRoute: typeof ApiPublicCronResumenPendientesRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
 }
@@ -273,6 +287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PanelTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/avisos-renovacion': {
+      id: '/api/public/cron/avisos-renovacion'
+      path: '/api/public/cron/avisos-renovacion'
+      fullPath: '/api/public/cron/avisos-renovacion'
+      preLoaderRoute: typeof ApiPublicCronAvisosRenovacionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/resumen-pendientes': {
       id: '/api/public/cron/resumen-pendientes'
       path: '/api/public/cron/resumen-pendientes'
@@ -313,6 +334,7 @@ const rootRouteChildren: RootRouteChildren = {
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
   PanelTokenRoute: PanelTokenRoute,
+  ApiPublicCronAvisosRenovacionRoute: ApiPublicCronAvisosRenovacionRoute,
   ApiPublicCronResumenPendientesRoute: ApiPublicCronResumenPendientesRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
 }
