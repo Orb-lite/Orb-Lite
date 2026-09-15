@@ -824,7 +824,7 @@ export const crmCreateDemoUser = createServerFn({ method: 'POST' })
         .select('contact')
         .eq('customer_number', data.customerNumber)
         .maybeSingle()
-      const cEmail = (cust?.contact as Record<string, unknown> | null)?.email
+      const cEmail = (cust?.contact as Record<string, unknown> | null)?.['email']
       if (typeof cEmail === 'string' && cEmail.includes('@')) emailTo = cEmail
     }
     let emailSent = false

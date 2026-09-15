@@ -106,7 +106,7 @@ const Email = ({ name, username, platform = 'wialon_lite' }: Props) => {
 export const template = {
   component: Email,
   subject: (data: Record<string, any>) =>
-    `Tus accesos ${data?.platform === 'wialon_full' ? 'Wialon' : 'Wialon Lite'} — ORB-LITE`,
+    `Tus accesos ${data?.['platform'] === 'wialon_full' ? 'Wialon' : 'Wialon Lite'} — ORB-LITE`,
   displayName: 'Accesos demo Wialon',
   previewData: { name: 'Juan Pérez', username: 'juan.transportesabc', platform: 'wialon_lite' },
 } satisfies TemplateEntry
