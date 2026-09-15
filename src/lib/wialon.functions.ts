@@ -302,3 +302,91 @@ export const wialonCreateUser = createServerFn({ method: 'POST' })
     if (!id) throw new Error('El usuario no se pudo crear.')
     return { id, name: created.item?.nm ?? data.name }
   })
+
+const ACCESS_MASKS = {
+  consulta: 0x1 | 0x20,
+  completo: 0x1 | 0x2 | 0x4 | 0x20 | 0x40 | 0x100 | 0x200 | 0x400,
+} as const
+
+export type WialonAccessLevel = keyof typeof ACCESS_MASKS
+
+/** Permisos reales del usuario conectado: qué puede crear y cuánto le queda. */
+export const wialonPermissions = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => sessionSchema.extend({ userId: z.number().int() }).parse(input))
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost
+
+    let userFlags = 0
+    try {
+      const me = await wialonCall<{ item?: { fl?: number } }>(
+        host,
+        'core/search_item',
+        { id: data.userId, flags: 1 },
+        data.sid,
+      )
+      userFlags = me.item?.fl ?? 0
+    } catch {
+      userFlags = 0
+    }
+
+    type Account = {
+      plan?: string
+      enabled?: number
+      services?: Record<string, { type?: number; val?: number; max?: number }>
+    }
+
+    let account: Account = {}
+    try {
+      account = await wialonCall<Account>(host, 'core/get_account_data', { type: 1 }, data.sid)
+    } catch {
+      account = {}
+    }
+
+    const services = account.services ?? {}
+    const svcEnabled = (name: string) => {
+      const svc = services[name]
+      if (!svc) return null
+      return (svc.val ?? 0) !== 0
+    }
+
+    const canCreateItems = (userFlags & 0x10) !== 0
+    const unitsSvc = svcEnabled('create_unit')
+    const usersSvc = svcEnabled('create_user')
+
+    return {
+      plan: account.plan ?? null,
+      accountEnabled: (account.enabled ?? 1) !== 0,
+      canCreateUnits: canCreateItems && unitsSvc !== false,
+      canCreateUsers: canCreateItems && usersSvc !== false,
+      canCreateItems,
+      limits: {
+        units: services['create_unit']?.max ?? null,
+        users: services['create_user']?.max ?? null,
+      },
+    }
+  })
+
+/** Otorga acceso de un usuario a unidades específicas. */
+export const wialonGrantUnits = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        userId: z.number().int().positive(),
+        unitIds: z.array(z.number().int().positive()).max(200),
+        level: z.enum(['consulta', 'completo']),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost
+    const mask = ACCESS_MASKS[data.level as WialonAccessLevel]
+    for (const unitId of data.unitIds) {
+      await wialonCall(
+        host,
+        'user/update_item_access',
+        { userId: data.userId, itemId: unitId, accessMask: mask },
+        data.sid,
+      )
+    }
+    return { granted: data.unitIds.length }
+  })
