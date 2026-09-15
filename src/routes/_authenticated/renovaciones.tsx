@@ -50,6 +50,14 @@ const STATUS_LABEL: Record<(typeof STATUSES)[number], string> = {
 
 const PERIOD_LABEL: Record<Period, string> = { monthly: 'Mensual', annual: 'Anual' }
 
+/** Mensual: día 1 del mes siguiente. Anual: día 1 del mismo mes del año siguiente. */
+function nextRenewalDate(period: Period, from: Date = new Date()): string {
+  const y = from.getUTCFullYear()
+  const m = from.getUTCMonth()
+  const next = period === 'monthly' ? new Date(Date.UTC(y, m + 1, 1)) : new Date(Date.UTC(y + 1, m, 1))
+  return next.toISOString().slice(0, 10)
+}
+
 const RENOVATION_VARIANTS =
   PRODUCTS.find((p) => p.category === 'RENOVATION')?.variants ?? []
 
