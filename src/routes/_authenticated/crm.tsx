@@ -17,6 +17,7 @@ import {
   EditarClienteDialog,
 } from '@/components/crm-manual-forms'
 import { UsuariosDemoSection } from '@/components/crm-demo-users'
+import { SolicitudesDemoSection } from '@/components/crm-demo-requests'
 
 
 import {
@@ -60,8 +61,14 @@ function CrmPage() {
   const [page, setPage] = React.useState(1)
   const [selectedRow, setSelectedRow] = React.useState<any>(null)
   const [tab, setTab] = React.useState<
-    'solicitudes' | 'clientes' | 'nueva-venta' | 'registrar-cliente' | 'usuarios-demo'
+    | 'solicitudes'
+    | 'clientes'
+    | 'nueva-venta'
+    | 'registrar-cliente'
+    | 'usuarios-demo'
+    | 'solicitudes-demo'
   >('solicitudes')
+
 
   const PAGE_SIZE = 10
 
@@ -170,12 +177,20 @@ function CrmPage() {
           </Button>
           <Button
             size="sm"
+            variant={tab === 'solicitudes-demo' ? 'default' : 'ghost'}
+            onClick={() => setTab('solicitudes-demo')}
+          >
+            Solicitudes demo
+          </Button>
+          <Button
+            size="sm"
             variant={tab === 'usuarios-demo' ? 'default' : 'ghost'}
             onClick={() => setTab('usuarios-demo')}
           >
             Usuarios demo
           </Button>
         </div>
+
 
 
         {tab === 'solicitudes' ? (
@@ -262,6 +277,8 @@ function CrmPage() {
           <CustomersSection />
         ) : tab === 'nueva-venta' ? (
           <NuevaVentaSection />
+        ) : tab === 'solicitudes-demo' ? (
+          <SolicitudesDemoSection />
         ) : tab === 'usuarios-demo' ? (
           <UsuariosDemoSection />
         ) : (

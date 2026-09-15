@@ -860,3 +860,122 @@ export const crmDeleteDemoUser = createServerFn({ method: 'POST' })
     if (error) throw new Error(error.message)
     return { ok: true as const }
   })
+
+/* ---------------------- Solicitudes de demo (página) ---------------------- */
+
+/** Lista las solicitudes de demo recibidas desde la página. */
+export const crmListDemoRequests = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+    const { data: rows, error } = await supabaseAdmin
+      .from('demo_requests')
+      .select(
+        'id, first_name, last_name, phone, email, company, platform, units, message, status, demo_username, sent_at, notes, created_at',
+      )
+      .order('created_at', { ascending: false })
+      .limit(300)
+    if (error) throw new Error(error.message)
+    return { rows: rows ?? [] }
+  })
+
+/**
+ * Genera el usuario demo de una solicitud y envía el folleto de acceso al
+ * correo del solicitante. Solo se ejecuta cuando el CRM lo confirma.
+ */
+export const crmSendDemoRequest = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
+        platform: z.enum(DEMO_PLATFORMS).nullish(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+
+    const { data: req, error: reqErr } = await supabaseAdmin
+      .from('demo_requests')
+      .select('id, first_name, last_name, phone, email, company, platform, status, demo_username')
+      .eq('id', data.id)
+      .maybeSingle()
+    if (reqErr) throw new Error(reqErr.message)
+    if (!req) throw new Error('Solicitud de demo no encontrada')
+    if (req.status === 'enviado')
+      throw new Error(`Ya se enviaron los datos (usuario ${req.demo_username ?? '—'})`)
+
+    const platform = data.platform ?? (req.platform as (typeof DEMO_PLATFORMS)[number])
+    const fullName = `${req.first_name} ${req.last_name}`.trim()
+
+    const base = buildDemoUsername(fullName, req.company)
+    let username = base
+    for (let i = 2; i < 50; i += 1) {
+      const { data: taken, error } = await supabaseAdmin
+        .from('demo_users')
+        .select('id')
+        .eq('username', username)
+        .maybeSingle()
+      if (error) throw new Error(error.message)
+      if (!taken) break
+      username = `${base}${i}`
+    }
+
+    const { data: inserted, error: insErr } = await supabaseAdmin
+      .from('demo_users')
+      .insert({
+        customer_number: data.customerNumber ?? null,
+        full_name: fullName,
+        company: nullish(req.company),
+        platform,
+        username,
+        password: 'Abc2026+',
+        notes: `Demo solicitada en la página · ${req.email} · ${req.phone}`,
+      })
+      .select('id, username, password, platform')
+      .maybeSingle()
+    if (insErr) throw new Error(insErr.message)
+
+    let emailSent = false
+    let emailReason: string | null = null
+    try {
+      const { sendTemplateEmail } = await import('@/lib/email-templates/send-email')
+      const sent = await sendTemplateEmail('demo-wialon', req.email, {
+        templateData: { name: fullName, username, platform },
+        idempotencyKey: `demo-request-${req.id}`,
+      })
+      emailSent = sent.sent
+      if (!sent.sent) emailReason = sent.reason ?? 'no enviado'
+    } catch (e) {
+      emailReason = e instanceof Error ? e.message : 'error de envío'
+    }
+
+    const { error: updErr } = await supabaseAdmin
+      .from('demo_requests')
+      .update({
+        status: emailSent ? 'enviado' : 'pendiente',
+        demo_user_id: inserted?.id ?? null,
+        demo_username: username,
+        sent_at: emailSent ? new Date().toISOString() : null,
+      })
+      .eq('id', req.id)
+    if (updErr) throw new Error(updErr.message)
+
+    return { ok: true as const, username, password: 'Abc2026+', emailSent, emailReason }
+  })
+
+/** Borra una solicitud de demo. */
+export const crmDeleteDemoRequest = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+    const { error } = await supabaseAdmin.from('demo_requests').delete().eq('id', data.id)
+    if (error) throw new Error(error.message)
+    return { ok: true as const }
+  })
