@@ -30,6 +30,7 @@ export function UsuariosDemoSection() {
   const [company, setCompany] = React.useState('')
   const [platform, setPlatform] = React.useState<'wialon_lite' | 'wialon_full'>('wialon_lite')
   const [notes, setNotes] = React.useState('')
+  const [email, setEmail] = React.useState('')
 
   const query = useQuery({
     queryKey: ['crm-demo-users'],
@@ -45,14 +46,19 @@ export function UsuariosDemoSection() {
           company: company.trim() || null,
           platform,
           notes: notes.trim() || null,
+          email: email.trim() || null,
         },
       }),
     onSuccess: (res: any) => {
       toast.success(`Usuario demo creado: ${res?.user?.username} · ${DEMO_PASSWORD}`)
+      if (res?.emailSent) toast.success(`Folleto de acceso enviado a ${res.emailTo}`)
+      else if (res?.emailReason) toast.warning(`Correo no enviado: ${res.emailReason}`)
+      else if (!res?.emailTo) toast.info('Sin correo del cliente: no se envió el folleto')
       setCustomerNumber('')
       setFullName('')
       setCompany('')
       setNotes('')
+      setEmail('')
       queryClient.invalidateQueries({ queryKey: ['crm-demo-users'] })
     },
     onError: (e: unknown) =>
@@ -134,6 +140,16 @@ export function UsuariosDemoSection() {
                 </Button>
               ))}
             </div>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="demo-email">Correo del cliente (para enviar el folleto de acceso)</Label>
+            <Input
+              id="demo-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="cliente@correo.com — si lo dejas vacío se usa el del cliente registrado"
+            />
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="demo-notas">Notas internas (opcional)</Label>
