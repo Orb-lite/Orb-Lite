@@ -6,6 +6,7 @@ import { template as confirmacionPedidoTemplate } from './confirmacion-pedido'
 import { template as comprobanteVentaTemplate } from './comprobante-venta'
 import { template as avisoRenovacionTemplate } from './aviso-renovacion'
 import { template as avisoAdeudoTemplate } from './aviso-adeudo'
+import { template as demoWialonTemplate } from './demo-wialon'
 
 export interface TemplateEntry {
   component: ComponentType<any>
@@ -28,4 +29,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   'comprobante-venta': comprobanteVentaTemplate,
   'aviso-renovacion': avisoRenovacionTemplate,
   'aviso-adeudo': avisoAdeudoTemplate,
+  'demo-wialon': demoWialonTemplate,
 }

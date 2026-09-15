@@ -767,6 +767,7 @@ export const crmCreateDemoUser = createServerFn({ method: 'POST' })
         company: z.string().trim().max(150).nullish(),
         platform: z.enum(DEMO_PLATFORMS).default('wialon_lite'),
         notes: z.string().trim().max(500).nullish(),
+        email: z.string().trim().email().max(200).nullish(),
       })
       .parse(data),
   )
@@ -814,7 +815,38 @@ export const crmCreateDemoUser = createServerFn({ method: 'POST' })
       .select('id, username, password, platform')
       .maybeSingle()
     if (error) throw new Error(error.message)
-    return { ok: true as const, user: inserted }
+
+    // Correo al cliente con el folleto de acceso y su usuario asignado.
+    let emailTo = nullish(data.email)
+    if (!emailTo && data.customerNumber) {
+      const { data: cust } = await supabaseAdmin
+        .from('customers')
+        .select('contact')
+        .eq('customer_number', data.customerNumber)
+        .maybeSingle()
+      const cEmail = (cust?.contact as Record<string, unknown> | null)?.email
+      if (typeof cEmail === 'string' && cEmail.includes('@')) emailTo = cEmail
+    }
+    let emailSent = false
+    let emailReason: string | null = null
+    if (emailTo && inserted) {
+      try {
+        const { sendTemplateEmail } = await import('@/lib/email-templates/send-email')
+        const sent = await sendTemplateEmail('demo-wialon', emailTo, {
+          templateData: {
+            name: data.fullName.trim(),
+            username,
+            platform: data.platform,
+          },
+          idempotencyKey: `demo-wialon-${inserted.id}`,
+        })
+        emailSent = sent.sent
+        if (!sent.sent) emailReason = sent.reason ?? 'no enviado'
+      } catch (e) {
+        emailReason = e instanceof Error ? e.message : 'error de envío'
+      }
+    }
+    return { ok: true as const, user: inserted, emailTo, emailSent, emailReason }
   })
 
 /** Borra un usuario demo. */
