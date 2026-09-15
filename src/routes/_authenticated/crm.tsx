@@ -3,7 +3,12 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { crmListCustomers, crmListSolicitudes, crmUpdateSolicitud } from '@/lib/crm.functions'
+import {
+  crmDeleteCustomer,
+  crmListCustomers,
+  crmListSolicitudes,
+  crmUpdateSolicitud,
+} from '@/lib/crm.functions'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
@@ -330,6 +335,24 @@ function CustomerCard({ customer }: { customer: any }) {
   const billing = (customer.billing && typeof customer.billing === 'object' ? customer.billing : {}) as Record<string, any>
   const contact = (customer.contact && typeof customer.contact === 'object' ? customer.contact : {}) as Record<string, any>
   const [editing, setEditing] = React.useState(false)
+  const [confirmDelete, setConfirmDelete] = React.useState(false)
+  const queryClient = useQueryClient()
+  const deleteCustomer = useServerFn(crmDeleteCustomer)
+
+  const removal = useMutation({
+    mutationFn: () => deleteCustomer({ data: { customerNumber: customer.customer_number } }),
+    onSuccess: (res: any) => {
+      toast.success(
+        `Cliente #${customer.customer_number} eliminado · ${res?.deletedSolicitudes ?? 0} solicitud(es) borrada(s)`,
+      )
+      setConfirmDelete(false)
+      queryClient.invalidateQueries({ queryKey: ['crm-customers'] })
+      queryClient.invalidateQueries({ queryKey: ['crm-solicitudes'] })
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar el cliente'),
+  })
+
 
   return (
     <article className="space-y-3 rounded-xl border border-border bg-card p-5">
@@ -347,13 +370,51 @@ function CustomerCard({ customer }: { customer: any }) {
             <p className="text-base font-semibold text-foreground">{mxn(Number(customer.total_spent ?? 0))}</p>
             <p className="text-xs text-muted-foreground">{customer.orders_count ?? 0} pedido(s)</p>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-            Editar
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              Editar
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setConfirmDelete(true)}
+              disabled={removal.isPending}
+            >
+              Borrar
+            </Button>
+          </div>
         </div>
       </div>
 
+      {confirmDelete ? (
+        <div className="space-y-2 rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm">
+          <p className="text-foreground">
+            ¿Borrar al cliente #{customer.customer_number}? También se borrarán todas sus
+            solicitudes. Esta acción no se puede deshacer.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => removal.mutate()}
+              disabled={removal.isPending}
+            >
+              {removal.isPending ? 'Borrando…' : 'Sí, borrar todo'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setConfirmDelete(false)}
+              disabled={removal.isPending}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <EditarClienteDialog customer={customer} open={editing} onOpenChange={setEditing} />
+
 
 
       {Object.keys(contact).length > 0 ? (

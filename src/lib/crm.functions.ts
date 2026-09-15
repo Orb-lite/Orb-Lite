@@ -553,6 +553,44 @@ export const crmUpdateCustomer = createServerFn({ method: 'POST' })
     return { ok: true as const, customerNumber: updated.customer_number }
   })
 
+/** Borra un cliente y todas sus solicitudes asociadas. */
+export const crmDeleteCustomer = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z.object({ customerNumber: z.number().int().min(500).max(9_999_999) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+
+    const { data: existing, error: findError } = await supabaseAdmin
+      .from('customers')
+      .select('customer_number')
+      .eq('customer_number', data.customerNumber)
+      .maybeSingle()
+    if (findError) throw new Error(findError.message)
+    if (!existing) throw new Error('No se encontró el cliente')
+
+    const { data: deletedSolicitudes, error: solError } = await supabaseAdmin
+      .from('solicitudes')
+      .delete()
+      .eq('customer_number', data.customerNumber)
+      .select('id')
+    if (solError) throw new Error(solError.message)
+
+    const { error: delError } = await supabaseAdmin
+      .from('customers')
+      .delete()
+      .eq('customer_number', data.customerNumber)
+    if (delError) throw new Error(delError.message)
+
+    return {
+      ok: true as const,
+      customerNumber: data.customerNumber,
+      deletedSolicitudes: deletedSolicitudes?.length ?? 0,
+    }
+  })
+
 /** Consulta un cliente por número para precargar los formularios del CRM. */
 export const crmLookupCustomer = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
