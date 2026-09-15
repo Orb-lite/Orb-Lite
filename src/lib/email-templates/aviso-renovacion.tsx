@@ -114,8 +114,8 @@ export const template = {
   previewData: {
     customerName: "Juan Pérez",
     customerNumber: 512,
-    variantName: "Renovación de Plataforma Klifnet (mensual)",
-    platform: "Klifnet",
+    variantName: "Renovación de Plataforma ORB-FULL (mensual)",
+    platform: "ORB-FULL",
     period: "monthly",
     renewalDate: "2026-10-01",
     amount: 275,
