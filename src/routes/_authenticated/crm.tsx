@@ -3,7 +3,12 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { crmListCustomers, crmListSolicitudes, crmUpdateSolicitud } from '@/lib/crm.functions'
+import {
+  crmDeleteCustomer,
+  crmListCustomers,
+  crmListSolicitudes,
+  crmUpdateSolicitud,
+} from '@/lib/crm.functions'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
