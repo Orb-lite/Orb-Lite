@@ -24,6 +24,7 @@ import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/cr
 import { Route as AuthenticatedRenovacionesRouteImport } from './routes/_authenticated/renovaciones'
 import { Route as PanelTokenRouteImport } from './routes/panel.$token'
 import { Route as WialonIndexRouteImport } from './routes/wialon.index'
+import { Route as WialonMapaRouteImport } from './routes/wialon.mapa'
 import { Route as ApiPublicCronAvisosRenovacionRouteImport } from './routes/api/public/cron/avisos-renovacion'
 import { Route as ApiPublicCronResumenPendientesRouteImport } from './routes/api/public/cron/resumen-pendientes'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -103,6 +104,11 @@ const WialonIndexRoute = WialonIndexRouteImport.update({
   path: '/',
   getParentRoute: () => WialonRoute,
 } as any)
+const WialonMapaRoute = WialonMapaRouteImport.update({
+  id: '/mapa',
+  path: '/mapa',
+  getParentRoute: () => WialonRoute,
+} as any)
 const ApiPublicCronAvisosRenovacionRoute =
   ApiPublicCronAvisosRenovacionRouteImport.update({
     id: '/api/public/cron/avisos-renovacion',
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
@@ -154,6 +161,7 @@ export interface FileRoutesByTo {
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/mapa': typeof WialonMapaRoute
   '/wialon': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
@@ -196,6 +205,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/renovaciones'
     | '/panel/$token'
+    | '/wialon/mapa'
     | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
@@ -214,6 +224,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/renovaciones'
     | '/panel/$token'
+    | '/wialon/mapa'
     | '/wialon'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
@@ -234,6 +245,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crm'
     | '/_authenticated/renovaciones'
     | '/panel/$token'
+    | '/wialon/mapa'
     | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
@@ -364,6 +376,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WialonIndexRouteImport
       parentRoute: typeof WialonRoute
     }
+    '/wialon/mapa': {
+      id: '/wialon/mapa'
+      path: '/mapa'
+      fullPath: '/wialon/mapa'
+      preLoaderRoute: typeof WialonMapaRouteImport
+      parentRoute: typeof WialonRoute
+    }
     '/api/public/cron/avisos-renovacion': {
       id: '/api/public/cron/avisos-renovacion'
       path: '/api/public/cron/avisos-renovacion'
@@ -404,10 +423,12 @@ const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface WialonRouteChildren {
+  WialonMapaRoute: typeof WialonMapaRoute
   WialonIndexRoute: typeof WialonIndexRoute
 }
 
 const WialonRouteChildren: WialonRouteChildren = {
+  WialonMapaRoute: WialonMapaRoute,
   WialonIndexRoute: WialonIndexRoute,
 }
 
