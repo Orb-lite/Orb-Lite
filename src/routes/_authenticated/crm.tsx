@@ -127,6 +127,9 @@ function CrmPage() {
             <Button size="sm" variant="outline" asChild>
               <Link to="/clientes">Panel de clientes</Link>
             </Button>
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/renovaciones">Renovaciones</Link>
+            </Button>
             <Button size="sm" variant="outline" onClick={signOut}>
               Salir
             </Button>

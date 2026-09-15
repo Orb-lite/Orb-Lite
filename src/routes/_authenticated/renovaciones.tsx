@@ -89,7 +89,8 @@ function emptyForm(platform: Platform): FormState {
     iccid: '',
     simPhone: '',
     amount: String(first?.price ?? 0),
-    renewalDate: new Date().toISOString().slice(0, 10),
+    // Mensual: día 1 del mes siguiente. Anual: día 1 del mismo mes del año siguiente.
+    renewalDate: nextRenewalDate((first?.renewal_period as Period) ?? 'annual'),
     status: 'activa',
   }
 }
@@ -305,11 +306,16 @@ function RenovacionesPage() {
                 </select>
               </Field>
 
-              <Field label="Fecha de renovación">
+              <Field label="Mes de renovación (siempre corre el día 1)">
                 <Input
-                  type="date"
-                  value={form.renewalDate}
-                  onChange={(e) => setForm((f) => ({ ...f, renewalDate: e.target.value }))}
+                  type="month"
+                  value={form.renewalDate.slice(0, 7)}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      renewalDate: e.target.value ? `${e.target.value}-01` : '',
+                    }))
+                  }
                 />
               </Field>
 
