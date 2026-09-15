@@ -365,13 +365,51 @@ function CustomerCard({ customer }: { customer: any }) {
             <p className="text-base font-semibold text-foreground">{mxn(Number(customer.total_spent ?? 0))}</p>
             <p className="text-xs text-muted-foreground">{customer.orders_count ?? 0} pedido(s)</p>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
-            Editar
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
+              Editar
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => setConfirmDelete(true)}
+              disabled={removal.isPending}
+            >
+              Borrar
+            </Button>
+          </div>
         </div>
       </div>
 
+      {confirmDelete ? (
+        <div className="space-y-2 rounded-lg border border-destructive/50 bg-destructive/5 p-3 text-sm">
+          <p className="text-foreground">
+            ¿Borrar al cliente #{customer.customer_number}? También se borrarán todas sus
+            solicitudes. Esta acción no se puede deshacer.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => removal.mutate()}
+              disabled={removal.isPending}
+            >
+              {removal.isPending ? 'Borrando…' : 'Sí, borrar todo'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setConfirmDelete(false)}
+              disabled={removal.isPending}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <EditarClienteDialog customer={customer} open={editing} onOpenChange={setEditing} />
+
 
 
       {Object.keys(contact).length > 0 ? (
