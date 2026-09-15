@@ -330,6 +330,24 @@ function CustomerCard({ customer }: { customer: any }) {
   const billing = (customer.billing && typeof customer.billing === 'object' ? customer.billing : {}) as Record<string, any>
   const contact = (customer.contact && typeof customer.contact === 'object' ? customer.contact : {}) as Record<string, any>
   const [editing, setEditing] = React.useState(false)
+  const [confirmDelete, setConfirmDelete] = React.useState(false)
+  const queryClient = useQueryClient()
+  const deleteCustomer = useServerFn(crmDeleteCustomer)
+
+  const removal = useMutation({
+    mutationFn: () => deleteCustomer({ data: { customerNumber: customer.customer_number } }),
+    onSuccess: (res: any) => {
+      toast.success(
+        `Cliente #${customer.customer_number} eliminado · ${res?.deletedSolicitudes ?? 0} solicitud(es) borrada(s)`,
+      )
+      setConfirmDelete(false)
+      queryClient.invalidateQueries({ queryKey: ['crm-customers'] })
+      queryClient.invalidateQueries({ queryKey: ['crm-solicitudes'] })
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar el cliente'),
+  })
+
 
   return (
     <article className="space-y-3 rounded-xl border border-border bg-card p-5">
