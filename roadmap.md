@@ -13,4 +13,4 @@
 - [x] Fechas de renovacion siempre el dia 1: mensual = mes siguiente a la compra, anual = mismo mes del ano siguiente
 
 ## Demo Wialon
-- [ ] Enviar folleto Wialon Lite por correo al cliente al generar usuario demo (lite: lite.wialon.us / cms-lite.wialon.us; full: hosting.wialon.com)
+- [x] Enviar folleto Wialon Lite por correo al cliente al generar usuario demo (lite: lite.wialon.us / cms-lite.wialon.us; full: hosting.wialon.com)
