@@ -98,6 +98,63 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_requests: {
+        Row: {
+          company: string | null
+          created_at: string
+          demo_user_id: string | null
+          demo_username: string | null
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          message: string | null
+          notes: string | null
+          phone: string
+          platform: string
+          sent_at: string | null
+          status: string
+          units: string | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          demo_user_id?: string | null
+          demo_username?: string | null
+          email: string
+          first_name: string
+          id?: string
+          last_name: string
+          message?: string | null
+          notes?: string | null
+          phone: string
+          platform?: string
+          sent_at?: string | null
+          status?: string
+          units?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          demo_user_id?: string | null
+          demo_username?: string | null
+          email?: string
+          first_name?: string
+          id?: string
+          last_name?: string
+          message?: string | null
+          notes?: string | null
+          phone?: string
+          platform?: string
+          sent_at?: string | null
+          status?: string
+          units?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       demo_users: {
         Row: {
           company: string | null
