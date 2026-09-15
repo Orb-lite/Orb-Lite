@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AccesoCrmRouteImport } from './routes/acceso-crm'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ContactoRouteImport } from './routes/contacto'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as TiendaRouteImport } from './routes/tienda'
@@ -47,6 +48,11 @@ const AuthRoute = AuthRouteImport.update({
 const ContactoRoute = ContactoRouteImport.update({
   id: '/contacto',
   path: '/contacto',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ServiciosRoute = ServiciosRouteImport.update({
@@ -109,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/acceso-crm': typeof AccesoCrmRoute
   '/auth': typeof AuthRoute
   '/contacto': typeof ContactoRoute
+  '/demo': typeof DemoRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/acceso-crm': typeof AccesoCrmRoute
   '/auth': typeof AuthRoute
   '/contacto': typeof ContactoRoute
+  '/demo': typeof DemoRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/acceso-crm': typeof AccesoCrmRoute
   '/auth': typeof AuthRoute
   '/contacto': typeof ContactoRoute
+  '/demo': typeof DemoRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
@@ -161,6 +170,7 @@ export interface FileRouteTypes {
     | '/acceso-crm'
     | '/auth'
     | '/contacto'
+    | '/demo'
     | '/servicios'
     | '/terminos'
     | '/tienda'
@@ -177,6 +187,7 @@ export interface FileRouteTypes {
     | '/acceso-crm'
     | '/auth'
     | '/contacto'
+    | '/demo'
     | '/servicios'
     | '/terminos'
     | '/tienda'
@@ -194,6 +205,7 @@ export interface FileRouteTypes {
     | '/acceso-crm'
     | '/auth'
     | '/contacto'
+    | '/demo'
     | '/servicios'
     | '/terminos'
     | '/tienda'
@@ -212,6 +224,7 @@ export interface RootRouteChildren {
   AccesoCrmRoute: typeof AccesoCrmRoute
   AuthRoute: typeof AuthRoute
   ContactoRoute: typeof ContactoRoute
+  DemoRoute: typeof DemoRoute
   ServiciosRoute: typeof ServiciosRoute
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
@@ -256,6 +269,13 @@ declare module '@tanstack/react-router' {
       path: '/contacto'
       fullPath: '/contacto'
       preLoaderRoute: typeof ContactoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/servicios': {
@@ -352,6 +372,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccesoCrmRoute: AccesoCrmRoute,
   AuthRoute: AuthRoute,
   ContactoRoute: ContactoRoute,
+  DemoRoute: DemoRoute,
   ServiciosRoute: ServiciosRoute,
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
