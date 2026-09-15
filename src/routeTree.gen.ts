@@ -18,6 +18,7 @@ import { Route as DemoRouteImport } from './routes/demo'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as TiendaRouteImport } from './routes/tienda'
+import { Route as WialonRouteImport } from './routes/wialon'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedRenovacionesRouteImport } from './routes/_authenticated/renovaciones'
@@ -70,6 +71,11 @@ const TiendaRoute = TiendaRouteImport.update({
   path: '/tienda',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WialonRoute = WialonRouteImport.update({
+  id: '/wialon',
+  path: '/wialon',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/wialon': typeof WialonRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/wialon': typeof WialonRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/wialon': typeof WialonRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/renovaciones': typeof AuthenticatedRenovacionesRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/wialon'
     | '/clientes'
     | '/crm'
     | '/renovaciones'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/wialon'
     | '/clientes'
     | '/crm'
     | '/renovaciones'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/wialon'
     | '/_authenticated/clientes'
     | '/_authenticated/crm'
     | '/_authenticated/renovaciones'
@@ -228,6 +240,7 @@ export interface RootRouteChildren {
   ServiciosRoute: typeof ServiciosRoute
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
+  WialonRoute: typeof WialonRoute
   PanelTokenRoute: typeof PanelTokenRoute
   ApiPublicCronAvisosRenovacionRoute: typeof ApiPublicCronAvisosRenovacionRoute
   ApiPublicCronResumenPendientesRoute: typeof ApiPublicCronResumenPendientesRoute
@@ -297,6 +310,13 @@ declare module '@tanstack/react-router' {
       path: '/tienda'
       fullPath: '/tienda'
       preLoaderRoute: typeof TiendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wialon': {
+      id: '/wialon'
+      path: '/wialon'
+      fullPath: '/wialon'
+      preLoaderRoute: typeof WialonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/clientes': {
@@ -376,6 +396,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServiciosRoute: ServiciosRoute,
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
+  WialonRoute: WialonRoute,
   PanelTokenRoute: PanelTokenRoute,
   ApiPublicCronAvisosRenovacionRoute: ApiPublicCronAvisosRenovacionRoute,
   ApiPublicCronResumenPendientesRoute: ApiPublicCronResumenPendientesRoute,
