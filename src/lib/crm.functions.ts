@@ -718,3 +718,113 @@ export const crmDeleteRenovacion = createServerFn({ method: 'POST' })
     if (error) throw new Error(error.message)
     return { ok: true as const }
   })
+
+/* ------------------------- Usuarios demo Wialon ------------------------- */
+
+const DEMO_PLATFORMS = ['wialon_lite', 'wialon_full'] as const
+
+function slugPart(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+/** Construye el usuario demo: nombre + apellido, o nombre + empresa/razón social. */
+export function buildDemoUsername(fullName: string, company?: string | null) {
+  const words = fullName.trim().split(/\s+/).filter(Boolean)
+  const first = slugPart(words[0] ?? '')
+  const companySlug = company ? slugPart(company).slice(0, 14) : ''
+  const second = companySlug || slugPart(words[1] ?? '')
+  const base = [first, second].filter(Boolean).join('.')
+  return (base || 'demo').slice(0, 30)
+}
+
+/** Lista los usuarios demo generados. */
+export const crmListDemoUsers = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+    const { data: rows, error } = await supabaseAdmin
+      .from('demo_users')
+      .select('id, customer_number, full_name, company, platform, username, password, notes, created_at')
+      .order('created_at', { ascending: false })
+      .limit(500)
+    if (error) throw new Error(error.message)
+    return { rows: rows ?? [] }
+  })
+
+/** Genera un usuario demo (uno por cliente) con contraseña fija Abc2026+. */
+export const crmCreateDemoUser = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
+        fullName: z.string().trim().min(2).max(150),
+        company: z.string().trim().max(150).nullish(),
+        platform: z.enum(DEMO_PLATFORMS).default('wialon_lite'),
+        notes: z.string().trim().max(500).nullish(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+
+    if (data.customerNumber) {
+      const { data: existing, error: exErr } = await supabaseAdmin
+        .from('demo_users')
+        .select('id, username')
+        .eq('customer_number', data.customerNumber)
+        .maybeSingle()
+      if (exErr) throw new Error(exErr.message)
+      if (existing)
+        throw new Error(
+          `El cliente #${data.customerNumber} ya tiene un usuario demo: ${existing.username}`,
+        )
+    }
+
+    const base = buildDemoUsername(data.fullName, data.company)
+    let username = base
+    for (let i = 2; i < 50; i += 1) {
+      const { data: taken, error } = await supabaseAdmin
+        .from('demo_users')
+        .select('id')
+        .eq('username', username)
+        .maybeSingle()
+      if (error) throw new Error(error.message)
+      if (!taken) break
+      username = `${base}${i}`
+    }
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from('demo_users')
+      .insert({
+        customer_number: data.customerNumber ?? null,
+        full_name: data.fullName.trim(),
+        company: nullish(data.company),
+        platform: data.platform,
+        username,
+        password: 'Abc2026+',
+        notes: nullish(data.notes),
+      })
+      .select('id, username, password, platform')
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return { ok: true as const, user: inserted }
+  })
+
+/** Borra un usuario demo. */
+export const crmDeleteDemoUser = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+    const { error } = await supabaseAdmin.from('demo_users').delete().eq('id', data.id)
+    if (error) throw new Error(error.message)
+    return { ok: true as const }
+  })

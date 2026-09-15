@@ -16,6 +16,8 @@ import {
   RegistrarClienteSection,
   EditarClienteDialog,
 } from '@/components/crm-manual-forms'
+import { UsuariosDemoSection } from '@/components/crm-demo-users'
+
 
 import {
   SolicitudCard,
@@ -58,8 +60,9 @@ function CrmPage() {
   const [page, setPage] = React.useState(1)
   const [selectedRow, setSelectedRow] = React.useState<any>(null)
   const [tab, setTab] = React.useState<
-    'solicitudes' | 'clientes' | 'nueva-venta' | 'registrar-cliente'
+    'solicitudes' | 'clientes' | 'nueva-venta' | 'registrar-cliente' | 'usuarios-demo'
   >('solicitudes')
+
   const PAGE_SIZE = 10
 
   React.useEffect(() => {
@@ -165,7 +168,15 @@ function CrmPage() {
           >
             Registrar cliente
           </Button>
+          <Button
+            size="sm"
+            variant={tab === 'usuarios-demo' ? 'default' : 'ghost'}
+            onClick={() => setTab('usuarios-demo')}
+          >
+            Usuarios demo
+          </Button>
         </div>
+
 
         {tab === 'solicitudes' ? (
           <>
@@ -251,9 +262,12 @@ function CrmPage() {
           <CustomersSection />
         ) : tab === 'nueva-venta' ? (
           <NuevaVentaSection />
+        ) : tab === 'usuarios-demo' ? (
+          <UsuariosDemoSection />
         ) : (
           <RegistrarClienteSection />
         )}
+
       </div>
     </main>
   )

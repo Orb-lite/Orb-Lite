@@ -98,6 +98,45 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_users: {
+        Row: {
+          company: string | null
+          created_at: string
+          customer_number: number | null
+          full_name: string
+          id: string
+          notes: string | null
+          password: string
+          platform: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          customer_number?: number | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          password?: string
+          platform?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          customer_number?: number | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          password?: string
+          platform?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
       renovaciones: {
         Row: {
           amount: number
