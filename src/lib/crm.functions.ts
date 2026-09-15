@@ -608,3 +608,112 @@ export const crmLookupCustomer = createServerFn({ method: 'POST' })
     if (error) throw new Error(error.message)
     return { customer: row ?? null }
   })
+
+/* ------------------------- Panel de renovaciones ------------------------- */
+
+const RENOVACION_STATUSES = ['activa', 'por_vencer', 'adeudo', 'cancelada'] as const
+
+const renovacionSchema = z.object({
+  id: z.string().uuid().nullish(),
+  customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
+  customerName: z.string().trim().max(150).nullish(),
+  customerEmail: z.string().trim().email().max(150).nullish().or(z.literal('')),
+  customerPhone: z.string().trim().max(30).nullish(),
+  variantId: z.string().trim().min(1).max(80),
+  variantName: z.string().trim().min(1).max(150),
+  platform: z.enum(['ORB-LITE', 'ORB-FULL']).nullish(),
+  renewalKind: z.enum(['platform', 'sim', 'both']).default('platform'),
+  renewalPeriod: z.enum(['monthly', 'annual']).default('annual'),
+  unitName: z.string().trim().max(120).nullish(),
+  imei: z.string().trim().max(40).nullish(),
+  iccid: z.string().trim().max(40).nullish(),
+  simPhone: z.string().trim().max(30).nullish(),
+  amount: z.number().finite().min(0).max(10_000_000).default(0),
+  renewalDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  status: z.enum(RENOVACION_STATUSES).default('activa'),
+})
+
+const nullish = (v: unknown) => {
+  const s = typeof v === 'string' ? v.trim() : ''
+  return s.length > 0 ? s : null
+}
+
+/** Lista todas las renovaciones registradas para el panel de control. */
+export const crmListRenovaciones = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+
+    const { data: rows, error } = await supabaseAdmin
+      .from('renovaciones')
+      .select(
+        'id, customer_number, customer_name, customer_email, customer_phone, variant_id, variant_name, platform, renewal_kind, renewal_period, unit_name, imei, iccid, sim_phone, amount, renewal_date, last_paid_at, status, last_order_id, created_at',
+      )
+      .order('renewal_date', { ascending: true })
+      .limit(500)
+
+    if (error) throw new Error(error.message)
+    return { rows: rows ?? [] }
+  })
+
+/** Crea o edita una renovación desde el panel de control. */
+export const crmSaveRenovacion = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => renovacionSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+
+    const payload = {
+      customer_number: data.customerNumber ?? null,
+      customer_name: nullish(data.customerName),
+      customer_email: nullish(data.customerEmail),
+      customer_phone: nullish(data.customerPhone),
+      variant_id: data.variantId,
+      variant_name: data.variantName,
+      platform: data.platform ?? null,
+      renewal_kind: data.renewalKind,
+      renewal_period: data.renewalPeriod,
+      unit_name: nullish(data.unitName),
+      imei: nullish(data.imei),
+      iccid: nullish(data.iccid),
+      sim_phone: nullish(data.simPhone),
+      amount: data.amount,
+      renewal_date: data.renewalDate,
+      status: data.status,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (data.id) {
+      const { data: updated, error } = await supabaseAdmin
+        .from('renovaciones')
+        .update(payload)
+        .eq('id', data.id)
+        .select('id')
+        .maybeSingle()
+      if (error) throw new Error(error.message)
+      if (!updated) throw new Error('No se encontró la renovación')
+      return { ok: true as const, id: updated.id, created: false }
+    }
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from('renovaciones')
+      .insert({ ...payload, notices: [] })
+      .select('id')
+      .maybeSingle()
+    if (error) throw new Error(error.message)
+    return { ok: true as const, id: inserted?.id ?? null, created: true }
+  })
+
+/** Borra una renovación del panel de control. */
+export const crmDeleteRenovacion = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .handler(async ({ data, context }) => {
+    assertCrmUser(context.claims)
+    const { supabaseAdmin } = await import('@/integrations/supabase/client.server')
+    const { error } = await supabaseAdmin.from('renovaciones').delete().eq('id', data.id)
+    if (error) throw new Error(error.message)
+    return { ok: true as const }
+  })
