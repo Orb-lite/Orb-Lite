@@ -23,6 +23,7 @@ import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedRenovacionesRouteImport } from './routes/_authenticated/renovaciones'
 import { Route as PanelTokenRouteImport } from './routes/panel.$token'
+import { Route as WialonIndexRouteImport } from './routes/wialon.index'
 import { Route as ApiPublicCronAvisosRenovacionRouteImport } from './routes/api/public/cron/avisos-renovacion'
 import { Route as ApiPublicCronResumenPendientesRouteImport } from './routes/api/public/cron/resumen-pendientes'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -97,6 +98,11 @@ const PanelTokenRoute = PanelTokenRouteImport.update({
   path: '/panel/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WialonIndexRoute = WialonIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WialonRoute,
+} as any)
 const ApiPublicCronAvisosRenovacionRoute =
   ApiPublicCronAvisosRenovacionRouteImport.update({
     id: '/api/public/cron/avisos-renovacion',
@@ -125,11 +131,12 @@ export interface FileRoutesByFullPath {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
-  '/wialon': typeof WialonRoute
+  '/wialon': typeof WialonRouteWithChildren
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -143,11 +150,11 @@ export interface FileRoutesByTo {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
-  '/wialon': typeof WialonRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -163,11 +170,12 @@ export interface FileRoutesById {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
-  '/wialon': typeof WialonRoute
+  '/wialon': typeof WialonRouteWithChildren
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -188,6 +196,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/renovaciones'
     | '/panel/$token'
+    | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
@@ -201,11 +210,11 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
-    | '/wialon'
     | '/clientes'
     | '/crm'
     | '/renovaciones'
     | '/panel/$token'
+    | '/wialon'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
@@ -225,6 +234,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crm'
     | '/_authenticated/renovaciones'
     | '/panel/$token'
+    | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
@@ -240,7 +250,7 @@ export interface RootRouteChildren {
   ServiciosRoute: typeof ServiciosRoute
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
-  WialonRoute: typeof WialonRoute
+  WialonRoute: typeof WialonRouteWithChildren
   PanelTokenRoute: typeof PanelTokenRoute
   ApiPublicCronAvisosRenovacionRoute: typeof ApiPublicCronAvisosRenovacionRoute
   ApiPublicCronResumenPendientesRoute: typeof ApiPublicCronResumenPendientesRoute
@@ -347,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PanelTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wialon/': {
+      id: '/wialon/'
+      path: '/'
+      fullPath: '/wialon/'
+      preLoaderRoute: typeof WialonIndexRouteImport
+      parentRoute: typeof WialonRoute
+    }
     '/api/public/cron/avisos-renovacion': {
       id: '/api/public/cron/avisos-renovacion'
       path: '/api/public/cron/avisos-renovacion'
@@ -386,6 +403,17 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface WialonRouteChildren {
+  WialonIndexRoute: typeof WialonIndexRoute
+}
+
+const WialonRouteChildren: WialonRouteChildren = {
+  WialonIndexRoute: WialonIndexRoute,
+}
+
+const WialonRouteWithChildren =
+  WialonRoute._addFileChildren(WialonRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -396,7 +424,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServiciosRoute: ServiciosRoute,
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
-  WialonRoute: WialonRoute,
+  WialonRoute: WialonRouteWithChildren,
   PanelTokenRoute: PanelTokenRoute,
   ApiPublicCronAvisosRenovacionRoute: ApiPublicCronAvisosRenovacionRoute,
   ApiPublicCronResumenPendientesRoute: ApiPublicCronResumenPendientesRoute,
