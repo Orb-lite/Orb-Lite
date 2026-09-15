@@ -17,6 +17,7 @@ import {
   EditarClienteDialog,
 } from '@/components/crm-manual-forms'
 import { UsuariosDemoSection } from '@/components/crm-demo-users'
+import { SolicitudesDemoSection } from '@/components/crm-demo-requests'
 
 
 import {
@@ -276,6 +277,8 @@ function CrmPage() {
           <CustomersSection />
         ) : tab === 'nueva-venta' ? (
           <NuevaVentaSection />
+        ) : tab === 'solicitudes-demo' ? (
+          <SolicitudesDemoSection />
         ) : tab === 'usuarios-demo' ? (
           <UsuariosDemoSection />
         ) : (
