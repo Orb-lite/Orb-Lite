@@ -60,8 +60,14 @@ function CrmPage() {
   const [page, setPage] = React.useState(1)
   const [selectedRow, setSelectedRow] = React.useState<any>(null)
   const [tab, setTab] = React.useState<
-    'solicitudes' | 'clientes' | 'nueva-venta' | 'registrar-cliente' | 'usuarios-demo'
+    | 'solicitudes'
+    | 'clientes'
+    | 'nueva-venta'
+    | 'registrar-cliente'
+    | 'usuarios-demo'
+    | 'solicitudes-demo'
   >('solicitudes')
+
 
   const PAGE_SIZE = 10
 
