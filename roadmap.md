@@ -7,3 +7,7 @@
 - [x] Permitir capturar manualmente el precio de cada producto en una venta externa
 - [x] Terminar el registro manual de clientes dentro del CRM
 - [x] Verificar compilación y funcionamiento de los nuevos formularios
+
+- [x] Panel de renovaciones en CRM (plataforma, IMEI, ICCID, telefono opcional, fecha)
+- [x] Reemplazar Klifnet por ORB-FULL en todo el sitio
+- [x] Fechas de renovacion siempre el dia 1: mensual = mes siguiente a la compra, anual = mismo mes del ano siguiente

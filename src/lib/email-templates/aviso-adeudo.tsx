@@ -118,7 +118,7 @@ export const template = {
     stage: "segundo-mes",
     customerName: "Juan Pérez",
     customerNumber: 512,
-    variantName: "Renovación de Plataforma Klifnet (mensual)",
+    variantName: "Renovación de Plataforma ORB-FULL (mensual)",
     renewalDate: "2026-09-01",
     amount: 275,
     daysOverdue: 35,
