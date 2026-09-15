@@ -16,6 +16,8 @@ import {
   RegistrarClienteSection,
   EditarClienteDialog,
 } from '@/components/crm-manual-forms'
+import { UsuariosDemoSection } from '@/components/crm-demo-users'
+
 
 import {
   SolicitudCard,
