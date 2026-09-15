@@ -680,7 +680,8 @@ export const crmSaveRenovacion = createServerFn({ method: 'POST' })
       iccid: nullish(data.iccid),
       sim_phone: nullish(data.simPhone),
       amount: data.amount,
-      renewal_date: data.renewalDate,
+      // Las renovaciones siempre corren el día primero del mes.
+      renewal_date: `${data.renewalDate.slice(0, 7)}-01`,
       status: data.status,
       updated_at: new Date().toISOString(),
     }
