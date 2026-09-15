@@ -29,7 +29,7 @@ const ACCESS = {
   wialon_full: {
     label: 'Wialon',
     platformUrl: 'https://hosting.wialon.com/',
-    unitsUrl: 'https://hosting.wialon.com/',
+    unitsUrl: 'https://cms.wialon.com/',
   },
 } as const
 
