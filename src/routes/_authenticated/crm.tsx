@@ -170,12 +170,20 @@ function CrmPage() {
           </Button>
           <Button
             size="sm"
+            variant={tab === 'solicitudes-demo' ? 'default' : 'ghost'}
+            onClick={() => setTab('solicitudes-demo')}
+          >
+            Solicitudes demo
+          </Button>
+          <Button
+            size="sm"
             variant={tab === 'usuarios-demo' ? 'default' : 'ghost'}
             onClick={() => setTab('usuarios-demo')}
           >
             Usuarios demo
           </Button>
         </div>
+
 
 
         {tab === 'solicitudes' ? (
