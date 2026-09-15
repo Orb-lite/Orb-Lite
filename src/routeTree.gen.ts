@@ -24,6 +24,7 @@ import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/cr
 import { Route as AuthenticatedRenovacionesRouteImport } from './routes/_authenticated/renovaciones'
 import { Route as PanelTokenRouteImport } from './routes/panel.$token'
 import { Route as WialonIndexRouteImport } from './routes/wialon.index'
+import { Route as WialonCmsRouteImport } from './routes/wialon.cms'
 import { Route as WialonHistorialRouteImport } from './routes/wialon.historial'
 import { Route as WialonMapaRouteImport } from './routes/wialon.mapa'
 import { Route as WialonUnidadesRouteImport } from './routes/wialon.unidades'
@@ -106,6 +107,11 @@ const WialonIndexRoute = WialonIndexRouteImport.update({
   path: '/',
   getParentRoute: () => WialonRoute,
 } as any)
+const WialonCmsRoute = WialonCmsRouteImport.update({
+  id: '/cms',
+  path: '/cms',
+  getParentRoute: () => WialonRoute,
+} as any)
 const WialonHistorialRoute = WialonHistorialRouteImport.update({
   id: '/historial',
   path: '/historial',
@@ -154,6 +160,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/cms': typeof WialonCmsRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
@@ -175,6 +182,7 @@ export interface FileRoutesByTo {
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/cms': typeof WialonCmsRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
@@ -199,6 +207,7 @@ export interface FileRoutesById {
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/cms': typeof WialonCmsRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
@@ -223,6 +232,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/renovaciones'
     | '/panel/$token'
+    | '/wialon/cms'
     | '/wialon/historial'
     | '/wialon/mapa'
     | '/wialon/unidades'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/renovaciones'
     | '/panel/$token'
+    | '/wialon/cms'
     | '/wialon/historial'
     | '/wialon/mapa'
     | '/wialon/unidades'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crm'
     | '/_authenticated/renovaciones'
     | '/panel/$token'
+    | '/wialon/cms'
     | '/wialon/historial'
     | '/wialon/mapa'
     | '/wialon/unidades'
@@ -400,6 +412,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WialonIndexRouteImport
       parentRoute: typeof WialonRoute
     }
+    '/wialon/cms': {
+      id: '/wialon/cms'
+      path: '/cms'
+      fullPath: '/wialon/cms'
+      preLoaderRoute: typeof WialonCmsRouteImport
+      parentRoute: typeof WialonRoute
+    }
     '/wialon/historial': {
       id: '/wialon/historial'
       path: '/historial'
@@ -461,6 +480,7 @@ const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 interface WialonRouteChildren {
+  WialonCmsRoute: typeof WialonCmsRoute
   WialonHistorialRoute: typeof WialonHistorialRoute
   WialonMapaRoute: typeof WialonMapaRoute
   WialonUnidadesRoute: typeof WialonUnidadesRoute
@@ -468,6 +488,7 @@ interface WialonRouteChildren {
 }
 
 const WialonRouteChildren: WialonRouteChildren = {
+  WialonCmsRoute: WialonCmsRoute,
   WialonHistorialRoute: WialonHistorialRoute,
   WialonMapaRoute: WialonMapaRoute,
   WialonUnidadesRoute: WialonUnidadesRoute,
