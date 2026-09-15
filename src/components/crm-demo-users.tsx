@@ -33,7 +33,7 @@ export function UsuariosDemoSection() {
 
   const query = useQuery({
     queryKey: ['crm-demo-users'],
-    queryFn: () => list({ data: {} }),
+    queryFn: () => list(),
   })
 
   const creation = useMutation({
