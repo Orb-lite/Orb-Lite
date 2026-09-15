@@ -207,14 +207,18 @@ function RenovacionesPage() {
 
   function pickVariant(id: string) {
     const v = RENOVATION_VARIANTS.find((x) => x.id === id)
-    setForm((f) => ({
-      ...f,
-      variantId: id,
-      platform: ((v?.platform ?? f.platform) as Platform),
-      renewalKind: (v?.renewal_kind as Kind) ?? f.renewalKind,
-      renewalPeriod: (v?.renewal_period as Period) ?? f.renewalPeriod,
-      amount: String(v?.price ?? f.amount),
-    }))
+    setForm((f) => {
+      const period = (v?.renewal_period as Period) ?? f.renewalPeriod
+      return {
+        ...f,
+        variantId: id,
+        platform: ((v?.platform ?? f.platform) as Platform),
+        renewalKind: (v?.renewal_kind as Kind) ?? f.renewalKind,
+        renewalPeriod: period,
+        amount: String(v?.price ?? f.amount),
+        renewalDate: f.id ? f.renewalDate : nextRenewalDate(period),
+      }
+    })
   }
 
   return (
