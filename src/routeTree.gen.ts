@@ -19,6 +19,7 @@ import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as TiendaRouteImport } from './routes/tienda'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
+import { Route as AuthenticatedRenovacionesRouteImport } from './routes/_authenticated/renovaciones'
 import { Route as PanelTokenRouteImport } from './routes/panel.$token'
 import { Route as ApiPublicCronAvisosRenovacionRouteImport } from './routes/api/public/cron/avisos-renovacion'
 import { Route as ApiPublicCronResumenPendientesRouteImport } from './routes/api/public/cron/resumen-pendientes'
@@ -73,6 +74,12 @@ const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
   path: '/crm',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedRenovacionesRoute =
+  AuthenticatedRenovacionesRouteImport.update({
+    id: '/renovaciones',
+    path: '/renovaciones',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const PanelTokenRoute = PanelTokenRouteImport.update({
   id: '/panel/$token',
   path: '/panel/$token',
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/tienda': typeof TiendaRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
+  '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
@@ -122,6 +130,7 @@ export interface FileRoutesByTo {
   '/tienda': typeof TiendaRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
+  '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
@@ -139,6 +148,7 @@ export interface FileRoutesById {
   '/tienda': typeof TiendaRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
+  '/_authenticated/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
@@ -156,6 +166,7 @@ export interface FileRouteTypes {
     | '/tienda'
     | '/clientes'
     | '/crm'
+    | '/renovaciones'
     | '/panel/$token'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
@@ -171,6 +182,7 @@ export interface FileRouteTypes {
     | '/tienda'
     | '/clientes'
     | '/crm'
+    | '/renovaciones'
     | '/panel/$token'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
@@ -187,6 +199,7 @@ export interface FileRouteTypes {
     | '/tienda'
     | '/_authenticated/clientes'
     | '/_authenticated/crm'
+    | '/_authenticated/renovaciones'
     | '/panel/$token'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
@@ -280,6 +293,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCrmRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/renovaciones': {
+      id: '/_authenticated/renovaciones'
+      path: '/renovaciones'
+      fullPath: '/renovaciones'
+      preLoaderRoute: typeof AuthenticatedRenovacionesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/panel/$token': {
       id: '/panel/$token'
       path: '/panel/$token'
@@ -314,11 +334,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
+  AuthenticatedRenovacionesRoute: typeof AuthenticatedRenovacionesRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
+  AuthenticatedRenovacionesRoute: AuthenticatedRenovacionesRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
