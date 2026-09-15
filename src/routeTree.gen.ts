@@ -18,10 +18,16 @@ import { Route as DemoRouteImport } from './routes/demo'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as TiendaRouteImport } from './routes/tienda'
+import { Route as WialonRouteImport } from './routes/wialon'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedRenovacionesRouteImport } from './routes/_authenticated/renovaciones'
 import { Route as PanelTokenRouteImport } from './routes/panel.$token'
+import { Route as WialonIndexRouteImport } from './routes/wialon.index'
+import { Route as WialonCmsRouteImport } from './routes/wialon.cms'
+import { Route as WialonHistorialRouteImport } from './routes/wialon.historial'
+import { Route as WialonMapaRouteImport } from './routes/wialon.mapa'
+import { Route as WialonUnidadesRouteImport } from './routes/wialon.unidades'
 import { Route as ApiPublicCronAvisosRenovacionRouteImport } from './routes/api/public/cron/avisos-renovacion'
 import { Route as ApiPublicCronResumenPendientesRouteImport } from './routes/api/public/cron/resumen-pendientes'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -70,6 +76,11 @@ const TiendaRoute = TiendaRouteImport.update({
   path: '/tienda',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WialonRoute = WialonRouteImport.update({
+  id: '/wialon',
+  path: '/wialon',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
@@ -90,6 +101,31 @@ const PanelTokenRoute = PanelTokenRouteImport.update({
   id: '/panel/$token',
   path: '/panel/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const WialonIndexRoute = WialonIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => WialonRoute,
+} as any)
+const WialonCmsRoute = WialonCmsRouteImport.update({
+  id: '/cms',
+  path: '/cms',
+  getParentRoute: () => WialonRoute,
+} as any)
+const WialonHistorialRoute = WialonHistorialRouteImport.update({
+  id: '/historial',
+  path: '/historial',
+  getParentRoute: () => WialonRoute,
+} as any)
+const WialonMapaRoute = WialonMapaRouteImport.update({
+  id: '/mapa',
+  path: '/mapa',
+  getParentRoute: () => WialonRoute,
+} as any)
+const WialonUnidadesRoute = WialonUnidadesRouteImport.update({
+  id: '/unidades',
+  path: '/unidades',
+  getParentRoute: () => WialonRoute,
 } as any)
 const ApiPublicCronAvisosRenovacionRoute =
   ApiPublicCronAvisosRenovacionRouteImport.update({
@@ -119,10 +155,16 @@ export interface FileRoutesByFullPath {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/wialon': typeof WialonRouteWithChildren
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/historial': typeof WialonHistorialRoute
+  '/wialon/mapa': typeof WialonMapaRoute
+  '/wialon/unidades': typeof WialonUnidadesRoute
+  '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -140,6 +182,11 @@ export interface FileRoutesByTo {
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/historial': typeof WialonHistorialRoute
+  '/wialon/mapa': typeof WialonMapaRoute
+  '/wialon/unidades': typeof WialonUnidadesRoute
+  '/wialon': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -155,10 +202,16 @@ export interface FileRoutesById {
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
+  '/wialon': typeof WialonRouteWithChildren
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/historial': typeof WialonHistorialRoute
+  '/wialon/mapa': typeof WialonMapaRoute
+  '/wialon/unidades': typeof WialonUnidadesRoute
+  '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -174,10 +227,16 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/wialon'
     | '/clientes'
     | '/crm'
     | '/renovaciones'
     | '/panel/$token'
+    | '/wialon/cms'
+    | '/wialon/historial'
+    | '/wialon/mapa'
+    | '/wialon/unidades'
+    | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
@@ -195,6 +254,11 @@ export interface FileRouteTypes {
     | '/crm'
     | '/renovaciones'
     | '/panel/$token'
+    | '/wialon/cms'
+    | '/wialon/historial'
+    | '/wialon/mapa'
+    | '/wialon/unidades'
+    | '/wialon'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
@@ -209,10 +273,16 @@ export interface FileRouteTypes {
     | '/servicios'
     | '/terminos'
     | '/tienda'
+    | '/wialon'
     | '/_authenticated/clientes'
     | '/_authenticated/crm'
     | '/_authenticated/renovaciones'
     | '/panel/$token'
+    | '/wialon/cms'
+    | '/wialon/historial'
+    | '/wialon/mapa'
+    | '/wialon/unidades'
+    | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
     | '/lovable/email/transactional/preview'
@@ -228,6 +298,7 @@ export interface RootRouteChildren {
   ServiciosRoute: typeof ServiciosRoute
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
+  WialonRoute: typeof WialonRouteWithChildren
   PanelTokenRoute: typeof PanelTokenRoute
   ApiPublicCronAvisosRenovacionRoute: typeof ApiPublicCronAvisosRenovacionRoute
   ApiPublicCronResumenPendientesRoute: typeof ApiPublicCronResumenPendientesRoute
@@ -299,6 +370,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TiendaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wialon': {
+      id: '/wialon'
+      path: '/wialon'
+      fullPath: '/wialon'
+      preLoaderRoute: typeof WialonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/clientes': {
       id: '/_authenticated/clientes'
       path: '/clientes'
@@ -326,6 +404,41 @@ declare module '@tanstack/react-router' {
       fullPath: '/panel/$token'
       preLoaderRoute: typeof PanelTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/wialon/': {
+      id: '/wialon/'
+      path: '/'
+      fullPath: '/wialon/'
+      preLoaderRoute: typeof WialonIndexRouteImport
+      parentRoute: typeof WialonRoute
+    }
+    '/wialon/cms': {
+      id: '/wialon/cms'
+      path: '/cms'
+      fullPath: '/wialon/cms'
+      preLoaderRoute: typeof WialonCmsRouteImport
+      parentRoute: typeof WialonRoute
+    }
+    '/wialon/historial': {
+      id: '/wialon/historial'
+      path: '/historial'
+      fullPath: '/wialon/historial'
+      preLoaderRoute: typeof WialonHistorialRouteImport
+      parentRoute: typeof WialonRoute
+    }
+    '/wialon/mapa': {
+      id: '/wialon/mapa'
+      path: '/mapa'
+      fullPath: '/wialon/mapa'
+      preLoaderRoute: typeof WialonMapaRouteImport
+      parentRoute: typeof WialonRoute
+    }
+    '/wialon/unidades': {
+      id: '/wialon/unidades'
+      path: '/unidades'
+      fullPath: '/wialon/unidades'
+      preLoaderRoute: typeof WialonUnidadesRouteImport
+      parentRoute: typeof WialonRoute
     }
     '/api/public/cron/avisos-renovacion': {
       id: '/api/public/cron/avisos-renovacion'
@@ -366,6 +479,25 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface WialonRouteChildren {
+  WialonCmsRoute: typeof WialonCmsRoute
+  WialonHistorialRoute: typeof WialonHistorialRoute
+  WialonMapaRoute: typeof WialonMapaRoute
+  WialonUnidadesRoute: typeof WialonUnidadesRoute
+  WialonIndexRoute: typeof WialonIndexRoute
+}
+
+const WialonRouteChildren: WialonRouteChildren = {
+  WialonCmsRoute: WialonCmsRoute,
+  WialonHistorialRoute: WialonHistorialRoute,
+  WialonMapaRoute: WialonMapaRoute,
+  WialonUnidadesRoute: WialonUnidadesRoute,
+  WialonIndexRoute: WialonIndexRoute,
+}
+
+const WialonRouteWithChildren =
+  WialonRoute._addFileChildren(WialonRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -376,6 +508,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServiciosRoute: ServiciosRoute,
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
+  WialonRoute: WialonRouteWithChildren,
   PanelTokenRoute: PanelTokenRoute,
   ApiPublicCronAvisosRenovacionRoute: ApiPublicCronAvisosRenovacionRoute,
   ApiPublicCronResumenPendientesRoute: ApiPublicCronResumenPendientesRoute,

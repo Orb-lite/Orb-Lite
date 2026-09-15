@@ -1,0 +1,304 @@
+import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
+import { wialonCall, type WialonHost } from '@/lib/wialon.server'
+
+const hostSchema = z.enum(['lite', 'full'])
+const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1) })
+
+export type WialonUnit = {
+  id: number
+  name: string
+  lat: number | null
+  lon: number | null
+  speed: number | null
+  course: number | null
+  lastMessage: number | null
+  online: boolean
+}
+
+export type WialonMessage = {
+  time: number
+  lat: number | null
+  lon: number | null
+  speed: number | null
+  course: number | null
+}
+
+const ONLINE_WINDOW = 10 * 60
+
+function normalizeUnit(item: {
+  id: number
+  nm?: string
+  pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null
+  lmsg?: { t?: number } | null
+}): WialonUnit {
+  const pos = item.pos ?? null
+  const last = pos?.t ?? item.lmsg?.t ?? null
+  const now = Math.floor(Date.now() / 1000)
+  return {
+    id: item.id,
+    name: item.nm ?? `Unidad ${item.id}`,
+    lat: pos?.y ?? null,
+    lon: pos?.x ?? null,
+    speed: pos?.s ?? null,
+    course: pos?.c ?? null,
+    lastMessage: last,
+    online: last != null && now - last <= ONLINE_WINDOW,
+  }
+}
+
+/** Inicia sesión en Wialon con token o con usuario/contraseña del cliente. */
+export const wialonLogin = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        host: hostSchema,
+        mode: z.enum(['token', 'password']),
+        token: z.string().trim().optional(),
+        user: z.string().trim().optional(),
+        password: z.string().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost
+    let result: { eid?: string; user?: { id?: number; nm?: string } }
+
+    if (data.mode === 'token') {
+      if (!data.token) throw new Error('Captura tu token de acceso.')
+      result = await wialonCall(host, 'token/login', { token: data.token, fl: 1 })
+    } else {
+      if (!data.user || !data.password) throw new Error('Captura tu usuario y contraseña.')
+      result = await wialonCall(host, 'core/login', {
+        user: data.user,
+        password: data.password,
+        operateAs: '',
+        checkService: '',
+      })
+    }
+
+    if (!result?.eid) throw new Error('No se pudo iniciar sesión en la plataforma.')
+
+    return {
+      sid: result.eid,
+      host: data.host,
+      userId: result.user?.id ?? 0,
+      userName: result.user?.nm ?? data.user ?? 'Usuario',
+    }
+  })
+
+export const wialonLogout = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    try {
+      await wialonCall(data.host as WialonHost, 'core/logout', {}, data.sid)
+    } catch {
+      // sesión ya vencida
+    }
+    return { ok: true }
+  })
+
+/** Lista de unidades con su última posición conocida. */
+export const wialonUnits = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    const res = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
+      data.host as WialonHost,
+      'core/search_items',
+      {
+        spec: {
+          itemsType: 'avl_unit',
+          propName: 'sys_name',
+          propValueMask: '*',
+          sortType: 'sys_name',
+        },
+        force: 1,
+        flags: 1 + 1024,
+        from: 0,
+        to: 0,
+      },
+      data.sid,
+    )
+    return { units: (res.items ?? []).map(normalizeUnit) }
+  })
+
+/** Historial de mensajes/recorrido de una unidad en un intervalo. */
+export const wialonHistory = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        unitId: z.number().int().positive(),
+        timeFrom: z.number().int().positive(),
+        timeTo: z.number().int().positive(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost
+
+    await wialonCall(
+      host,
+      'core/search_item',
+      { id: data.unitId, flags: 1 + 1024 },
+      data.sid,
+    )
+
+    const interval = await wialonCall<{ count?: number }>(
+      host,
+      'messages/load_interval',
+      {
+        itemId: data.unitId,
+        timeFrom: data.timeFrom,
+        timeTo: data.timeTo,
+        flags: 0,
+        flagsMask: 65281,
+        loadCount: 4294967295,
+      },
+      data.sid,
+    )
+
+    const count = Math.min(interval.count ?? 0, 3000)
+    let messages: WialonMessage[] = []
+
+    if (count > 0) {
+      const res = await wialonCall<
+        Array<{ t?: number; pos?: { y?: number; x?: number; s?: number; c?: number } | null }>
+      >(host, 'messages/get_messages', { indexFrom: 0, indexTo: count - 1 }, data.sid)
+
+      messages = (Array.isArray(res) ? res : []).map((m) => ({
+        time: m.t ?? 0,
+        lat: m.pos?.y ?? null,
+        lon: m.pos?.x ?? null,
+        speed: m.pos?.s ?? null,
+        course: m.pos?.c ?? null,
+      }))
+    }
+
+    try {
+      await wialonCall(host, 'messages/unload', {}, data.sid)
+    } catch {
+      // sin sesión de mensajes activa
+    }
+
+    const withPos = messages.filter((m) => m.lat != null && m.lon != null)
+    const maxSpeed = withPos.reduce((acc, m) => Math.max(acc, m.speed ?? 0), 0)
+
+    return { total: interval.count ?? 0, messages, maxSpeed, points: withPos.length }
+  })
+
+/** Datos base del CMS: cuentas/recursos, usuarios y unidades. */
+export const wialonCmsOverview = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost
+
+    async function search(itemsType: string, flags: number) {
+      const res = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
+        host,
+        'core/search_items',
+        {
+          spec: { itemsType, propName: 'sys_name', propValueMask: '*', sortType: 'sys_name' },
+          force: 1,
+          flags,
+          from: 0,
+          to: 0,
+        },
+        data.sid,
+      )
+      return (res.items ?? []).map((i) => ({ id: i.id, name: i.nm ?? `#${i.id}` }))
+    }
+
+    const [resources, users, units] = await Promise.all([
+      search('avl_resource', 1),
+      search('user', 1),
+      search('avl_unit', 1),
+    ])
+
+    return { resources, users, units }
+  })
+
+/** Tipos de equipo disponibles para dar de alta unidades. */
+export const wialonHwTypes = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => sessionSchema.extend({ search: z.string().trim().optional() }).parse(input))
+  .handler(async ({ data }) => {
+    const res = await wialonCall<Array<{ id: number; name: string }>>(
+      data.host as WialonHost,
+      'core/get_hw_types',
+      {
+        filterType: 'name',
+        filterValue: [data.search ?? ''],
+        includeType: true,
+        ignoreRename: true,
+      },
+      data.sid,
+    )
+    const list = (Array.isArray(res) ? res : []).map((h) => ({ id: h.id, name: h.name }))
+    return { types: list.slice(0, 400) }
+  })
+
+/** Alta de unidad (CMS). */
+export const wialonCreateUnit = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        creatorId: z.number().int().positive(),
+        name: z.string().trim().min(4).max(60),
+        hwTypeId: z.number().int().positive(),
+        uniqueId: z.string().trim().max(60).optional(),
+        phone: z.string().trim().max(30).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost
+    const created = await wialonCall<{ item?: { id?: number; nm?: string } }>(
+      host,
+      'core/create_unit',
+      { creatorId: data.creatorId, name: data.name, hwTypeId: data.hwTypeId, dataFlags: 1 },
+      data.sid,
+    )
+    const id = created.item?.id
+    if (!id) throw new Error('La unidad no se pudo crear.')
+
+    if (data.uniqueId) {
+      await wialonCall(
+        host,
+        'unit/update_device_type',
+        { itemId: id, deviceTypeId: data.hwTypeId, uniqueId: data.uniqueId },
+        data.sid,
+      )
+    }
+    if (data.phone) {
+      await wialonCall(host, 'unit/update_phone', { itemId: id, phoneNumber: data.phone }, data.sid)
+    }
+
+    return { id, name: created.item?.nm ?? data.name }
+  })
+
+/** Alta de usuario (CMS). */
+export const wialonCreateUser = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        creatorId: z.number().int().positive(),
+        name: z.string().trim().min(4).max(60),
+        password: z.string().min(6).max(64),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const created = await wialonCall<{ item?: { id?: number; nm?: string } }>(
+      data.host as WialonHost,
+      'core/create_user',
+      {
+        creatorId: data.creatorId,
+        name: data.name,
+        password: data.password,
+        dataFlags: 1,
+      },
+      data.sid,
+    )
+    const id = created.item?.id
+    if (!id) throw new Error('El usuario no se pudo crear.')
+    return { id, name: created.item?.nm ?? data.name }
+  })
