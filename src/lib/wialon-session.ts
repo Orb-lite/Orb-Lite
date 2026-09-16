@@ -55,3 +55,30 @@ export function useWialonSession(): WialonSession | null | undefined {
 
   return session
 }
+
+/** Mantiene viva la sesión de Wialon y cierra si la plataforma la invalidó. */
+export function useWialonKeepAlive(
+  session: WialonSession | null | undefined,
+  ping: (args: { data: { host: WialonSession['host']; sid: string } }) => Promise<{ valid: boolean }>,
+) {
+  React.useEffect(() => {
+    if (!session) return
+    let cancelled = false
+
+    async function check() {
+      try {
+        const result = await ping({ data: { host: session!.host, sid: session!.sid } })
+        if (!cancelled && !result.valid) writeSession(null)
+      } catch {
+        // error temporal de red: se reintenta en el siguiente ciclo
+      }
+    }
+
+    const timer = window.setInterval(check, 4 * 60 * 1000)
+    void check()
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [session?.sid, session?.host])
+}
