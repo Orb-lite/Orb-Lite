@@ -37,15 +37,22 @@ function WialonLayout() {
   return (
     <main className="mx-auto max-w-6xl px-5 py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl font-bold uppercase tracking-wide">
-            Plataforma de rastreo
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {session
-              ? `${session.userName} · ${PLATFORM_LABEL[session.host]}`
-              : 'Entra con tu cuenta para ver tus unidades en tiempo real.'}
-          </p>
+        <div className="flex items-center gap-4">
+          <img
+            src={session?.host === 'full' ? orbFullLogo.url : orbLiteLogo.url}
+            alt={session ? PLATFORM_LABEL[session.host] : 'ORB-LITE'}
+            className="h-14 w-auto"
+          />
+          <div>
+            <h1 className="font-display text-3xl font-bold uppercase tracking-wide">
+              Plataforma de rastreo
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {session
+                ? `${session.userName} · ${PLATFORM_LABEL[session.host]}`
+                : 'Entra con tu cuenta para ver tus unidades en tiempo real.'}
+            </p>
+          </div>
         </div>
         {session ? (
           <button
