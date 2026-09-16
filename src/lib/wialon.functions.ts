@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { wialonCall, type WialonHost } from '@/lib/wialon.server'
+import { wialonCall, isSessionExpired, type WialonHost } from '@/lib/wialon.server'
 
 const hostSchema = z.enum(['lite', 'full'])
 const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1) })
@@ -389,4 +389,251 @@ export const wialonGrantUnits = createServerFn({ method: 'POST' })
       )
     }
     return { granted: data.unitIds.length }
+  })
+
+/* ------------------------------------------------------------------ */
+/* Sesión: verificación y mantenimiento (evita que expire por inactividad) */
+/* ------------------------------------------------------------------ */
+
+/** Mantiene viva la sesión y confirma si sigue siendo válida. */
+export const wialonPing = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    try {
+      await wialonCall(data.host as WialonHost, 'core/get_account_data', { type: 0 }, data.sid)
+      return { valid: true as const }
+    } catch (error) {
+      if (isSessionExpired(error)) return { valid: false as const }
+      throw error
+    }
+  })
+
+/* ------------------------------------------------------------------ */
+/* Detalle de unidad: sensores, últimos valores y comandos disponibles */
+/* ------------------------------------------------------------------ */
+
+export type WialonSensor = { id: number; name: string; type: string; metrics: string; value: string }
+
+/** Detalle completo de una unidad: posición, sensores con su último valor y comandos. */
+export const wialonUnitDetail = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) =>
+    sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost
+
+    const res = await wialonCall<{
+      item?: {
+        id: number
+        nm?: string
+        uid?: string
+        ph?: string
+        hw?: number
+        pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null
+        lmsg?: { t?: number; p?: Record<string, unknown> } | null
+        sens?: Record<string, { id: number; n?: string; t?: string; m?: string; p?: string }>
+        cmds?: Record<string, { id: number; n?: string; c?: string; l?: string; p?: string }>
+      }
+    }>(
+      host,
+      'core/search_item',
+      { id: data.unitId, flags: 1 + 256 + 512 + 1024 + 4096 },
+      data.sid,
+    )
+
+    const item = res.item
+    if (!item) throw new Error('La unidad no está disponible en tu cuenta.')
+
+    const params = (item.lmsg?.p ?? {}) as Record<string, unknown>
+    const sensors: WialonSensor[] = Object.values(item.sens ?? {}).map((s) => {
+      const raw = s.p ? params[s.p] : undefined
+      return {
+        id: s.id,
+        name: s.n ?? `Sensor ${s.id}`,
+        type: s.t ?? '',
+        metrics: s.m ?? '',
+        value: raw == null ? '—' : String(raw),
+      }
+    })
+
+    const commands = Object.values(item.cmds ?? {}).map((c) => ({
+      id: c.id,
+      name: c.n ?? `Comando ${c.id}`,
+      type: c.c ?? '',
+      link: c.l ?? 'auto',
+    }))
+
+    return {
+      unit: normalizeUnit(item),
+      uniqueId: item.uid ?? null,
+      phone: item.ph ?? null,
+      hwTypeId: item.hw ?? null,
+      sensors,
+      commands,
+      params: Object.entries(params).map(([key, value]) => ({ key, value: String(value) })),
+    }
+  })
+
+/** Ejecuta un comando en la unidad (bloqueo de motor, salidas, etc.). */
+export const wialonSendCommand = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        unitId: z.number().int().positive(),
+        commandName: z.string().trim().min(1).max(80),
+        linkType: z.string().trim().max(20).optional(),
+        param: z.string().trim().max(200).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    await wialonCall(
+      data.host as WialonHost,
+      'unit/exec_cmd',
+      {
+        itemId: data.unitId,
+        commandName: data.commandName,
+        linkType: data.linkType ?? '',
+        param: data.param ?? '',
+        timeout: 60,
+        flags: 0,
+      },
+      data.sid,
+    )
+    return { sent: true as const }
+  })
+
+/* ------------------------------------------------------------------ */
+/* Geocercas y choferes                                               */
+/* ------------------------------------------------------------------ */
+
+export const wialonGeofences = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost
+
+    const resources = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
+      host,
+      'core/search_items',
+      {
+        spec: {
+          itemsType: 'avl_resource',
+          propName: 'sys_name',
+          propValueMask: '*',
+          sortType: 'sys_name',
+        },
+        force: 1,
+        flags: 1 + 4096,
+        from: 0,
+        to: 0,
+      },
+      data.sid,
+    )
+
+    const zones: Array<{ id: number; name: string; resource: string; type: number }> = []
+    for (const resource of resources.items ?? []) {
+      try {
+        const res = await wialonCall<Array<{ id: number; n?: string; t?: number }>>(
+          host,
+          'resource/get_zone_data',
+          { itemId: resource.id, col: [], flags: 1 },
+          data.sid,
+        )
+        for (const zone of Array.isArray(res) ? res : []) {
+          zones.push({
+            id: zone.id,
+            name: zone.n ?? `Zona ${zone.id}`,
+            resource: resource.nm ?? `#${resource.id}`,
+            type: zone.t ?? 0,
+          })
+        }
+      } catch {
+        // recurso sin geocercas o sin permisos de lectura
+      }
+    }
+
+    return { zones }
+  })
+
+export const wialonDrivers = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost
+
+    const resources = await wialonCall<{
+      items?: Array<{
+        id: number
+        nm?: string
+        drvrs?: Record<string, { id: number; n?: string; ds?: string; p?: string }>
+      }>
+    }>(
+      host,
+      'core/search_items',
+      {
+        spec: {
+          itemsType: 'avl_resource',
+          propName: 'sys_name',
+          propValueMask: '*',
+          sortType: 'sys_name',
+        },
+        force: 1,
+        flags: 1 + 256,
+        from: 0,
+        to: 0,
+      },
+      data.sid,
+    )
+
+    const drivers: Array<{ id: number; name: string; phone: string | null; resource: string }> = []
+    for (const resource of resources.items ?? []) {
+      for (const driver of Object.values(resource.drvrs ?? {})) {
+        drivers.push({
+          id: driver.id,
+          name: driver.n ?? `Chofer ${driver.id}`,
+          phone: driver.p ?? null,
+          resource: resource.nm ?? `#${resource.id}`,
+        })
+      }
+    }
+
+    return { drivers }
+  })
+
+/** Datos de la cuenta conectada: plan, servicios y saldo de días. */
+export const wialonAccount = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    const account = await wialonCall<{
+      plan?: string
+      enabled?: number
+      balance?: string
+      daysCounter?: number
+      created?: number
+      services?: Record<string, { val?: number; max?: number }>
+    }>(data.host as WialonHost, 'core/get_account_data', { type: 1 }, data.sid)
+
+    return {
+      plan: account.plan ?? null,
+      enabled: (account.enabled ?? 1) !== 0,
+      balance: account.balance ?? null,
+      daysLeft: account.daysCounter ?? null,
+      createdAt: account.created ?? null,
+    }
+  })
+
+/** Renombra una unidad existente. */
+export const wialonRenameUnit = createServerFn({ method: 'POST' })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({ unitId: z.number().int().positive(), name: z.string().trim().min(4).max(60) })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    await wialonCall(
+      data.host as WialonHost,
+      'item/update_name',
+      { itemId: data.unitId, name: data.name },
+      data.sid,
+    )
+    return { ok: true as const }
   })
