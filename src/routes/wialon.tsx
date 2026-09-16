@@ -3,6 +3,8 @@ import { useServerFn } from '@tanstack/react-start'
 import { LogOut } from 'lucide-react'
 import { PLATFORM_LABEL, useWialonSession, writeSession } from '@/lib/wialon-session'
 import { wialonLogout } from '@/lib/wialon.functions'
+import orbLiteLogo from '@/assets/orb-lite-logo.jpg.asset.json'
+import orbFullLogo from '@/assets/orb-full-logo.jpg.asset.json'
 
 export const Route = createFileRoute('/wialon')({
   component: WialonLayout,
