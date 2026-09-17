@@ -23,6 +23,7 @@ export const Route = createFileRoute('/wialon/unidades')({
 
 function UnidadesView({ session }: { session: WialonSession }) {
   const fetchUnits = useServerFn(wialonUnits)
+  const [detailId, setDetailId] = React.useState<number | null>(null)
   const query = useQuery({
     queryKey: ['wialon-units', session.sid],
     queryFn: () => fetchUnits({ data: { host: session.host, sid: session.sid } }),
@@ -61,6 +62,7 @@ function UnidadesView({ session }: { session: WialonSession }) {
               <th className="px-4 py-3">Velocidad</th>
               <th className="px-4 py-3">Coordenadas</th>
               <th className="px-4 py-3">Última señal</th>
+              <th className="px-4 py-3 text-right">Detalle</th>
             </tr>
           </thead>
           <tbody>
