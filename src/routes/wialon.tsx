@@ -1,8 +1,8 @@
 import { createFileRoute, Link, Outlet, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { LogOut } from 'lucide-react'
-import { PLATFORM_LABEL, useWialonSession, writeSession } from '@/lib/wialon-session'
-import { wialonLogout } from '@/lib/wialon.functions'
+import { PLATFORM_LABEL, useWialonKeepAlive, useWialonSession, writeSession } from '@/lib/wialon-session'
+import { wialonLogout, wialonPing } from '@/lib/wialon.functions'
 import orbLiteLogo from '@/assets/orb-lite-logo.jpg.asset.json'
 import orbFullLogo from '@/assets/orb-full-logo.jpg.asset.json'
 
@@ -20,7 +20,10 @@ const tabs = [
 function WialonLayout() {
   const session = useWialonSession()
   const logout = useServerFn(wialonLogout)
+  const ping = useServerFn(wialonPing)
   const navigate = useNavigate()
+
+  useWialonKeepAlive(session, ping)
 
   async function onLogout() {
     if (session) {

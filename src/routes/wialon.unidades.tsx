@@ -1,8 +1,10 @@
+import * as React from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
 import { WialonGuard } from '@/components/wialon-guard'
+import { WialonUnitDetail } from '@/components/wialon-unit-detail'
 import { wialonUnits } from '@/lib/wialon.functions'
 import type { WialonSession } from '@/lib/wialon-session'
 
