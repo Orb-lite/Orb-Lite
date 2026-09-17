@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { wialonCall, isSessionExpired, type WialonHost } from '@/lib/wialon.server'
+import { wialonCall, isSessionExpired, WialonError, type WialonHost } from '@/lib/wialon.server'
 
 const hostSchema = z.enum(['lite', 'full'])
 const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1) })
