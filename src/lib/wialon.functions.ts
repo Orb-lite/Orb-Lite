@@ -25,6 +25,7 @@ export type WialonMessage = {
 }
 
 const ONLINE_WINDOW = 10 * 60
+const MAX_HISTORY_MESSAGES = 3000
 
 function normalizeUnit(item: {
   id: number
@@ -93,8 +94,6 @@ export const wialonLogin = createServerFn({ method: 'POST' })
         throw error
       }
     }
-
-
 
     if (!result?.eid) throw new Error('No se pudo iniciar sesión en la plataforma.')
 
@@ -170,13 +169,18 @@ export const wialonHistory = createServerFn({ method: 'POST' })
         timeFrom: data.timeFrom,
         timeTo: data.timeTo,
         flags: 0,
-        flagsMask: 65281,
-        loadCount: 4294967295,
+        // 0xFF00 recupera mensajes de datos sin descartar los que tienen
+        // el bit 0x01 de ubicación. Con 0xFF01 y flags: 0 se excluían
+        // justamente los puntos GPS que forman el recorrido.
+        flagsMask: 65280,
+        // Mantener el límite en la solicitud evita cargar intervalos enormes
+        // para después recortarlos en el servidor.
+        loadCount: MAX_HISTORY_MESSAGES,
       },
       data.sid,
     )
 
-    const count = Math.min(interval.count ?? 0, 3000)
+    const count = Math.min(interval.count ?? 0, MAX_HISTORY_MESSAGES)
     let messages: WialonMessage[] = []
 
     if (count > 0) {
@@ -410,10 +414,6 @@ export const wialonGrantUnits = createServerFn({ method: 'POST' })
     return { granted: data.unitIds.length }
   })
 
-/* ------------------------------------------------------------------ */
-/* Sesión: verificación y mantenimiento (evita que expire por inactividad) */
-/* ------------------------------------------------------------------ */
-
 /** Mantiene viva la sesión y confirma si sigue siendo válida. */
 export const wialonPing = createServerFn({ method: 'POST' })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
@@ -426,10 +426,6 @@ export const wialonPing = createServerFn({ method: 'POST' })
       throw error
     }
   })
-
-/* ------------------------------------------------------------------ */
-/* Detalle de unidad: sensores, últimos valores y comandos disponibles */
-/* ------------------------------------------------------------------ */
 
 export type WialonSensor = { id: number; name: string; type: string; metrics: string; value: string }
 
@@ -521,10 +517,6 @@ export const wialonSendCommand = createServerFn({ method: 'POST' })
     )
     return { sent: true as const }
   })
-
-/* ------------------------------------------------------------------ */
-/* Geocercas y choferes                                               */
-/* ------------------------------------------------------------------ */
 
 export const wialonGeofences = createServerFn({ method: 'POST' })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
@@ -656,3 +648,4 @@ export const wialonRenameUnit = createServerFn({ method: 'POST' })
     )
     return { ok: true as const }
   })
+}
