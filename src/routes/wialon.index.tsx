@@ -64,6 +64,22 @@ function WialonLoginPage() {
     }
   }
 
+  function startOAuth() {
+    const base = PLATFORM_URLS[host].app.replace(/\/$/, '')
+    window.sessionStorage.setItem('orblite.wialon.oauth-host', host)
+    const redirect = `${window.location.origin}/wialon/callback`
+    const url = new URL(`${base}/login.html`)
+    url.searchParams.set('client_id', 'ORB-LITE')
+    url.searchParams.set('access_type', '-1')
+    url.searchParams.set('activation_time', '0')
+    url.searchParams.set('duration', '604800')
+    url.searchParams.set('flags', '0x1')
+    url.searchParams.set('redirect_uri', redirect)
+    url.searchParams.set('response_type', 'token')
+    window.location.href = url.toString()
+  }
+
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
       <form onSubmit={onSubmit} className="rounded-lg border border-border/60 p-6">
