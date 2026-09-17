@@ -75,16 +75,25 @@ export const wialonLogin = createServerFn({ method: 'POST' })
           password: data.password,
         })
       } catch (error) {
-        // Wialon bloquea el acceso por usuario/contraseña desde integraciones
-        // externas (error 7): en ese caso hay que entrar con token.
-        if (isSessionExpired(error)) {
-          throw new Error(
-            'La plataforma no permite entrar aquí con usuario y contraseña. Entra con tu token de acceso: inicia sesión en la plataforma, abre tu perfil y genera un token.',
-          )
+        if (error instanceof WialonError) {
+          if (error.code === 8) {
+            throw new Error(
+              'Usuario o contraseña incorrectos. Revisa que estés en la versión correcta (ORB-LITE u ORB-FULL).',
+            )
+          }
+          if (error.code === 7 || error.code === 3) {
+            throw new Error(
+              'Tu cuenta no permite el acceso con usuario y contraseña desde aquí. Entra con tu token: inicia sesión en la plataforma, abre tu perfil y genera un token de acceso.',
+            )
+          }
+          if (error.code === 1002) {
+            throw new Error('La cuenta está bloqueada. Contacta a ventas@orb-lite.com.')
+          }
         }
         throw error
       }
     }
+
 
 
     if (!result?.eid) throw new Error('No se pudo iniciar sesión en la plataforma.')
