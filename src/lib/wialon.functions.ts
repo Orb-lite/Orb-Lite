@@ -69,13 +69,23 @@ export const wialonLogin = createServerFn({ method: 'POST' })
       result = await wialonCall(host, 'token/login', { token: data.token, fl: 1 })
     } else {
       if (!data.user || !data.password) throw new Error('Captura tu usuario y contraseña.')
-      result = await wialonCall(host, 'core/login', {
-        user: data.user,
-        password: data.password,
-        operateAs: '',
-        checkService: '',
-      })
+      try {
+        result = await wialonCall(host, 'core/login', {
+          user: data.user,
+          password: data.password,
+        })
+      } catch (error) {
+        // Wialon bloquea el acceso por usuario/contraseña desde integraciones
+        // externas (error 7): en ese caso hay que entrar con token.
+        if (isSessionExpired(error)) {
+          throw new Error(
+            'La plataforma no permite entrar aquí con usuario y contraseña. Entra con tu token de acceso: inicia sesión en la plataforma, abre tu perfil y genera un token.',
+          )
+        }
+        throw error
+      }
     }
+
 
     if (!result?.eid) throw new Error('No se pudo iniciar sesión en la plataforma.')
 
