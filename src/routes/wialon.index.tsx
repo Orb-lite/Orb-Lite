@@ -147,10 +147,20 @@ function WialonLoginPage() {
           {busy ? 'Conectando…' : 'Entrar'}
         </button>
 
+        <button
+          type="button"
+          onClick={startOAuth}
+          className="mt-3 w-full rounded-md border border-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-widest text-primary"
+        >
+          Entrar con mi cuenta de la plataforma
+        </button>
+
         <p className="mt-4 text-xs text-muted-foreground">
-          Tus datos viajan directo a la plataforma. No guardamos tu contraseña; la sesión se cierra
-          al salir del navegador.
+          Si tu cuenta no acepta contraseña desde aquí, usa el botón de acceso directo: te llevamos a
+          la plataforma, entras con tu usuario y regresas ya conectado. No guardamos tu contraseña; la
+          sesión se cierra al salir del navegador.
         </p>
+
       </form>
 
       <div className="space-y-4">
