@@ -1,41 +1,42 @@
-import { createServerFn } from '@tanstack/react-start'
-import { z } from 'zod'
-import { wialonCall, isSessionExpired, WialonError, type WialonHost } from '@/lib/wialon.server'
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { wialonCall, isSessionExpired, WialonError, type WialonHost } from "@/lib/wialon.server";
 
-const hostSchema = z.enum(['lite', 'full'])
-const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1) })
+const hostSchema = z.enum(["lite", "full"]);
+const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1) });
 
 export type WialonUnit = {
-  id: number
-  name: string
-  lat: number | null
-  lon: number | null
-  speed: number | null
-  course: number | null
-  lastMessage: number | null
-  online: boolean
-}
+  id: number;
+  name: string;
+  lat: number | null;
+  lon: number | null;
+  speed: number | null;
+  course: number | null;
+  lastMessage: number | null;
+  online: boolean;
+};
 
 export type WialonMessage = {
-  time: number
-  lat: number | null
-  lon: number | null
-  speed: number | null
-  course: number | null
-}
+  time: number;
+  lat: number | null;
+  lon: number | null;
+  speed: number | null;
+  course: number | null;
+};
 
-const ONLINE_WINDOW = 10 * 60
-const MAX_HISTORY_MESSAGES = 3000
+const ONLINE_WINDOW = 10 * 60;
+const MAX_HISTORY_MESSAGES = 3000;
 
 function normalizeUnit(item: {
-  id: number
-  nm?: string
-  pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null
-  lmsg?: { t?: number } | null
+  id: number;
+  nm?: string;
+  pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null;
+  lmsg?: { t?: number } | null;
 }): WialonUnit {
-  const pos = item.pos ?? null
-  const last = pos?.t ?? item.lmsg?.t ?? null
-  const now = Math.floor(Date.now() / 1000)
+  const pos = item.pos ?? null;
+  const last = pos?.t ?? item.lmsg?.t ?? null;
+  const now = Math.floor(Date.now() / 1000);
+
   return {
     id: item.id,
     name: item.nm ?? `Unidad ${item.id}`,
@@ -45,16 +46,16 @@ function normalizeUnit(item: {
     course: pos?.c ?? null,
     lastMessage: last,
     online: last != null && now - last <= ONLINE_WINDOW,
-  }
+  };
 }
 
 /** Inicia sesión en Wialon con token o con usuario/contraseña del cliente. */
-export const wialonLogin = createServerFn({ method: 'POST' })
+export const wialonLogin = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
         host: hostSchema,
-        mode: z.enum(['token', 'password']),
+        mode: z.enum(["token", "password"]),
         token: z.string().trim().optional(),
         user: z.string().trim().optional(),
         password: z.string().optional(),
@@ -62,73 +63,78 @@ export const wialonLogin = createServerFn({ method: 'POST' })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost
-    let result: { eid?: string; user?: { id?: number; nm?: string } }
+    const host = data.host as WialonHost;
+    let result: { eid?: string; user?: { id?: number; nm?: string } };
 
-    if (data.mode === 'token') {
-      if (!data.token) throw new Error('Captura tu token de acceso.')
-      result = await wialonCall(host, 'token/login', { token: data.token, fl: 1 })
+    if (data.mode === "token") {
+      if (!data.token) throw new Error("Captura tu token de acceso.");
+      result = await wialonCall(host, "token/login", { token: data.token, fl: 1 });
     } else {
-      if (!data.user || !data.password) throw new Error('Captura tu usuario y contraseña.')
+      if (!data.user || !data.password) throw new Error("Captura tu usuario y contraseña.");
+
       try {
-        result = await wialonCall(host, 'core/login', {
+        result = await wialonCall(host, "core/login", {
           user: data.user,
           password: data.password,
-        })
+        });
       } catch (error) {
         if (error instanceof WialonError) {
           if (error.code === 8) {
             throw new Error(
-              'Usuario o contraseña incorrectos. Revisa que estés en la versión correcta (ORB-LITE u ORB-FULL).',
-            )
+              "Usuario o contraseña incorrectos. Revisa que estés en la versión correcta (ORB-LITE u ORB-FULL).",
+            );
           }
+
           if (error.code === 7 || error.code === 3) {
             throw new Error(
-              'Tu cuenta no permite el acceso con usuario y contraseña desde aquí. Entra con tu token: inicia sesión en la plataforma, abre tu perfil y genera un token de acceso.',
-            )
+              "Tu cuenta no permite el acceso con usuario y contraseña desde aquí. Entra con tu token: inicia sesión en la plataforma, abre tu perfil y genera un token de acceso.",
+            );
           }
+
           if (error.code === 1002) {
-            throw new Error('La cuenta está bloqueada. Contacta a ventas@orb-lite.com.')
+            throw new Error("La cuenta está bloqueada. Contacta a ventas@orb-lite.com.");
           }
         }
-        throw error
+
+        throw error;
       }
     }
 
-    if (!result?.eid) throw new Error('No se pudo iniciar sesión en la plataforma.')
+    if (!result?.eid) throw new Error("No se pudo iniciar sesión en la plataforma.");
 
     return {
       sid: result.eid,
       host: data.host,
       userId: result.user?.id ?? 0,
-      userName: result.user?.nm ?? data.user ?? 'Usuario',
-    }
-  })
+      userName: result.user?.nm ?? data.user ?? "Usuario",
+    };
+  });
 
-export const wialonLogout = createServerFn({ method: 'POST' })
+export const wialonLogout = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     try {
-      await wialonCall(data.host as WialonHost, 'core/logout', {}, data.sid)
+      await wialonCall(data.host as WialonHost, "core/logout", {}, data.sid);
     } catch {
       // sesión ya vencida
     }
-    return { ok: true }
-  })
+
+    return { ok: true };
+  });
 
 /** Lista de unidades con su última posición conocida. */
-export const wialonUnits = createServerFn({ method: 'POST' })
+export const wialonUnits = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const res = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
       data.host as WialonHost,
-      'core/search_items',
+      "core/search_items",
       {
         spec: {
-          itemsType: 'avl_unit',
-          propName: 'sys_name',
-          propValueMask: '*',
-          sortType: 'sys_name',
+          itemsType: "avl_unit",
+          propName: "sys_name",
+          propValueMask: "*",
+          sortType: "sys_name",
         },
         force: 1,
         flags: 1 + 1024,
@@ -136,12 +142,13 @@ export const wialonUnits = createServerFn({ method: 'POST' })
         to: 0,
       },
       data.sid,
-    )
-    return { units: (res.items ?? []).map(normalizeUnit) }
-  })
+    );
+
+    return { units: (res.items ?? []).map(normalizeUnit) };
+  });
 
 /** Historial de mensajes/recorrido de una unidad en un intervalo. */
-export const wialonHistory = createServerFn({ method: 'POST' })
+export const wialonHistory = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
       .extend({
@@ -152,41 +159,36 @@ export const wialonHistory = createServerFn({ method: 'POST' })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost
+    const host = data.host as WialonHost;
 
-    await wialonCall(
-      host,
-      'core/search_item',
-      { id: data.unitId, flags: 1 + 1024 },
-      data.sid,
-    )
+    await wialonCall(host, "core/search_item", { id: data.unitId, flags: 1 + 1024 }, data.sid);
 
     const interval = await wialonCall<{ count?: number }>(
       host,
-      'messages/load_interval',
+      "messages/load_interval",
       {
         itemId: data.unitId,
         timeFrom: data.timeFrom,
         timeTo: data.timeTo,
-        flags: 0,
-        // 0xFF00 recupera mensajes de datos sin descartar los que tienen
-        // el bit 0x01 de ubicación. Con 0xFF01 y flags: 0 se excluían
-        // justamente los puntos GPS que forman el recorrido.
-        flagsMask: 65280,
+        // El bit 0x01 identifica los mensajes que incluyen posición GPS.
+        // Exigirlo evita que la tabla y el mapa reciban telemetrías sin
+        // coordenadas (por ejemplo, mensajes de entradas o estado).
+        flags: 1,
+        flagsMask: 65281, // 0xFF01: mensajes de datos con ubicación
         // Mantener el límite en la solicitud evita cargar intervalos enormes
         // para después recortarlos en el servidor.
         loadCount: MAX_HISTORY_MESSAGES,
       },
       data.sid,
-    )
+    );
 
-    const count = Math.min(interval.count ?? 0, MAX_HISTORY_MESSAGES)
-    let messages: WialonMessage[] = []
+    const count = Math.min(interval.count ?? 0, MAX_HISTORY_MESSAGES);
+    let messages: WialonMessage[] = [];
 
     if (count > 0) {
       const res = await wialonCall<
         Array<{ t?: number; pos?: { y?: number; x?: number; s?: number; c?: number } | null }>
-      >(host, 'messages/get_messages', { indexFrom: 0, indexTo: count - 1 }, data.sid)
+      >(host, "messages/get_messages", { indexFrom: 0, indexTo: count - 1 }, data.sid);
 
       messages = (Array.isArray(res) ? res : []).map((m) => ({
         time: m.t ?? 0,
@@ -194,73 +196,73 @@ export const wialonHistory = createServerFn({ method: 'POST' })
         lon: m.pos?.x ?? null,
         speed: m.pos?.s ?? null,
         course: m.pos?.c ?? null,
-      }))
+      }));
     }
 
     try {
-      await wialonCall(host, 'messages/unload', {}, data.sid)
+      await wialonCall(host, "messages/unload", {}, data.sid);
     } catch {
       // sin sesión de mensajes activa
     }
 
-    const withPos = messages.filter((m) => m.lat != null && m.lon != null)
-    const maxSpeed = withPos.reduce((acc, m) => Math.max(acc, m.speed ?? 0), 0)
+    const withPos = messages.filter((m) => m.lat != null && m.lon != null);
+    const maxSpeed = withPos.reduce((acc, m) => Math.max(acc, m.speed ?? 0), 0);
 
-    return { total: interval.count ?? 0, messages, maxSpeed, points: withPos.length }
-  })
+    return { total: interval.count ?? 0, messages, maxSpeed, points: withPos.length };
+  });
 
 /** Datos base del CMS: cuentas/recursos, usuarios y unidades. */
-export const wialonCmsOverview = createServerFn({ method: 'POST' })
+export const wialonCmsOverview = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost
+    const host = data.host as WialonHost;
 
     async function search(itemsType: string, flags: number) {
       const res = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
         host,
-        'core/search_items',
+        "core/search_items",
         {
-          spec: { itemsType, propName: 'sys_name', propValueMask: '*', sortType: 'sys_name' },
+          spec: { itemsType, propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
           force: 1,
           flags,
           from: 0,
           to: 0,
         },
         data.sid,
-      )
-      return (res.items ?? []).map((i) => ({ id: i.id, name: i.nm ?? `#${i.id}` }))
+      );
+      return (res.items ?? []).map((i) => ({ id: i.id, name: i.nm ?? `#${i.id}` }));
     }
 
     const [resources, users, units] = await Promise.all([
-      search('avl_resource', 1),
-      search('user', 1),
-      search('avl_unit', 1),
-    ])
+      search("avl_resource", 1),
+      search("user", 1),
+      search("avl_unit", 1),
+    ]);
 
-    return { resources, users, units }
-  })
+    return { resources, users, units };
+  });
 
 /** Tipos de equipo disponibles para dar de alta unidades. */
-export const wialonHwTypes = createServerFn({ method: 'POST' })
+export const wialonHwTypes = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.extend({ search: z.string().trim().optional() }).parse(input))
   .handler(async ({ data }) => {
     const res = await wialonCall<Array<{ id: number; name: string }>>(
       data.host as WialonHost,
-      'core/get_hw_types',
+      "core/get_hw_types",
       {
-        filterType: 'name',
-        filterValue: [data.search ?? ''],
+        filterType: "name",
+        filterValue: [data.search ?? ""],
         includeType: true,
         ignoreRename: true,
       },
       data.sid,
-    )
-    const list = (Array.isArray(res) ? res : []).map((h) => ({ id: h.id, name: h.name }))
-    return { types: list.slice(0, 400) }
-  })
+    );
+    const list = (Array.isArray(res) ? res : []).map((h) => ({ id: h.id, name: h.name }));
+    return { types: list.slice(0, 400) };
+  });
 
 /** Alta de unidad (CMS). */
-export const wialonCreateUnit = createServerFn({ method: 'POST' })
+export const wialonCreateUnit = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
       .extend({
@@ -273,33 +275,34 @@ export const wialonCreateUnit = createServerFn({ method: 'POST' })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost
+    const host = data.host as WialonHost;
     const created = await wialonCall<{ item?: { id?: number; nm?: string } }>(
       host,
-      'core/create_unit',
+      "core/create_unit",
       { creatorId: data.creatorId, name: data.name, hwTypeId: data.hwTypeId, dataFlags: 1 },
       data.sid,
-    )
-    const id = created.item?.id
-    if (!id) throw new Error('La unidad no se pudo crear.')
+    );
+    const id = created.item?.id;
+    if (!id) throw new Error("La unidad no se pudo crear.");
 
     if (data.uniqueId) {
       await wialonCall(
         host,
-        'unit/update_device_type',
+        "unit/update_device_type",
         { itemId: id, deviceTypeId: data.hwTypeId, uniqueId: data.uniqueId },
         data.sid,
-      )
-    }
-    if (data.phone) {
-      await wialonCall(host, 'unit/update_phone', { itemId: id, phoneNumber: data.phone }, data.sid)
+      );
     }
 
-    return { id, name: created.item?.nm ?? data.name }
-  })
+    if (data.phone) {
+      await wialonCall(host, "unit/update_phone", { itemId: id, phoneNumber: data.phone }, data.sid);
+    }
+
+    return { id, name: created.item?.nm ?? data.name };
+  });
 
 /** Alta de usuario (CMS). */
-export const wialonCreateUser = createServerFn({ method: 'POST' })
+export const wialonCreateUser = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
       .extend({
@@ -312,7 +315,7 @@ export const wialonCreateUser = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const created = await wialonCall<{ item?: { id?: number; nm?: string } }>(
       data.host as WialonHost,
-      'core/create_user',
+      "core/create_user",
       {
         creatorId: data.creatorId,
         name: data.name,
@@ -320,61 +323,61 @@ export const wialonCreateUser = createServerFn({ method: 'POST' })
         dataFlags: 1,
       },
       data.sid,
-    )
-    const id = created.item?.id
-    if (!id) throw new Error('El usuario no se pudo crear.')
-    return { id, name: created.item?.nm ?? data.name }
-  })
+    );
+    const id = created.item?.id;
+    if (!id) throw new Error("El usuario no se pudo crear.");
+    return { id, name: created.item?.nm ?? data.name };
+  });
 
 const ACCESS_MASKS = {
   consulta: 0x1 | 0x20,
   completo: 0x1 | 0x2 | 0x4 | 0x20 | 0x40 | 0x100 | 0x200 | 0x400,
-} as const
+} as const;
 
-export type WialonAccessLevel = keyof typeof ACCESS_MASKS
+export type WialonAccessLevel = keyof typeof ACCESS_MASKS;
 
 /** Permisos reales del usuario conectado: qué puede crear y cuánto le queda. */
-export const wialonPermissions = createServerFn({ method: 'POST' })
+export const wialonPermissions = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.extend({ userId: z.number().int() }).parse(input))
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost
+    const host = data.host as WialonHost;
 
-    let userFlags = 0
+    let userFlags = 0;
     try {
       const me = await wialonCall<{ item?: { fl?: number } }>(
         host,
-        'core/search_item',
+        "core/search_item",
         { id: data.userId, flags: 1 },
         data.sid,
-      )
-      userFlags = me.item?.fl ?? 0
+      );
+      userFlags = me.item?.fl ?? 0;
     } catch {
-      userFlags = 0
+      userFlags = 0;
     }
 
     type Account = {
-      plan?: string
-      enabled?: number
-      services?: Record<string, { type?: number; val?: number; max?: number }>
-    }
+      plan?: string;
+      enabled?: number;
+      services?: Record<string, { type?: number; val?: number; max?: number }>;
+    };
 
-    let account: Account = {}
+    let account: Account = {};
     try {
-      account = await wialonCall<Account>(host, 'core/get_account_data', { type: 1 }, data.sid)
+      account = await wialonCall<Account>(host, "core/get_account_data", { type: 1 }, data.sid);
     } catch {
-      account = {}
+      account = {};
     }
 
-    const services = account.services ?? {}
+    const services = account.services ?? {};
     const svcEnabled = (name: string) => {
-      const svc = services[name]
-      if (!svc) return null
-      return (svc.val ?? 0) !== 0
-    }
+      const svc = services[name];
+      if (!svc) return null;
+      return (svc.val ?? 0) !== 0;
+    };
 
-    const canCreateItems = (userFlags & 0x10) !== 0
-    const unitsSvc = svcEnabled('create_unit')
-    const usersSvc = svcEnabled('create_user')
+    const canCreateItems = (userFlags & 0x10) !== 0;
+    const unitsSvc = svcEnabled("create_unit");
+    const usersSvc = svcEnabled("create_user");
 
     return {
       plan: account.plan ?? null,
@@ -383,100 +386,101 @@ export const wialonPermissions = createServerFn({ method: 'POST' })
       canCreateUsers: canCreateItems && usersSvc !== false,
       canCreateItems,
       limits: {
-        units: services['create_unit']?.max ?? null,
-        users: services['create_user']?.max ?? null,
+        units: services["create_unit"]?.max ?? null,
+        users: services["create_user"]?.max ?? null,
       },
-    }
-  })
+    };
+  });
 
 /** Otorga acceso de un usuario a unidades específicas. */
-export const wialonGrantUnits = createServerFn({ method: 'POST' })
+export const wialonGrantUnits = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
       .extend({
         userId: z.number().int().positive(),
         unitIds: z.array(z.number().int().positive()).max(200),
-        level: z.enum(['consulta', 'completo']),
+        level: z.enum(["consulta", "completo"]),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost
-    const mask = ACCESS_MASKS[data.level as WialonAccessLevel]
+    const host = data.host as WialonHost;
+    const mask = ACCESS_MASKS[data.level as WialonAccessLevel];
+
     for (const unitId of data.unitIds) {
       await wialonCall(
         host,
-        'user/update_item_access',
+        "user/update_item_access",
         { userId: data.userId, itemId: unitId, accessMask: mask },
         data.sid,
-      )
+      );
     }
-    return { granted: data.unitIds.length }
-  })
+
+    return { granted: data.unitIds.length };
+  });
 
 /** Mantiene viva la sesión y confirma si sigue siendo válida. */
-export const wialonPing = createServerFn({ method: 'POST' })
+export const wialonPing = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     try {
-      await wialonCall(data.host as WialonHost, 'core/get_account_data', { type: 0 }, data.sid)
-      return { valid: true as const }
+      await wialonCall(data.host as WialonHost, "core/get_account_data", { type: 0 }, data.sid);
+      return { valid: true as const };
     } catch (error) {
-      if (isSessionExpired(error)) return { valid: false as const }
-      throw error
+      if (isSessionExpired(error)) return { valid: false as const };
+      throw error;
     }
-  })
+  });
 
-export type WialonSensor = { id: number; name: string; type: string; metrics: string; value: string }
+export type WialonSensor = {
+  id: number;
+  name: string;
+  type: string;
+  metrics: string;
+  value: string;
+};
 
 /** Detalle completo de una unidad: posición, sensores con su último valor y comandos. */
-export const wialonUnitDetail = createServerFn({ method: 'POST' })
-  .inputValidator((input: unknown) =>
-    sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input),
-  )
+export const wialonUnitDetail = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input))
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost
+    const host = data.host as WialonHost;
 
     const res = await wialonCall<{
       item?: {
-        id: number
-        nm?: string
-        uid?: string
-        ph?: string
-        hw?: number
-        pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null
-        lmsg?: { t?: number; p?: Record<string, unknown> } | null
-        sens?: Record<string, { id: number; n?: string; t?: string; m?: string; p?: string }>
-        cmds?: Record<string, { id: number; n?: string; c?: string; l?: string; p?: string }>
-      }
-    }>(
-      host,
-      'core/search_item',
-      { id: data.unitId, flags: 1 + 256 + 512 + 1024 + 4096 },
-      data.sid,
-    )
+        id: number;
+        nm?: string;
+        uid?: string;
+        ph?: string;
+        hw?: number;
+        pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null;
+        lmsg?: { t?: number; p?: Record<string, unknown> } | null;
+        sens?: Record<string, { id: number; n?: string; t?: string; m?: string; p?: string }>;
+        cmds?: Record<string, { id: number; n?: string; c?: string; l?: string; p?: string }>;
+      };
+    }>(host, "core/search_item", { id: data.unitId, flags: 1 + 256 + 512 + 1024 + 4096 }, data.sid);
 
-    const item = res.item
-    if (!item) throw new Error('La unidad no está disponible en tu cuenta.')
+    const item = res.item;
+    if (!item) throw new Error("La unidad no está disponible en tu cuenta.");
 
-    const params = (item.lmsg?.p ?? {}) as Record<string, unknown>
+    const params = (item.lmsg?.p ?? {}) as Record<string, unknown>;
     const sensors: WialonSensor[] = Object.values(item.sens ?? {}).map((s) => {
-      const raw = s.p ? params[s.p] : undefined
+      const raw = s.p ? params[s.p] : undefined;
       return {
         id: s.id,
         name: s.n ?? `Sensor ${s.id}`,
-        type: s.t ?? '',
-        metrics: s.m ?? '',
-        value: raw == null ? '—' : String(raw),
-      }
-    })
+        type: s.t ?? "",
+        metrics: s.m ?? "",
+        value: raw == null ? "—" : String(raw),
+      };
+    });
 
     const commands = Object.values(item.cmds ?? {}).map((c) => ({
       id: c.id,
       name: c.n ?? `Comando ${c.id}`,
-      type: c.c ?? '',
-      link: c.l ?? 'auto',
-    }))
+      type: c.c ?? "",
+      link: c.l ?? "auto",
+    }));
 
     return {
       unit: normalizeUnit(item),
@@ -486,11 +490,11 @@ export const wialonUnitDetail = createServerFn({ method: 'POST' })
       sensors,
       commands,
       params: Object.entries(params).map(([key, value]) => ({ key, value: String(value) })),
-    }
-  })
+    };
+  });
 
 /** Ejecuta un comando en la unidad (bloqueo de motor, salidas, etc.). */
-export const wialonSendCommand = createServerFn({ method: 'POST' })
+export const wialonSendCommand = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
       .extend({
@@ -504,34 +508,35 @@ export const wialonSendCommand = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     await wialonCall(
       data.host as WialonHost,
-      'unit/exec_cmd',
+      "unit/exec_cmd",
       {
         itemId: data.unitId,
         commandName: data.commandName,
-        linkType: data.linkType ?? '',
-        param: data.param ?? '',
+        linkType: data.linkType ?? "",
+        param: data.param ?? "",
         timeout: 60,
         flags: 0,
       },
       data.sid,
-    )
-    return { sent: true as const }
-  })
+    );
 
-export const wialonGeofences = createServerFn({ method: 'POST' })
+    return { sent: true as const };
+  });
+
+export const wialonGeofences = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost
+    const host = data.host as WialonHost;
 
     const resources = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
       host,
-      'core/search_items',
+      "core/search_items",
       {
         spec: {
-          itemsType: 'avl_resource',
-          propName: 'sys_name',
-          propValueMask: '*',
-          sortType: 'sys_name',
+          itemsType: "avl_resource",
+          propName: "sys_name",
+          propValueMask: "*",
+          sortType: "sys_name",
         },
         force: 1,
         flags: 1 + 4096,
@@ -539,53 +544,55 @@ export const wialonGeofences = createServerFn({ method: 'POST' })
         to: 0,
       },
       data.sid,
-    )
+    );
 
-    const zones: Array<{ id: number; name: string; resource: string; type: number }> = []
+    const zones: Array<{ id: number; name: string; resource: string; type: number }> = [];
+
     for (const resource of resources.items ?? []) {
       try {
         const res = await wialonCall<Array<{ id: number; n?: string; t?: number }>>(
           host,
-          'resource/get_zone_data',
+          "resource/get_zone_data",
           { itemId: resource.id, col: [], flags: 1 },
           data.sid,
-        )
+        );
+
         for (const zone of Array.isArray(res) ? res : []) {
           zones.push({
             id: zone.id,
             name: zone.n ?? `Zona ${zone.id}`,
             resource: resource.nm ?? `#${resource.id}`,
             type: zone.t ?? 0,
-          })
+          });
         }
       } catch {
         // recurso sin geocercas o sin permisos de lectura
       }
     }
 
-    return { zones }
-  })
+    return { zones };
+  });
 
-export const wialonDrivers = createServerFn({ method: 'POST' })
+export const wialonDrivers = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost
+    const host = data.host as WialonHost;
 
     const resources = await wialonCall<{
       items?: Array<{
-        id: number
-        nm?: string
-        drvrs?: Record<string, { id: number; n?: string; ds?: string; p?: string }>
-      }>
+        id: number;
+        nm?: string;
+        drvrs?: Record<string, { id: number; n?: string; ds?: string; p?: string }>;
+      }>;
     }>(
       host,
-      'core/search_items',
+      "core/search_items",
       {
         spec: {
-          itemsType: 'avl_resource',
-          propName: 'sys_name',
-          propValueMask: '*',
-          sortType: 'sys_name',
+          itemsType: "avl_resource",
+          propName: "sys_name",
+          propValueMask: "*",
+          sortType: "sys_name",
         },
         force: 1,
         flags: 1 + 256,
@@ -593,9 +600,10 @@ export const wialonDrivers = createServerFn({ method: 'POST' })
         to: 0,
       },
       data.sid,
-    )
+    );
 
-    const drivers: Array<{ id: number; name: string; phone: string | null; resource: string }> = []
+    const drivers: Array<{ id: number; name: string; phone: string | null; resource: string }> = [];
+
     for (const resource of resources.items ?? []) {
       for (const driver of Object.values(resource.drvrs ?? {})) {
         drivers.push({
@@ -603,25 +611,25 @@ export const wialonDrivers = createServerFn({ method: 'POST' })
           name: driver.n ?? `Chofer ${driver.id}`,
           phone: driver.p ?? null,
           resource: resource.nm ?? `#${resource.id}`,
-        })
+        });
       }
     }
 
-    return { drivers }
-  })
+    return { drivers };
+  });
 
 /** Datos de la cuenta conectada: plan, servicios y saldo de días. */
-export const wialonAccount = createServerFn({ method: 'POST' })
+export const wialonAccount = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const account = await wialonCall<{
-      plan?: string
-      enabled?: number
-      balance?: string
-      daysCounter?: number
-      created?: number
-      services?: Record<string, { val?: number; max?: number }>
-    }>(data.host as WialonHost, 'core/get_account_data', { type: 1 }, data.sid)
+      plan?: string;
+      enabled?: number;
+      balance?: string;
+      daysCounter?: number;
+      created?: number;
+      services?: Record<string, { val?: number; max?: number }>;
+    }>(data.host as WialonHost, "core/get_account_data", { type: 1 }, data.sid);
 
     return {
       plan: account.plan ?? null,
@@ -629,23 +637,21 @@ export const wialonAccount = createServerFn({ method: 'POST' })
       balance: account.balance ?? null,
       daysLeft: account.daysCounter ?? null,
       createdAt: account.created ?? null,
-    }
-  })
+    };
+  });
 
 /** Renombra una unidad existente. */
-export const wialonRenameUnit = createServerFn({ method: 'POST' })
+export const wialonRenameUnit = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
-      .extend({ unitId: z.number().int().positive(), name: z.string().trim().min(4).max(60) })
+      .extend({
+        unitId: z.number().int().positive(),
+        name: z.string().trim().min(4).max(60),
+      })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    await wialonCall(
-      data.host as WialonHost,
-      'item/update_name',
-      { itemId: data.unitId, name: data.name },
-      data.sid,
-    )
-    return { ok: true as const }
-  })
-}
+    await wialonCall(data.host as WialonHost, "item/update_name", { itemId: data.unitId, name: data.name }, data.sid);
+
+    return { ok: true as const };
+  });
