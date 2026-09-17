@@ -1,8 +1,10 @@
+import * as React from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw } from 'lucide-react'
 import { WialonGuard } from '@/components/wialon-guard'
+import { WialonUnitDetail } from '@/components/wialon-unit-detail'
 import { wialonUnits } from '@/lib/wialon.functions'
 import type { WialonSession } from '@/lib/wialon-session'
 
@@ -21,6 +23,7 @@ export const Route = createFileRoute('/wialon/unidades')({
 
 function UnidadesView({ session }: { session: WialonSession }) {
   const fetchUnits = useServerFn(wialonUnits)
+  const [detailId, setDetailId] = React.useState<number | null>(null)
   const query = useQuery({
     queryKey: ['wialon-units', session.sid],
     queryFn: () => fetchUnits({ data: { host: session.host, sid: session.sid } }),
@@ -59,6 +62,7 @@ function UnidadesView({ session }: { session: WialonSession }) {
               <th className="px-4 py-3">Velocidad</th>
               <th className="px-4 py-3">Coordenadas</th>
               <th className="px-4 py-3">Última señal</th>
+              <th className="px-4 py-3 text-right">Detalle</th>
             </tr>
           </thead>
           <tbody>
@@ -79,11 +83,19 @@ function UnidadesView({ session }: { session: WialonSession }) {
                 <td className="px-4 py-3 text-muted-foreground">
                   {unit.lastMessage ? new Date(unit.lastMessage * 1000).toLocaleString('es-MX') : '—'}
                 </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => setDetailId(unit.id)}
+                    className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary"
+                  >
+                    Ver detalle
+                  </button>
+                </td>
               </tr>
             ))}
             {!query.isLoading && units.length === 0 ? (
               <tr>
-                <td className="px-4 py-6 text-muted-foreground" colSpan={5}>
+                <td className="px-4 py-6 text-muted-foreground" colSpan={6}>
                   No hay unidades en esta cuenta.
                 </td>
               </tr>
@@ -91,6 +103,10 @@ function UnidadesView({ session }: { session: WialonSession }) {
           </tbody>
         </table>
       </div>
+
+      {detailId != null ? (
+        <WialonUnitDetail session={session} unitId={detailId} onClose={() => setDetailId(null)} />
+      ) : null}
     </div>
   )
 }
