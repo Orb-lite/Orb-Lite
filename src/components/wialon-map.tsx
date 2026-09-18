@@ -25,7 +25,7 @@ function escapeHtml(value: string) {
     "'": "&#39;",
     '"': "&quot;",
   };
-  return value.replace(/[&<>'"]/g, (char) => entities[char]);
+  return value.replace(/[&<>'"]/g, (char) => entities[char] ?? char);
 }
 
 export default function WialonMap({ units, track, focusId }: Props) {
