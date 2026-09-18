@@ -9,17 +9,7 @@ const inputClass =
   "w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary";
 
 export function CustomerBlock() {
-  const {
-    isFirstPurchase,
-    customerNumber,
-    setIsFirstPurchase,
-    setCustomerNumber,
-    setShippingInfo,
-    setPickupInfo,
-    setBillingInfo,
-    setConstancia,
-    shippingId,
-  } = useCartStore();
+  const { isFirstPurchase, customerNumber, setIsFirstPurchase, setCustomerNumber } = useCartStore();
   const [input, setInput] = useState(customerNumber ? String(customerNumber) : "");
   const [loading, setLoading] = useState(false);
 
@@ -37,53 +27,13 @@ export function CustomerBlock() {
         return;
       }
       setCustomerNumber(record.customerNumber);
-      if (record.contact) {
-        if (shippingId === "national") {
-          setShippingInfo({
-            fullName: record.contact.fullName,
-            phone: record.contact.phone,
-            email: record.contact.email ?? record.email ?? "",
-            city: record.contact.city ?? "",
-            state: record.contact.state ?? "",
-            zip: record.contact.zip ?? "",
-          });
-        } else {
-          setPickupInfo({
-            fullName: record.contact.fullName,
-            phone: record.contact.phone,
-            email: record.contact.email ?? record.email ?? "",
-          });
-
-        }
-      }
-      if (record.billing) {
-        // Guardamos sus datos fiscales por si pide factura, pero NO la activamos:
-        // el cliente decide en cada compra si la requiere.
-        setBillingInfo({ ...record.billing, fiscalAddress: record.billing.fiscalAddress ?? "" });
-      }
-      if (record.constancia && record.constancia.vigente) {
-        setConstancia({
-          path: record.constancia.path,
-          fileName: record.constancia.fileName,
-          signedUrl: record.constancia.signedUrl,
-          uploadedAt: record.constancia.uploadedAt,
-        });
-      } else {
-        setConstancia(null);
-        if (record.constancia) {
-          toast.info("Tu Constancia de Situación Fiscal tiene más de un mes", {
-            description: "Si requieres factura, sube una constancia actualizada.",
-          });
-        }
-      }
       toast.success(
-        `¡Hola de nuevo, ${record.fullName}! Cargamos tus datos (${record.ordersCount} compra${
+        `¡Hola de nuevo, ${record.firstName}! (${record.ordersCount} compra${
           record.ordersCount !== 1 ? "s" : ""
         } acumulada${record.ordersCount !== 1 ? "s" : ""})`,
         {
-          description: record.billing
-            ? "Si necesitas factura, marca la casilla y tus datos fiscales ya estarán listos."
-            : undefined,
+          description:
+            "Por tu seguridad, confirma tus datos de envío y facturación en este pedido.",
         },
       );
     } catch (error) {
