@@ -172,6 +172,78 @@ export const wialonVideoSettings = createServerFn({ method: "POST" })
     return { cameras };
   });
 
+/** Unidades ORB-FULL que tienen al menos una cámara configurada. */
+export const wialonVideoUnits = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    if (data.host !== "full") {
+      throw new Error("La consulta de video solo está disponible en ORB-FULL.");
+    }
+
+    const res = await wialonCall<{ items?: Array<{ id?: number; nm?: string }> }>(
+      "full",
+      "core/search_items",
+      {
+        spec: {
+          itemsType: "avl_unit",
+          propName: "sys_name",
+          propValueMask: "*",
+          sortType: "sys_name",
+        },
+        force: 1,
+        flags: 1,
+        from: 0,
+        to: 0,
+      },
+      data.sid,
+    );
+
+    const items = res.items ?? [];
+    const checks = await Promise.all(
+      items.map(async (item) => {
+        if (item.id == null) return null;
+        try {
+          const result = await wialonCall<{ settings?: unknown[] }>(
+            "full",
+            "unit/get_video_settings",
+            { itemId: item.id },
+            data.sid,
+          );
+          const cameraCount = result.settings?.length ?? 0;
+          if (cameraCount === 0) return null;
+          return { id: item.id, name: item.nm ?? `Unidad ${item.id}`, cameraCount };
+        } catch {
+          // Sin permiso de video sobre esta unidad: se omite de la lista.
+          return null;
+        }
+      }),
+    );
+
+    return { units: checks.filter((unit): unit is { id: number; name: string; cameraCount: number } => unit != null) };
+  });
+  .inputValidator((input: unknown) => sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input))
+  .handler(async ({ data }) => {
+    if (data.host !== "full") {
+      throw new Error("La consulta de video solo está disponible en ORB-FULL.");
+    }
+
+    const result = await wialonCall<{
+      settings?: Array<{ flags?: number; name?: string }>;
+    }>("full", "unit/get_video_settings", { itemId: data.unitId }, data.sid);
+
+    const cameras = (result.settings ?? []).map((camera, index) => {
+      const flags = camera.flags ?? 0;
+      return {
+        index: index + 1,
+        name: camera.name?.trim() || `Cámara ${index + 1}`,
+        active: (flags & 1) !== 0,
+        recording: (flags & 2) !== 0,
+      };
+    });
+
+    return { cameras };
+  });
+
 /** Historial de mensajes/recorrido de una unidad en un intervalo. */
 export const wialonHistory = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
