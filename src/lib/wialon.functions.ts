@@ -24,6 +24,13 @@ export type WialonMessage = {
   course: number | null;
 };
 
+export type WialonVideoCamera = {
+  index: number;
+  name: string;
+  active: boolean;
+  recording: boolean;
+};
+
 const ONLINE_WINDOW = 10 * 60;
 const MAX_HISTORY_MESSAGES = 3000;
 
@@ -36,7 +43,6 @@ function normalizeUnit(item: {
   const pos = item.pos ?? null;
   const last = pos?.t ?? item.lmsg?.t ?? null;
   const now = Math.floor(Date.now() / 1000);
-
   return {
     id: item.id,
     name: item.nm ?? `Unidad ${item.id}`,
@@ -71,7 +77,6 @@ export const wialonLogin = createServerFn({ method: "POST" })
       result = await wialonCall(host, "token/login", { token: data.token, fl: 1 });
     } else {
       if (!data.user || !data.password) throw new Error("Captura tu usuario y contraseña.");
-
       try {
         result = await wialonCall(host, "core/login", {
           user: data.user,
@@ -84,18 +89,15 @@ export const wialonLogin = createServerFn({ method: "POST" })
               "Usuario o contraseña incorrectos. Revisa que estés en la versión correcta (ORB-LITE u ORB-FULL).",
             );
           }
-
           if (error.code === 7 || error.code === 3) {
             throw new Error(
               "Tu cuenta no permite el acceso con usuario y contraseña desde aquí. Entra con tu token: inicia sesión en la plataforma, abre tu perfil y genera un token de acceso.",
             );
           }
-
           if (error.code === 1002) {
             throw new Error("La cuenta está bloqueada. Contacta a ventas@orb-lite.com.");
           }
         }
-
         throw error;
       }
     }
@@ -118,7 +120,6 @@ export const wialonLogout = createServerFn({ method: "POST" })
     } catch {
       // sesión ya vencida
     }
-
     return { ok: true };
   });
 
@@ -143,8 +144,32 @@ export const wialonUnits = createServerFn({ method: "POST" })
       },
       data.sid,
     );
-
     return { units: (res.items ?? []).map(normalizeUnit) };
+  });
+
+/** Configuración de las cámaras de una unidad en Wialon Hosting (ORB-FULL). */
+export const wialonVideoSettings = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input))
+  .handler(async ({ data }) => {
+    if (data.host !== "full") {
+      throw new Error("La consulta de video solo está disponible en ORB-FULL.");
+    }
+
+    const result = await wialonCall<{
+      settings?: Array<{ flags?: number; name?: string }>;
+    }>("full", "unit/get_video_settings", { itemId: data.unitId }, data.sid);
+
+    const cameras = (result.settings ?? []).map((camera, index) => {
+      const flags = camera.flags ?? 0;
+      return {
+        index: index + 1,
+        name: camera.name?.trim() || `Cámara ${index + 1}`,
+        active: (flags & 1) !== 0,
+        recording: (flags & 2) !== 0,
+      };
+    });
+
+    return { cameras };
   });
 
 /** Historial de mensajes/recorrido de una unidad en un intervalo. */
@@ -293,7 +318,6 @@ export const wialonCreateUnit = createServerFn({ method: "POST" })
         data.sid,
       );
     }
-
     if (data.phone) {
       await wialonCall(host, "unit/update_phone", { itemId: id, phoneNumber: data.phone }, data.sid);
     }
@@ -347,7 +371,9 @@ export const wialonPermissions = createServerFn({ method: "POST" })
       const me = await wialonCall<{ item?: { fl?: number } }>(
         host,
         "core/search_item",
-        { id: data.userId, flags: 1 },
+        // `fl` pertenece a las propiedades adicionales del usuario (0x100),
+        // no a las propiedades generales (0x01).
+        { id: data.userId, flags: 1 + 256 },
         data.sid,
       );
       userFlags = me.item?.fl ?? 0;
@@ -369,15 +395,16 @@ export const wialonPermissions = createServerFn({ method: "POST" })
     }
 
     const services = account.services ?? {};
-    const svcEnabled = (name: string) => {
-      const svc = services[name];
+    const svcEnabled = (...names: string[]) => {
+      const svc = names.map((name) => services[name]).find(Boolean);
       if (!svc) return null;
       return (svc.val ?? 0) !== 0;
     };
 
-    const canCreateItems = (userFlags & 0x10) !== 0;
-    const unitsSvc = svcEnabled("create_unit");
-    const usersSvc = svcEnabled("create_user");
+    // En Wialon, 0x04 es “Can create items”; 0x10 solo impide cambiar ajustes.
+    const canCreateItems = (userFlags & 0x04) !== 0;
+    const unitsSvc = svcEnabled("create_units", "create_unit");
+    const usersSvc = svcEnabled("create_users", "create_user");
 
     return {
       plan: account.plan ?? null,
@@ -386,8 +413,8 @@ export const wialonPermissions = createServerFn({ method: "POST" })
       canCreateUsers: canCreateItems && usersSvc !== false,
       canCreateItems,
       limits: {
-        units: services["create_unit"]?.max ?? null,
-        users: services["create_user"]?.max ?? null,
+        units: services["create_units"]?.max ?? services["create_unit"]?.max ?? null,
+        users: services["create_users"]?.max ?? services["create_user"]?.max ?? null,
       },
     };
   });
@@ -406,7 +433,6 @@ export const wialonGrantUnits = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
     const mask = ACCESS_MASKS[data.level as WialonAccessLevel];
-
     for (const unitId of data.unitIds) {
       await wialonCall(
         host,
@@ -415,9 +441,12 @@ export const wialonGrantUnits = createServerFn({ method: "POST" })
         data.sid,
       );
     }
-
     return { granted: data.unitIds.length };
   });
+
+/* ------------------------------------------------------------------ */
+/* Sesión: verificación y mantenimiento (evita que expire por inactividad) */
+/* ------------------------------------------------------------------ */
 
 /** Mantiene viva la sesión y confirma si sigue siendo válida. */
 export const wialonPing = createServerFn({ method: "POST" })
@@ -432,13 +461,11 @@ export const wialonPing = createServerFn({ method: "POST" })
     }
   });
 
-export type WialonSensor = {
-  id: number;
-  name: string;
-  type: string;
-  metrics: string;
-  value: string;
-};
+/* ------------------------------------------------------------------ */
+/* Detalle de unidad: sensores, últimos valores y comandos disponibles */
+/* ------------------------------------------------------------------ */
+
+export type WialonSensor = { id: number; name: string; type: string; metrics: string; value: string };
 
 /** Detalle completo de una unidad: posición, sensores con su último valor y comandos. */
 export const wialonUnitDetail = createServerFn({ method: "POST" })
@@ -519,9 +546,12 @@ export const wialonSendCommand = createServerFn({ method: "POST" })
       },
       data.sid,
     );
-
     return { sent: true as const };
   });
+
+/* ------------------------------------------------------------------ */
+/* Geocercas y choferes                                               */
+/* ------------------------------------------------------------------ */
 
 export const wialonGeofences = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
@@ -547,7 +577,6 @@ export const wialonGeofences = createServerFn({ method: "POST" })
     );
 
     const zones: Array<{ id: number; name: string; resource: string; type: number }> = [];
-
     for (const resource of resources.items ?? []) {
       try {
         const res = await wialonCall<Array<{ id: number; n?: string; t?: number }>>(
@@ -556,7 +585,6 @@ export const wialonGeofences = createServerFn({ method: "POST" })
           { itemId: resource.id, col: [], flags: 1 },
           data.sid,
         );
-
         for (const zone of Array.isArray(res) ? res : []) {
           zones.push({
             id: zone.id,
@@ -603,7 +631,6 @@ export const wialonDrivers = createServerFn({ method: "POST" })
     );
 
     const drivers: Array<{ id: number; name: string; phone: string | null; resource: string }> = [];
-
     for (const resource of resources.items ?? []) {
       for (const driver of Object.values(resource.drvrs ?? {})) {
         drivers.push({
@@ -640,79 +667,12 @@ export const wialonAccount = createServerFn({ method: "POST" })
     };
   });
 
-export type WialonCamera = {
-  index: number;
-  name: string;
-  active: boolean;
-  recording: boolean;
-};
-
-/** Cámaras configuradas en una unidad (sensores de imagen/video y sus últimos valores). */
-export const wialonVideoSettings = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input))
-  .handler(async ({ data }) => {
-    const res = await wialonCall<{
-      item?: {
-        id: number;
-        nm?: string;
-        lmsg?: { p?: Record<string, unknown> } | null;
-        sens?: Record<string, { id: number; n?: string; t?: string; p?: string }>;
-      };
-    }>(
-      data.host as WialonHost,
-      "core/search_item",
-      { id: data.unitId, flags: 1 + 256 + 1024 },
-      data.sid,
-    );
-
-    const item = res.item;
-    if (!item) throw new Error("La unidad no está disponible en tu cuenta.");
-
-    const params = (item.lmsg?.p ?? {}) as Record<string, unknown>;
-    const isCameraLabel = (value: string) => /cam|video|image|img|dvr|mdvr/i.test(value);
-
-    const cameras: WialonCamera[] = [];
-
-    for (const sensor of Object.values(item.sens ?? {})) {
-      const label = `${sensor.n ?? ""} ${sensor.t ?? ""} ${sensor.p ?? ""}`;
-      if (!isCameraLabel(label)) continue;
-
-      const raw = sensor.p ? params[sensor.p] : undefined;
-      cameras.push({
-        index: cameras.length + 1,
-        name: sensor.n ?? `Cámara ${cameras.length + 1}`,
-        active: raw != null && String(raw) !== "0" && String(raw) !== "",
-        recording: raw != null,
-      });
-    }
-
-    if (cameras.length === 0) {
-      for (const [key, value] of Object.entries(params)) {
-        if (!isCameraLabel(key)) continue;
-        cameras.push({
-          index: cameras.length + 1,
-          name: key,
-          active: value != null && String(value) !== "0" && String(value) !== "",
-          recording: value != null,
-        });
-      }
-    }
-
-    return { unitName: item.nm ?? `Unidad ${item.id}`, cameras };
-  });
-
 /** Renombra una unidad existente. */
 export const wialonRenameUnit = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    sessionSchema
-      .extend({
-        unitId: z.number().int().positive(),
-        name: z.string().trim().min(4).max(60),
-      })
-      .parse(input),
+    sessionSchema.extend({ unitId: z.number().int().positive(), name: z.string().trim().min(4).max(60) }).parse(input),
   )
   .handler(async ({ data }) => {
     await wialonCall(data.host as WialonHost, "item/update_name", { itemId: data.unitId, name: data.name }, data.sid);
-
     return { ok: true as const };
   });
