@@ -30,29 +30,28 @@ export interface ConstanciaRecord {
   vigente: boolean;
 }
 
-export interface CustomerRecord {
+/**
+ * Subconjunto público y no sensible de un cliente.
+ * Los datos de contacto, facturación y constancias NO se exponen por número
+ * de cliente (son fácilmente enumerables); solo se muestran en el CRM
+ * autenticado o se capturan de nuevo en el checkout.
+ */
+export interface CustomerLookup {
   customerNumber: number;
-  fullName: string;
-  phone: string;
-  email: string | null;
-  contact: z.infer<typeof contactSchema> | null;
-  billing: z.infer<typeof billingSchema> | null;
+  firstName: string;
   ordersCount: number;
-  constancia: ConstanciaRecord | null;
 }
 
-/** Consulta un cliente por su número para precargar sus datos. */
+/** Confirma que un número de cliente existe y saluda por su primer nombre. */
 export const lookupCustomer = createServerFn({ method: "POST" })
   .inputValidator((data) =>
     z.object({ customerNumber: z.number().int().min(500).max(9_999_999) }).parse(data),
   )
-  .handler(async ({ data }): Promise<CustomerRecord | null> => {
+  .handler(async ({ data }): Promise<CustomerLookup | null> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("customers")
-      .select(
-        "customer_number, full_name, phone, email, contact, billing, orders_count, constancia_path, constancia_file_name, constancia_url, constancia_uploaded_at",
-      )
+      .select("customer_number, full_name, orders_count")
       .eq("customer_number", data.customerNumber)
       .maybeSingle();
 
@@ -61,21 +60,8 @@ export const lookupCustomer = createServerFn({ method: "POST" })
 
     return {
       customerNumber: row.customer_number,
-      fullName: row.full_name,
-      phone: row.phone,
-      email: row.email ?? null,
-      contact: (row.contact as CustomerRecord["contact"]) ?? null,
-      billing: (row.billing as CustomerRecord["billing"]) ?? null,
+      firstName: row.full_name.split(" ")[0] ?? row.full_name,
       ordersCount: row.orders_count,
-      constancia: row.constancia_path
-        ? {
-            path: row.constancia_path,
-            fileName: row.constancia_file_name ?? "constancia",
-            signedUrl: row.constancia_url ?? null,
-            uploadedAt: row.constancia_uploaded_at ?? null,
-            vigente: constanciaVigente(row.constancia_uploaded_at),
-          }
-        : null,
     };
   });
 
