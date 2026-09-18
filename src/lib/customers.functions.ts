@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { constanciaVigente } from "@/lib/constancia-validez";
 
 const contactSchema = z.object({
   fullName: z.string().trim().min(1).max(150),
@@ -22,13 +21,6 @@ const billingSchema = z.object({
   fiscalAddress: z.string().trim().max(250).optional().or(z.literal("")),
 });
 
-export interface ConstanciaRecord {
-  path: string;
-  fileName: string;
-  signedUrl: string | null;
-  uploadedAt: string | null;
-  vigente: boolean;
-}
 
 /**
  * Subconjunto público y no sensible de un cliente.
