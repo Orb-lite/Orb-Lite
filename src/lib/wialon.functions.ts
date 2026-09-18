@@ -640,6 +640,67 @@ export const wialonAccount = createServerFn({ method: "POST" })
     };
   });
 
+export type WialonCamera = {
+  index: number;
+  name: string;
+  active: boolean;
+  recording: boolean;
+};
+
+/** Cámaras configuradas en una unidad (sensores de imagen/video y sus últimos valores). */
+export const wialonVideoSettings = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input))
+  .handler(async ({ data }) => {
+    const res = await wialonCall<{
+      item?: {
+        id: number;
+        nm?: string;
+        lmsg?: { p?: Record<string, unknown> } | null;
+        sens?: Record<string, { id: number; n?: string; t?: string; p?: string }>;
+      };
+    }>(
+      data.host as WialonHost,
+      "core/search_item",
+      { id: data.unitId, flags: 1 + 256 + 1024 },
+      data.sid,
+    );
+
+    const item = res.item;
+    if (!item) throw new Error("La unidad no está disponible en tu cuenta.");
+
+    const params = (item.lmsg?.p ?? {}) as Record<string, unknown>;
+    const isCameraLabel = (value: string) => /cam|video|image|img|dvr|mdvr/i.test(value);
+
+    const cameras: WialonCamera[] = [];
+
+    for (const sensor of Object.values(item.sens ?? {})) {
+      const label = `${sensor.n ?? ""} ${sensor.t ?? ""} ${sensor.p ?? ""}`;
+      if (!isCameraLabel(label)) continue;
+
+      const raw = sensor.p ? params[sensor.p] : undefined;
+      cameras.push({
+        index: cameras.length + 1,
+        name: sensor.n ?? `Cámara ${cameras.length + 1}`,
+        active: raw != null && String(raw) !== "0" && String(raw) !== "",
+        recording: raw != null,
+      });
+    }
+
+    if (cameras.length === 0) {
+      for (const [key, value] of Object.entries(params)) {
+        if (!isCameraLabel(key)) continue;
+        cameras.push({
+          index: cameras.length + 1,
+          name: key,
+          active: value != null && String(value) !== "0" && String(value) !== "",
+          recording: value != null,
+        });
+      }
+    }
+
+    return { unitName: item.nm ?? `Unidad ${item.id}`, cameras };
+  });
+
 /** Renombra una unidad existente. */
 export const wialonRenameUnit = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>

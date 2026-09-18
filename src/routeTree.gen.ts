@@ -29,6 +29,7 @@ import { Route as WialonCmsRouteImport } from './routes/wialon.cms'
 import { Route as WialonHistorialRouteImport } from './routes/wialon.historial'
 import { Route as WialonMapaRouteImport } from './routes/wialon.mapa'
 import { Route as WialonUnidadesRouteImport } from './routes/wialon.unidades'
+import { Route as WialonVideoRouteImport } from './routes/wialon.video'
 import { Route as ApiPublicCronAvisosRenovacionRouteImport } from './routes/api/public/cron/avisos-renovacion'
 import { Route as ApiPublicCronResumenPendientesRouteImport } from './routes/api/public/cron/resumen-pendientes'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -133,6 +134,11 @@ const WialonUnidadesRoute = WialonUnidadesRouteImport.update({
   path: '/unidades',
   getParentRoute: () => WialonRoute,
 } as any)
+const WialonVideoRoute = WialonVideoRouteImport.update({
+  id: '/video',
+  path: '/video',
+  getParentRoute: () => WialonRoute,
+} as any)
 const ApiPublicCronAvisosRenovacionRoute =
   ApiPublicCronAvisosRenovacionRouteImport.update({
     id: '/api/public/cron/avisos-renovacion',
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
+  '/wialon/video': typeof WialonVideoRoute
   '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
+  '/wialon/video': typeof WialonVideoRoute
   '/wialon': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
@@ -220,6 +228,7 @@ export interface FileRoutesById {
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
+  '/wialon/video': typeof WialonVideoRoute
   '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
@@ -246,6 +255,7 @@ export interface FileRouteTypes {
     | '/wialon/historial'
     | '/wialon/mapa'
     | '/wialon/unidades'
+    | '/wialon/video'
     | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/wialon/historial'
     | '/wialon/mapa'
     | '/wialon/unidades'
+    | '/wialon/video'
     | '/wialon'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/wialon/historial'
     | '/wialon/mapa'
     | '/wialon/unidades'
+    | '/wialon/video'
     | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
@@ -459,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WialonUnidadesRouteImport
       parentRoute: typeof WialonRoute
     }
+    '/wialon/video': {
+      id: '/wialon/video'
+      path: '/video'
+      fullPath: '/wialon/video'
+      preLoaderRoute: typeof WialonVideoRouteImport
+      parentRoute: typeof WialonRoute
+    }
     '/api/public/cron/avisos-renovacion': {
       id: '/api/public/cron/avisos-renovacion'
       path: '/api/public/cron/avisos-renovacion'
@@ -504,6 +523,7 @@ interface WialonRouteChildren {
   WialonHistorialRoute: typeof WialonHistorialRoute
   WialonMapaRoute: typeof WialonMapaRoute
   WialonUnidadesRoute: typeof WialonUnidadesRoute
+  WialonVideoRoute: typeof WialonVideoRoute
   WialonIndexRoute: typeof WialonIndexRoute
 }
 
@@ -513,6 +533,7 @@ const WialonRouteChildren: WialonRouteChildren = {
   WialonHistorialRoute: WialonHistorialRoute,
   WialonMapaRoute: WialonMapaRoute,
   WialonUnidadesRoute: WialonUnidadesRoute,
+  WialonVideoRoute: WialonVideoRoute,
   WialonIndexRoute: WialonIndexRoute,
 }
 

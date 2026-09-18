@@ -11,10 +11,11 @@ export const Route = createFileRoute('/wialon')({
 })
 
 const tabs = [
-  { to: '/wialon/mapa', label: 'Mapa' },
-  { to: '/wialon/unidades', label: 'Unidades' },
-  { to: '/wialon/historial', label: 'Historial' },
-  { to: '/wialon/cms', label: 'Altas (CMS)' },
+  { to: '/wialon/mapa', label: 'Mapa', fullOnly: false },
+  { to: '/wialon/unidades', label: 'Unidades', fullOnly: false },
+  { to: '/wialon/historial', label: 'Historial', fullOnly: false },
+  { to: '/wialon/video', label: 'Video', fullOnly: true },
+  { to: '/wialon/cms', label: 'Altas (CMS)', fullOnly: false },
 ] as const
 
 function WialonLayout() {
