@@ -70,7 +70,9 @@ function WialonLayout() {
 
       {session ? (
         <nav className="mt-6 flex flex-wrap gap-2 border-b border-border/60 pb-3 text-sm font-semibold uppercase tracking-wide">
-          {tabs.map((tab) => (
+          {tabs
+            .filter((tab) => !tab.fullOnly || session.host === 'full')
+            .map((tab) => (
             <Link
               key={tab.to}
               to={tab.to}
