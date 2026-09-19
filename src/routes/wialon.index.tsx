@@ -1,9 +1,7 @@
 import * as React from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
 import { KeyRound, MapPin, ShieldCheck } from 'lucide-react'
-import { PLATFORM_URLS, useWialonSession, writeSession } from '@/lib/wialon-session'
-import { wialonLogin } from '@/lib/wialon.functions'
+import { PLATFORM_URLS, useWialonSession } from '@/lib/wialon-session'
 
 export const Route = createFileRoute('/wialon/')({
   head: () => ({
@@ -12,7 +10,7 @@ export const Route = createFileRoute('/wialon/')({
       {
         name: 'description',
         content:
-          'Conecta la plataforma de rastreo GPS ORB-LITE u ORB-FULL con un token de API y consulta tus unidades en vivo, historial y altas.',
+          'Inicia sesión de forma segura en Wialon para consultar tus unidades en vivo, historial y altas.',
       },
       { property: 'og:title', content: 'Acceso a la plataforma de rastreo | ORB-LITE' },
       {
@@ -28,42 +26,34 @@ export const Route = createFileRoute('/wialon/')({
 })
 
 function WialonLoginPage() {
-  const login = useServerFn(wialonLogin)
   const navigate = useNavigate()
   const session = useWialonSession()
 
   const [host, setHost] = React.useState<'lite' | 'full'>('lite')
-  const [token, setToken] = React.useState('')
-  const [busy, setBusy] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (session) void navigate({ to: '/wialon/mapa' })
   }, [session, navigate])
 
-  const inputClass =
-    'mt-2 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-primary'
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setBusy(true)
-    try {
-      const result = await login({
-        data: { host, token },
-      })
-      writeSession(result)
-      void navigate({ to: '/wialon/mapa' })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo iniciar sesión.')
-    } finally {
-      setBusy(false)
-    }
+  function startWialonLogin() {
+    const base = PLATFORM_URLS[host].app.replace(/\/$/, '')
+    window.sessionStorage.setItem('orblite.wialon.oauth-host', host)
+    const redirect = `${window.location.origin}/wialon/callback`
+    const url = new URL(`${base}/login.html`)
+    url.searchParams.set('client_id', 'ORB-LITE')
+    url.searchParams.set('access_type', '-1')
+    url.searchParams.set('activation_time', '0')
+    url.searchParams.set('duration', '604800')
+    url.searchParams.set('flags', '0x1')
+    url.searchParams.set('lang', 'es')
+    url.searchParams.set('redirect_uri', redirect)
+    url.searchParams.set('response_type', 'token')
+    window.location.assign(url.toString())
   }
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
-      <form onSubmit={onSubmit} className="rounded-lg border border-border/60 p-6">
+      <section className="rounded-lg border border-border/60 p-6">
         <div className="flex gap-2">
           {(['lite', 'full'] as const).map((option) => (
             <button
@@ -81,34 +71,20 @@ function WialonLoginPage() {
           ))}
         </div>
 
-        <label className="mt-5 block text-sm">
-          Token de API de Wialon
-          <input
-            className={inputClass}
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            autoComplete="off"
-            placeholder="Pega el token generado en Wialon"
-            required
-          />
-        </label>
-
-        {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
-
         <button
-          type="submit"
-          disabled={busy}
-          className="mt-6 w-full rounded-md bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:opacity-60"
+          type="button"
+          onClick={startWialonLogin}
+          className="mt-6 w-full rounded-md bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground"
         >
-          {busy ? 'Conectando…' : 'Conectar con Wialon'}
+          Iniciar sesión con Wialon
         </button>
 
         <p className="mt-4 text-xs text-muted-foreground">
-          Genera un token de API en tu cuenta de Wialon y pégalo aquí. Nunca solicitamos ni almacenamos
-          tu usuario o contraseña; la sesión se cierra al salir del navegador.
+          Serás redirigido a la página oficial de Wialon. Al terminar, regresarás automáticamente a
+          ORB-LITE con una sesión temporal; nunca vemos ni almacenamos tu contraseña.
         </p>
 
-      </form>
+      </section>
 
       <div className="space-y-4">
         {[
