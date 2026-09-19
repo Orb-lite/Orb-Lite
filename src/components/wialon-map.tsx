@@ -108,6 +108,36 @@ export default function WialonMap({ units, track, focusId }: Props) {
     if (track && track.length > 1) {
       const line = track.map((p) => [p.lat, p.lon] as L.LatLngExpression);
       L.polyline(line, { color: "#a3e635", weight: 3, opacity: 0.9 }).addTo(group);
+      for (const p of track) {
+        L.circleMarker([p.lat, p.lon], {
+          radius: 3,
+          color: "#0f172a",
+          weight: 1,
+          fillColor: "#a3e635",
+          fillOpacity: 1,
+        }).addTo(group);
+      }
+      const last = track[track.length - 1];
+      const prev = track[track.length - 2];
+      const lastUnit: MapUnit = {
+        id: -1,
+        name: "Última posición",
+        lat: last.lat,
+        lon: last.lon,
+        speed: null,
+        course: bearing(prev, last),
+        online: true,
+      };
+      const endMarker = L.marker([last.lat, last.lon], {
+        icon: L.divIcon({
+          className: "",
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+          html: unitMarkerHtml(lastUnit, false, markerStyle),
+        }),
+      });
+      endMarker.bindTooltip("<strong>Última posición</strong>");
+      endMarker.addTo(group);
       bounds.push(...line);
     }
 
