@@ -127,8 +127,8 @@ export default function WialonMap({ units, track, focusId }: Props) {
           fillOpacity: 1,
         }).addTo(group);
       }
-      const last = track[track.length - 1];
-      const prev = track[track.length - 2];
+      const last = track[track.length - 1]!;
+      const prev = track[track.length - 2]!;
       const lastUnit: MapUnit = {
         id: -1,
         name: "Última posición",
