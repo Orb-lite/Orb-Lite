@@ -119,7 +119,7 @@ export default function WialonMap({ units, track, focusId }: Props) {
   return (
     <div className="relative h-[480px] w-full overflow-hidden rounded-lg border border-border/60">
       <div ref={container} className="h-full w-full" />
-      <div className="absolute right-3 top-3 z-[1000] flex items-center gap-2 rounded-lg border border-border/80 bg-background/90 p-1.5 text-xs font-semibold shadow-md backdrop-blur-sm">
+      <div className="absolute left-1/2 top-3 z-[1000] -translate-x-1/2 flex items-center gap-2 rounded-lg border border-border/80 bg-background/90 p-1.5 text-xs font-semibold shadow-md backdrop-blur-sm">
         <span className="px-2 text-muted-foreground">Vista</span>
         <button
           type="button"
