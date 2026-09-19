@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { wialonCall, isSessionExpired, WialonError, type WialonHost } from "@/lib/wialon.server";
+import { wialonCall, isSessionExpired, type WialonHost } from "@/lib/wialon.server";
 
 const hostSchema = z.enum(["lite", "full"]);
 const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1) });
@@ -55,52 +55,23 @@ function normalizeUnit(item: {
   };
 }
 
-/** Inicia sesión en Wialon con token o con usuario/contraseña del cliente. */
+/** Inicia sesión en Wialon exclusivamente con un token generado por su API. */
 export const wialonLogin = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
         host: hostSchema,
-        mode: z.enum(["token", "password"]),
-        token: z.string().trim().optional(),
-        user: z.string().trim().optional(),
-        password: z.string().optional(),
+        token: z.string().trim().min(1, "Captura tu token de acceso."),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
-    let result: { eid?: string; user?: { id?: number; nm?: string } };
-
-    if (data.mode === "token") {
-      if (!data.token) throw new Error("Captura tu token de acceso.");
-      result = await wialonCall(host, "token/login", { token: data.token, fl: 1 });
-    } else {
-      if (!data.user || !data.password) throw new Error("Captura tu usuario y contraseña.");
-      try {
-        result = await wialonCall(host, "core/login", {
-          user: data.user,
-          password: data.password,
-        });
-      } catch (error) {
-        if (error instanceof WialonError) {
-          if (error.code === 8) {
-            throw new Error(
-              "Usuario o contraseña incorrectos. Revisa que estés en la versión correcta (ORB-LITE u ORB-FULL).",
-            );
-          }
-          if (error.code === 7 || error.code === 3) {
-            throw new Error(
-              "Tu cuenta no permite el acceso con usuario y contraseña desde aquí. Entra con tu token: inicia sesión en la plataforma, abre tu perfil y genera un token de acceso.",
-            );
-          }
-          if (error.code === 1002) {
-            throw new Error("La cuenta está bloqueada. Contacta a ventas@orb-lite.com.");
-          }
-        }
-        throw error;
-      }
-    }
+    const result = await wialonCall<{ eid?: string; user?: { id?: number; nm?: string } }>(
+      host,
+      "token/login",
+      { token: data.token, fl: 1 },
+    );
 
     if (!result?.eid) throw new Error("No se pudo iniciar sesión en la plataforma.");
 
@@ -108,7 +79,7 @@ export const wialonLogin = createServerFn({ method: "POST" })
       sid: result.eid,
       host: data.host,
       userId: result.user?.id ?? 0,
-      userName: result.user?.nm ?? data.user ?? "Usuario",
+      userName: result.user?.nm ?? "Usuario",
     };
   });
 
@@ -221,29 +192,6 @@ export const wialonVideoUnits = createServerFn({ method: "POST" })
 
     return { units: checks.filter((unit): unit is { id: number; name: string; cameraCount: number } => unit != null) };
   });
-  .inputValidator((input: unknown) => sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input))
-  .handler(async ({ data }) => {
-    if (data.host !== "full") {
-      throw new Error("La consulta de video solo está disponible en ORB-FULL.");
-    }
-
-    const result = await wialonCall<{
-      settings?: Array<{ flags?: number; name?: string }>;
-    }>("full", "unit/get_video_settings", { itemId: data.unitId }, data.sid);
-
-    const cameras = (result.settings ?? []).map((camera, index) => {
-      const flags = camera.flags ?? 0;
-      return {
-        index: index + 1,
-        name: camera.name?.trim() || `Cámara ${index + 1}`,
-        active: (flags & 1) !== 0,
-        recording: (flags & 2) !== 0,
-      };
-    });
-
-    return { cameras };
-  });
-
 /** Historial de mensajes/recorrido de una unidad en un intervalo. */
 export const wialonHistory = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>

@@ -12,7 +12,7 @@ export const Route = createFileRoute('/wialon/')({
       {
         name: 'description',
         content:
-          'Entra a la plataforma de rastreo GPS ORB-LITE u ORB-FULL con tu usuario o token y consulta tus unidades en vivo, historial y altas.',
+          'Conecta la plataforma de rastreo GPS ORB-LITE u ORB-FULL con un token de API y consulta tus unidades en vivo, historial y altas.',
       },
       { property: 'og:title', content: 'Acceso a la plataforma de rastreo | ORB-LITE' },
       {
@@ -33,9 +33,6 @@ function WialonLoginPage() {
   const session = useWialonSession()
 
   const [host, setHost] = React.useState<'lite' | 'full'>('lite')
-  const [mode, setMode] = React.useState<'password' | 'token'>('password')
-  const [user, setUser] = React.useState('')
-  const [password, setPassword] = React.useState('')
   const [token, setToken] = React.useState('')
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -53,7 +50,7 @@ function WialonLoginPage() {
     setBusy(true)
     try {
       const result = await login({
-        data: { host, mode, user, password, token },
+        data: { host, token },
       })
       writeSession(result)
       void navigate({ to: '/wialon/mapa' })
@@ -63,22 +60,6 @@ function WialonLoginPage() {
       setBusy(false)
     }
   }
-
-  function startOAuth() {
-    const base = PLATFORM_URLS[host].app.replace(/\/$/, '')
-    window.sessionStorage.setItem('orblite.wialon.oauth-host', host)
-    const redirect = `${window.location.origin}/wialon/callback`
-    const url = new URL(`${base}/login.html`)
-    url.searchParams.set('client_id', 'ORB-LITE')
-    url.searchParams.set('access_type', '-1')
-    url.searchParams.set('activation_time', '0')
-    url.searchParams.set('duration', '604800')
-    url.searchParams.set('flags', '0x1')
-    url.searchParams.set('redirect_uri', redirect)
-    url.searchParams.set('response_type', 'token')
-    window.location.href = url.toString()
-  }
-
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
@@ -100,58 +81,17 @@ function WialonLoginPage() {
           ))}
         </div>
 
-        <div className="mt-4 flex gap-2 text-sm">
-          {(['password', 'token'] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setMode(option)}
-              className={`rounded-full border px-3 py-1 ${
-                mode === option ? 'border-primary text-primary' : 'border-border text-muted-foreground'
-              }`}
-            >
-              {option === 'password' ? 'Usuario y contraseña' : 'Token de acceso'}
-            </button>
-          ))}
-        </div>
-
-        {mode === 'password' ? (
-          <>
-            <label className="mt-5 block text-sm">
-              Usuario
-              <input
-                className={inputClass}
-                value={user}
-                onChange={(e) => setUser(e.target.value)}
-                autoComplete="off"
-                required
-              />
-            </label>
-            <label className="mt-4 block text-sm">
-              Contraseña
-              <input
-                type="password"
-                className={inputClass}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password"
-                required
-              />
-            </label>
-          </>
-        ) : (
-          <label className="mt-5 block text-sm">
-            Token de acceso
-            <input
-              className={inputClass}
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              autoComplete="off"
-              placeholder="Token generado en tu cuenta"
-              required
-            />
-          </label>
-        )}
+        <label className="mt-5 block text-sm">
+          Token de API de Wialon
+          <input
+            className={inputClass}
+            value={token}
+            onChange={(e) => setToken(e.target.value)}
+            autoComplete="off"
+            placeholder="Pega el token generado en Wialon"
+            required
+          />
+        </label>
 
         {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
 
@@ -160,21 +100,12 @@ function WialonLoginPage() {
           disabled={busy}
           className="mt-6 w-full rounded-md bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:opacity-60"
         >
-          {busy ? 'Conectando…' : 'Entrar'}
-        </button>
-
-        <button
-          type="button"
-          onClick={startOAuth}
-          className="mt-3 w-full rounded-md border border-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-widest text-primary"
-        >
-          Entrar con mi cuenta de la plataforma
+          {busy ? 'Conectando…' : 'Conectar con Wialon'}
         </button>
 
         <p className="mt-4 text-xs text-muted-foreground">
-          Si tu cuenta no acepta contraseña desde aquí, usa el botón de acceso directo: te llevamos a
-          la plataforma, entras con tu usuario y regresas ya conectado. No guardamos tu contraseña; la
-          sesión se cierra al salir del navegador.
+          Genera un token de API en tu cuenta de Wialon y pégalo aquí. Nunca solicitamos ni almacenamos
+          tu usuario o contraseña; la sesión se cierra al salir del navegador.
         </p>
 
       </form>

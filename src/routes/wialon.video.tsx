@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useServerFn } from '@tanstack/react-start'
 import { ExternalLink, Video } from 'lucide-react'
 import { WialonGuard } from '@/components/wialon-guard'
-import { wialonUnits, wialonVideoSettings } from '@/lib/wialon.functions'
+import { wialonVideoSettings, wialonVideoUnits } from '@/lib/wialon.functions'
 import { PLATFORM_URLS, type WialonSession } from '@/lib/wialon-session'
 
 export const Route = createFileRoute('/wialon/video')({
@@ -31,16 +31,16 @@ function VideoView({ session }: { session: WialonSession }) {
 }
 
 function FullVideoView({ session }: { session: WialonSession }) {
-  const unitsFn = useServerFn(wialonUnits)
+  const videoUnitsFn = useServerFn(wialonVideoUnits)
   const videoFn = useServerFn(wialonVideoSettings)
   const [unitId, setUnitId] = React.useState<number | null>(null)
 
-  const units = useQuery({
-    queryKey: ['wialon-units', session.sid],
-    queryFn: () => unitsFn({ data: { host: session.host, sid: session.sid } }),
+  const videoUnits = useQuery({
+    queryKey: ['wialon-video-units', session.sid],
+    queryFn: () => videoUnitsFn({ data: { host: session.host, sid: session.sid } }),
   })
-  const selectedId = unitId ?? units.data?.units[0]?.id ?? null
-  const selectedUnit = units.data?.units.find((unit) => unit.id === selectedId)
+  const selectedId = unitId ?? videoUnits.data?.units[0]?.id ?? null
+  const selectedUnit = videoUnits.data?.units.find((unit) => unit.id === selectedId)
 
   const video = useQuery({
     queryKey: ['wialon-video-settings', session.sid, selectedId],
@@ -76,18 +76,28 @@ function FullVideoView({ session }: { session: WialonSession }) {
           className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-primary"
           value={selectedId ?? ''}
           onChange={(event) => setUnitId(Number(event.target.value))}
-          disabled={units.isLoading || units.data?.units.length === 0}
+          disabled={videoUnits.isLoading || videoUnits.data?.units.length === 0}
         >
-          {units.data?.units.map((unit) => (
-            <option key={unit.id} value={unit.id}>{unit.name}</option>
+          {videoUnits.data?.units.map((unit) => (
+            <option key={unit.id} value={unit.id}>
+              {unit.name} · {unit.cameraCount} cámara{unit.cameraCount === 1 ? '' : 's'}
+            </option>
           ))}
         </select>
       </label>
 
-      {units.isError ? (
+      {videoUnits.isLoading ? <p className="text-sm text-muted-foreground">Buscando unidades con video…</p> : null}
+      {videoUnits.isError ? (
         <p className="text-sm text-destructive">
-          {units.error instanceof Error ? units.error.message : 'No se pudieron consultar las unidades.'}
+          {videoUnits.error instanceof Error
+            ? videoUnits.error.message
+            : 'No se pudieron consultar las unidades con video.'}
         </p>
+      ) : null}
+      {videoUnits.data && videoUnits.data.units.length === 0 ? (
+        <div className="rounded-lg border border-border/60 p-5 text-sm text-muted-foreground">
+          No hay unidades con cámaras configuradas o tu token no tiene el permiso “Ver propiedades detalladas del elemento”.
+        </div>
       ) : null}
 
       {video.isLoading ? <p className="text-sm text-muted-foreground">Consultando cámaras…</p> : null}

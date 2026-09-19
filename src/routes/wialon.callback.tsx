@@ -48,7 +48,7 @@ function WialonCallbackPage() {
         return
       }
       try {
-        const result = await login({ data: { host, mode: 'token', token } })
+        const result = await login({ data: { host, token } })
         if (cancelled) return
         writeSession(result)
         void navigate({ to: '/wialon/mapa' })
