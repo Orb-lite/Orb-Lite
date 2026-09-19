@@ -17,7 +17,8 @@ const ALLOWED_HOSTS = new Set([
 const ALLOWED_SERVICES = new Set(["token/login", "wialon.api.sign_in"]);
 
 const LOCALHOST_ORIGIN = /^https?:\/\/localhost(?::\d+)?$/;
-const LOVABLE_ORIGIN = /^https:\/\/(?:[a-z0-9-]+\.)?(?:lovable\.app|lovable\.dev|lovableproject\.com)$/i;
+const LOVABLE_ORIGIN =
+  /^https:\/\/(?:[a-z0-9-]+\.)?(?:lovable\.app|lovable\.dev|lovableproject\.com)$/i;
 
 type RequestBody = {
   target: string;
@@ -66,7 +67,11 @@ Deno.serve(async (request) => {
 
   try {
     const body = (await request.json()) as RequestBody;
-    if (!body?.target || !body.service || (body.params != null && typeof body.params !== "object")) {
+    if (
+      !body?.target ||
+      !body.service ||
+      (body.params != null && typeof body.params !== "object")
+    ) {
       return json({ error: "Solicitud inválida." }, 400, cors);
     }
 
@@ -79,8 +84,14 @@ Deno.serve(async (request) => {
     const url = destination(body.target, body.service);
     url.searchParams.set("svc", body.service);
 
-    // Nunca se permite que el navegador defina o sobrescriba el token.
-    const params = { ...(body.params ?? {}), token: appToken };
+    const params = { ...(body.params ?? {}) };
+    const accessToken = typeof params.access_token === "string" ? params.access_token.trim() : "";
+    delete params.access_token;
+
+    // Para token/login se admite un token efímero del flujo de autorización;
+    // para cualquier otro caso se inyecta exclusivamente el secreto de la app.
+    // Ninguno se registra ni se devuelve por esta función.
+    params.token = body.service === "token/login" && accessToken ? accessToken : appToken;
     const upstream = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -90,7 +101,10 @@ Deno.serve(async (request) => {
     const payload = await upstream.text();
     return new Response(payload, {
       status: upstream.status,
-      headers: { ...cors, "Content-Type": upstream.headers.get("Content-Type") ?? "application/json" },
+      headers: {
+        ...cors,
+        "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudo contactar Wialon.";
