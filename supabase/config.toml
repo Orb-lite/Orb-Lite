@@ -1,1 +1,4 @@
 project_id = "kxaylgbetbsvcjopzmjs"
+
+[functions.wialon-proxy]
+verify_jwt = true
