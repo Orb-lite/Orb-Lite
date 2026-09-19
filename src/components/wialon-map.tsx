@@ -31,6 +31,16 @@ function escapeHtml(value: string) {
 
 type MarkerStyle = "vehicle" | "dot";
 
+function bearing(from: { lat: number; lon: number }, to: { lat: number; lon: number }) {
+  const rad = Math.PI / 180;
+  const dLon = (to.lon - from.lon) * rad;
+  const y = Math.sin(dLon) * Math.cos(to.lat * rad);
+  const x =
+    Math.cos(from.lat * rad) * Math.sin(to.lat * rad) -
+    Math.sin(from.lat * rad) * Math.cos(to.lat * rad) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
 function unitMarkerHtml(unit: MapUnit, focused: boolean, markerStyle: MarkerStyle) {
   const color = unit.online ? "#a3e635" : "#94a3b8";
   const label = escapeHtml(unit.name);
