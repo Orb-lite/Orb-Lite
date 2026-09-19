@@ -52,41 +52,49 @@ function WialonLoginPage() {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
-      <section className="rounded-lg border border-border/60 p-6">
-        <div className="flex gap-2">
-          {(['lite', 'full'] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setHost(option)}
-              className={`flex-1 rounded-md border px-3 py-2 text-sm font-semibold uppercase tracking-wide ${
-                host === option
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border text-muted-foreground'
-              }`}
-            >
-              {option === 'lite' ? 'ORB-LITE' : 'ORB-FULL'}
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={startWialonLogin}
-          className="mt-6 w-full rounded-md bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground"
-        >
-          Iniciar sesión con Wialon
-        </button>
-
-        <p className="mt-4 text-xs text-muted-foreground">
-          Serás redirigido a la página oficial de Wialon. Al terminar, regresarás automáticamente a
-          ORB-LITE con una sesión temporal; nunca vemos ni almacenamos tu contraseña.
+    <div className="flex min-h-[60vh] flex-col items-center justify-center py-12">
+      <div className="w-full max-w-md">
+        <h1 className="text-center font-display text-2xl font-bold uppercase tracking-wide">
+          Acceso a la plataforma
+        </h1>
+        <p className="mt-2 text-center text-sm text-muted-foreground">
+          Elige tu versión y entra con tu cuenta de Wialon.
         </p>
 
-      </section>
+        <section className="mt-8 rounded-xl border border-border/60 bg-card p-6 shadow-sm">
+          <div className="flex gap-2">
+            {(['lite', 'full'] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setHost(option)}
+                className={`flex-1 rounded-md border px-3 py-2 text-sm font-semibold uppercase tracking-wide transition-colors ${
+                  host === option
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {option === 'lite' ? 'ORB-LITE' : 'ORB-FULL'}
+              </button>
+            ))}
+          </div>
 
-      <div className="space-y-4">
+          <button
+            type="button"
+            onClick={startWialonLogin}
+            className="mt-6 w-full rounded-md bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Iniciar sesión con Wialon
+          </button>
+
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Serás redirigido a la página oficial de Wialon. Al terminar, regresarás automáticamente a
+            ORB-LITE con una sesión temporal; nunca vemos ni almacenamos tu contraseña.
+          </p>
+        </section>
+      </div>
+
+      <div className="mt-12 grid w-full max-w-4xl gap-4 sm:grid-cols-3">
         {[
           {
             icon: MapPin,
@@ -104,26 +112,28 @@ function WialonLoginPage() {
             text: 'Da de alta equipos y accesos igual que en el gestor oficial.',
           },
         ].map((item) => (
-          <div key={item.title} className="rounded-lg border border-border/60 p-5">
-            <item.icon className="size-5 text-primary" />
+          <div key={item.title} className="rounded-lg border border-border/60 p-5 text-center">
+            <div className="mx-flex mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10">
+              <item.icon className="size-5 text-primary" />
+            </div>
             <h2 className="mt-3 font-display text-lg font-bold uppercase tracking-wide">
               {item.title}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">{item.text}</p>
           </div>
         ))}
-
-        <p className="text-xs text-muted-foreground">
-          También puedes entrar al gestor oficial:{' '}
-          <a className="text-primary" href={PLATFORM_URLS[host].app} target="_blank" rel="noreferrer">
-            {PLATFORM_URLS[host].app}
-          </a>{' '}
-          ·{' '}
-          <a className="text-primary" href={PLATFORM_URLS[host].cms} target="_blank" rel="noreferrer">
-            {PLATFORM_URLS[host].cms}
-          </a>
-        </p>
       </div>
+
+      <p className="mt-8 max-w-md text-center text-xs text-muted-foreground">
+        También puedes entrar al gestor oficial:{' '}
+        <a className="text-primary" href={PLATFORM_URLS[host].app} target="_blank" rel="noreferrer">
+          {PLATFORM_URLS[host].app}
+        </a>{' '}
+        ·{' '}
+        <a className="text-primary" href={PLATFORM_URLS[host].cms} target="_blank" rel="noreferrer">
+          {PLATFORM_URLS[host].cms}
+        </a>
+      </p>
     </div>
   )
 }

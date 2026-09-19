@@ -31,6 +31,16 @@ function escapeHtml(value: string) {
 
 type MarkerStyle = "vehicle" | "dot";
 
+function bearing(from: { lat: number; lon: number }, to: { lat: number; lon: number }) {
+  const rad = Math.PI / 180;
+  const dLon = (to.lon - from.lon) * rad;
+  const y = Math.sin(dLon) * Math.cos(to.lat * rad);
+  const x =
+    Math.cos(from.lat * rad) * Math.sin(to.lat * rad) -
+    Math.sin(from.lat * rad) * Math.cos(to.lat * rad) * Math.cos(dLon);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
 function unitMarkerHtml(unit: MapUnit, focused: boolean, markerStyle: MarkerStyle) {
   const color = unit.online ? "#a3e635" : "#94a3b8";
   const label = escapeHtml(unit.name);
@@ -106,6 +116,36 @@ export default function WialonMap({ units, track, focusId }: Props) {
     if (track && track.length > 1) {
       const line = track.map((p) => [p.lat, p.lon] as L.LatLngExpression);
       L.polyline(line, { color: "#a3e635", weight: 3, opacity: 0.9 }).addTo(group);
+      for (const p of track) {
+        L.circleMarker([p.lat, p.lon], {
+          radius: 3,
+          color: "#0f172a",
+          weight: 1,
+          fillColor: "#a3e635",
+          fillOpacity: 1,
+        }).addTo(group);
+      }
+      const last = track[track.length - 1]!;
+      const prev = track[track.length - 2]!;
+      const lastUnit: MapUnit = {
+        id: -1,
+        name: "Última posición",
+        lat: last.lat,
+        lon: last.lon,
+        speed: null,
+        course: bearing(prev, last),
+        online: true,
+      };
+      const endMarker = L.marker([last.lat, last.lon], {
+        icon: L.divIcon({
+          className: "",
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+          html: unitMarkerHtml(lastUnit, false, markerStyle),
+        }),
+      });
+      endMarker.bindTooltip("<strong>Última posición</strong>");
+      endMarker.addTo(group);
       bounds.push(...line);
     }
 
@@ -117,18 +157,19 @@ export default function WialonMap({ units, track, focusId }: Props) {
   return (
     <div className="relative h-[480px] w-full overflow-hidden rounded-lg border border-border/60">
       <div ref={container} className="h-full w-full" />
-      <div className="absolute left-3 top-3 z-[1000] flex overflow-hidden rounded-md border border-border bg-background/95 text-xs font-semibold shadow-sm">
+      <div className="absolute left-1/2 top-3 z-[1000] -translate-x-1/2 flex items-center gap-2 rounded-lg border border-border/80 bg-background/90 p-1.5 text-xs font-semibold shadow-md backdrop-blur-sm">
+        <span className="px-2 text-muted-foreground">Vista</span>
         <button
           type="button"
           onClick={() => setMarkerStyle("vehicle")}
-          className={`px-3 py-2 ${markerStyle === "vehicle" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+          className={`rounded-md px-3 py-1.5 transition-colors ${markerStyle === "vehicle" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
         >
           Carritos
         </button>
         <button
           type="button"
           onClick={() => setMarkerStyle("dot")}
-          className={`border-l border-border px-3 py-2 ${markerStyle === "dot" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+          className={`rounded-md px-3 py-1.5 transition-colors ${markerStyle === "dot" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
         >
           Puntos
         </button>

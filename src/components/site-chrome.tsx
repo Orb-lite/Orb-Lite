@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import logo from "@/assets/orb-lite-logo.jpg.asset.json";
+import logo from "@/assets/orb-lite-logo.png.asset.json";
 import { CartDrawer } from "@/components/cart-drawer";
 
 const nav = [
@@ -22,7 +22,6 @@ export function SiteHeader() {
             className="h-16 w-auto drop-shadow-[0_0_20px_color-mix(in_oklab,var(--primary)_30%,transparent)] sm:h-20"
           />
         </Link>
-
 
         <nav className="flex items-center gap-6 font-display text-sm font-bold uppercase tracking-widest">
           {nav.map((item) => (
@@ -68,15 +67,9 @@ export function SiteFooter() {
       </p>
 
       <ul className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-3 px-5 text-xs uppercase tracking-widest">
-        <li className="rounded-full border border-primary/30 px-4 py-2 text-primary">
-          Soporte técnico incluido
-        </li>
-        <li className="rounded-full border border-primary/30 px-4 py-2 text-primary">
-          Entrega incluida en GDL/ZMG
-        </li>
-        <li className="rounded-full border border-primary/30 px-4 py-2 text-primary">
-          Envíos a todo México
-        </li>
+        <li className="rounded-full border border-primary/30 px-4 py-2 text-primary">Soporte técnico incluido</li>
+        <li className="rounded-full border border-primary/30 px-4 py-2 text-primary">Entrega incluida en GDL/ZMG</li>
+        <li className="rounded-full border border-primary/30 px-4 py-2 text-primary">Envíos a todo México</li>
       </ul>
 
       <p className="mt-6">
@@ -89,8 +82,6 @@ export function SiteFooter() {
         </Link>
       </p>
 
-
-
       <Link
         to="/terminos"
         className="mx-auto mt-6 inline-block rounded-md border border-border/60 px-4 py-2 font-display text-xs font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:border-primary hover:text-primary"
@@ -100,7 +91,6 @@ export function SiteFooter() {
     </footer>
   );
 }
-
 
 export function CtaBanner() {
   return (
@@ -113,8 +103,8 @@ export function CtaBanner() {
           Solicita información hoy
         </h2>
         <p className="max-w-xl text-primary-foreground/85">
-          Pregunta por paquetes, planes de servicio y precios de renovación anual, ya sea para un
-          vehículo, tu flota o tu negocio.
+          Pregunta por paquetes, planes de servicio y precios de renovación anual, ya sea para un vehículo, tu flota o
+          tu negocio.
         </p>
 
         <Link
