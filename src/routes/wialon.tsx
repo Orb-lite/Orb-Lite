@@ -43,7 +43,7 @@ function WialonLayout() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-center gap-4">
           <img
-            src={session?.host === "full" ? orbFullLogo.url : orbLiteLogo.url}
+            src={session?.host === "full" ? orbFullLogo.url : orbLiteLogo}
             alt={session ? PLATFORM_LABEL[session.host] : "ORB-LITE"}
             className="h-14 w-auto"
           />
