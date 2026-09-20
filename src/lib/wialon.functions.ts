@@ -696,3 +696,241 @@ export const wialonRenameUnit = createServerFn({ method: "POST" })
     await wialonCall(data.host as WialonHost, "item/update_name", { itemId: data.unitId, name: data.name }, data.sid);
     return { ok: true as const };
   });
+
+/** Fila de reporte de posición (y sensores en ORB-FULL). */
+export type WialonReportRow = {
+  time: number;
+  lat: number | null;
+  lon: number | null;
+  speed: number | null;
+  course: number | null;
+  sensors: Record<string, number>;
+};
+
+type RawMessage = {
+  t?: number;
+  pos?: { y?: number; x?: number; s?: number; c?: number } | null;
+  p?: Record<string, unknown> | null;
+};
+
+type RawSensor = { id: number; n?: string; t?: string; p?: string; m?: string };
+
+function numeric(value: unknown): number | null {
+  const n = typeof value === "string" ? Number(value) : value;
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Reporte de posición por unidad. En ORB-FULL agrega el valor de cada sensor
+ * en su tiempo de medición (se toma el parámetro configurado del sensor).
+ */
+export const wialonReportData = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        unitId: z.number().int().positive(),
+        timeFrom: z.number().int().positive(),
+        timeTo: z.number().int().positive(),
+        withSensors: z.boolean().default(false),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost;
+    const withSensors = data.withSensors && host === "full";
+
+    const unit = await wialonCall<{
+      item?: { nm?: string; sens?: Record<string, RawSensor> };
+    }>(host, "core/search_item", { id: data.unitId, flags: 1 + 1024 + (withSensors ? 4096 : 0) }, data.sid);
+
+    const sensors = Object.values(unit.item?.sens ?? {}).filter((s) => s && s.n && s.p);
+
+    const interval = await wialonCall<{ count?: number }>(
+      host,
+      "messages/load_interval",
+      {
+        itemId: data.unitId,
+        timeFrom: data.timeFrom,
+        timeTo: data.timeTo,
+        flags: 0,
+        flagsMask: 0,
+        loadCount: MAX_HISTORY_MESSAGES,
+      },
+      data.sid,
+    );
+
+    const count = Math.min(interval.count ?? 0, MAX_HISTORY_MESSAGES);
+    let rows: WialonReportRow[] = [];
+
+    if (count > 0) {
+      const res = await wialonCall<RawMessage[]>(
+        host,
+        "messages/get_messages",
+        { indexFrom: 0, indexTo: count - 1 },
+        data.sid,
+      );
+
+      rows = (Array.isArray(res) ? res : []).map((m) => {
+        const params = m.p ?? {};
+        const values: Record<string, number> = {};
+
+        if (withSensors) {
+          for (const sensor of sensors) {
+            const raw = numeric(params[sensor.p as string]);
+            if (raw != null) values[sensor.n as string] = raw;
+          }
+          if (sensors.length === 0) {
+            for (const [key, value] of Object.entries(params)) {
+              const raw = numeric(value);
+              if (raw != null) values[key] = raw;
+            }
+          }
+        }
+
+        return {
+          time: m.t ?? 0,
+          lat: m.pos?.y ?? null,
+          lon: m.pos?.x ?? null,
+          speed: m.pos?.s ?? null,
+          course: m.pos?.c ?? null,
+          sensors: values,
+        };
+      });
+    }
+
+    try {
+      await wialonCall(host, "messages/unload", {}, data.sid);
+    } catch {
+      // sin sesión de mensajes activa
+    }
+
+    const sensorNames = withSensors
+      ? Array.from(new Set(rows.flatMap((row) => Object.keys(row.sensors)))).slice(0, 8)
+      : [];
+
+    return {
+      unitName: unit.item?.nm ?? `Unidad ${data.unitId}`,
+      rows,
+      sensorNames,
+      sensorUnits: Object.fromEntries(
+        sensors.filter((s) => s.n).map((s) => [s.n as string, s.m ?? ""]),
+      ) as Record<string, string>,
+      total: interval.count ?? 0,
+    };
+  });
+
+/** Plantillas de reporte disponibles en los recursos de la cuenta. */
+export const wialonReportTemplates = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    const res = await wialonCall<{
+      items?: Array<{ id: number; nm?: string; rep?: Record<string, { id: number; n?: string; ct?: string }> }>;
+    }>(
+      data.host as WialonHost,
+      "core/search_items",
+      {
+        spec: { itemsType: "avl_resource", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
+        force: 1,
+        flags: 1 + 8192,
+        from: 0,
+        to: 200,
+      },
+      data.sid,
+    );
+
+    const templates = (res.items ?? []).flatMap((resource) =>
+      Object.values(resource.rep ?? {}).map((tpl) => ({
+        resourceId: resource.id,
+        resourceName: resource.nm ?? `Recurso ${resource.id}`,
+        templateId: tpl.id,
+        name: tpl.n ?? `Reporte ${tpl.id}`,
+        objectType: tpl.ct ?? "avl_unit",
+      })),
+    );
+
+    return { templates: templates.filter((tpl) => tpl.objectType === "avl_unit") };
+  });
+
+export type WialonReportTable = { label: string; header: string[]; rows: string[][] };
+
+/** Ejecuta report/exec_report y devuelve las tablas tabulares para exportar. */
+export const wialonExecReport = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        resourceId: z.number().int().positive(),
+        templateId: z.number().int().positive(),
+        unitId: z.number().int().positive(),
+        timeFrom: z.number().int().positive(),
+        timeTo: z.number().int().positive(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost;
+
+    try {
+      await wialonCall(host, "report/cleanup_result", {}, data.sid);
+    } catch {
+      // no había resultado previo
+    }
+
+    const exec = await wialonCall<{
+      reportResult?: {
+        tables?: Array<{ name?: string; label?: string; rows?: number; header?: string[] }>;
+      };
+    }>(
+      host,
+      "report/exec_report",
+      {
+        reportResourceId: data.resourceId,
+        reportTemplateId: data.templateId,
+        reportObjectId: data.unitId,
+        reportObjectSecId: 0,
+        interval: { from: data.timeFrom, to: data.timeTo, flags: 0 },
+      },
+      data.sid,
+    );
+
+    const rawTables = exec.reportResult?.tables ?? [];
+    const tables: WialonReportTable[] = [];
+
+    for (let index = 0; index < rawTables.length; index += 1) {
+      const table = rawTables[index]!;
+      const rowCount = Math.min(table.rows ?? 0, 2000);
+      let rows: string[][] = [];
+
+      if (rowCount > 0) {
+        const result = await wialonCall<Array<{ c?: unknown[] }>>(
+          host,
+          "report/select_result_rows",
+          { tableIndex: index, config: { type: "range", data: { from: 0, to: rowCount - 1, level: 0 } } },
+          data.sid,
+        );
+
+        rows = (Array.isArray(result) ? result : []).map((row) =>
+          (row.c ?? []).map((cell) => {
+            if (cell == null) return "";
+            if (typeof cell === "object" && "t" in (cell as Record<string, unknown>)) {
+              return String((cell as { t?: unknown }).t ?? "");
+            }
+            return String(cell);
+          }),
+        );
+      }
+
+      tables.push({
+        label: table.label ?? table.name ?? `Tabla ${index + 1}`,
+        header: table.header ?? [],
+        rows,
+      });
+    }
+
+    try {
+      await wialonCall(host, "report/cleanup_result", {}, data.sid);
+    } catch {
+      // resultado ya liberado
+    }
+
+    return { tables };
+  });
