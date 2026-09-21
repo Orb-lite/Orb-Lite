@@ -28,6 +28,7 @@ import { Route as WialonCallbackRouteImport } from './routes/wialon.callback'
 import { Route as WialonCmsRouteImport } from './routes/wialon.cms'
 import { Route as WialonHistorialRouteImport } from './routes/wialon.historial'
 import { Route as WialonMapaRouteImport } from './routes/wialon.mapa'
+import { Route as WialonReportesRouteImport } from './routes/wialon.reportes'
 import { Route as WialonUnidadesRouteImport } from './routes/wialon.unidades'
 import { Route as WialonVideoRouteImport } from './routes/wialon.video'
 import { Route as ApiPublicCronAvisosRenovacionRouteImport } from './routes/api/public/cron/avisos-renovacion'
@@ -129,6 +130,11 @@ const WialonMapaRoute = WialonMapaRouteImport.update({
   path: '/mapa',
   getParentRoute: () => WialonRoute,
 } as any)
+const WialonReportesRoute = WialonReportesRouteImport.update({
+  id: '/reportes',
+  path: '/reportes',
+  getParentRoute: () => WialonRoute,
+} as any)
 const WialonUnidadesRoute = WialonUnidadesRouteImport.update({
   id: '/unidades',
   path: '/unidades',
@@ -176,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/wialon/cms': typeof WialonCmsRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
+  '/wialon/reportes': typeof WialonReportesRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
   '/wialon/video': typeof WialonVideoRoute
   '/wialon/': typeof WialonIndexRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByTo {
   '/wialon/cms': typeof WialonCmsRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
+  '/wialon/reportes': typeof WialonReportesRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
   '/wialon/video': typeof WialonVideoRoute
   '/wialon': typeof WialonIndexRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/wialon/cms': typeof WialonCmsRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
+  '/wialon/reportes': typeof WialonReportesRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
   '/wialon/video': typeof WialonVideoRoute
   '/wialon/': typeof WialonIndexRoute
@@ -254,6 +263,7 @@ export interface FileRouteTypes {
     | '/wialon/cms'
     | '/wialon/historial'
     | '/wialon/mapa'
+    | '/wialon/reportes'
     | '/wialon/unidades'
     | '/wialon/video'
     | '/wialon/'
@@ -278,6 +288,7 @@ export interface FileRouteTypes {
     | '/wialon/cms'
     | '/wialon/historial'
     | '/wialon/mapa'
+    | '/wialon/reportes'
     | '/wialon/unidades'
     | '/wialon/video'
     | '/wialon'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/wialon/cms'
     | '/wialon/historial'
     | '/wialon/mapa'
+    | '/wialon/reportes'
     | '/wialon/unidades'
     | '/wialon/video'
     | '/wialon/'
@@ -464,6 +476,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WialonMapaRouteImport
       parentRoute: typeof WialonRoute
     }
+    '/wialon/reportes': {
+      id: '/wialon/reportes'
+      path: '/reportes'
+      fullPath: '/wialon/reportes'
+      preLoaderRoute: typeof WialonReportesRouteImport
+      parentRoute: typeof WialonRoute
+    }
     '/wialon/unidades': {
       id: '/wialon/unidades'
       path: '/unidades'
@@ -522,6 +541,7 @@ interface WialonRouteChildren {
   WialonCmsRoute: typeof WialonCmsRoute
   WialonHistorialRoute: typeof WialonHistorialRoute
   WialonMapaRoute: typeof WialonMapaRoute
+  WialonReportesRoute: typeof WialonReportesRoute
   WialonUnidadesRoute: typeof WialonUnidadesRoute
   WialonVideoRoute: typeof WialonVideoRoute
   WialonIndexRoute: typeof WialonIndexRoute
@@ -532,6 +552,7 @@ const WialonRouteChildren: WialonRouteChildren = {
   WialonCmsRoute: WialonCmsRoute,
   WialonHistorialRoute: WialonHistorialRoute,
   WialonMapaRoute: WialonMapaRoute,
+  WialonReportesRoute: WialonReportesRoute,
   WialonUnidadesRoute: WialonUnidadesRoute,
   WialonVideoRoute: WialonVideoRoute,
   WialonIndexRoute: WialonIndexRoute,
