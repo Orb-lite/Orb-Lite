@@ -14,6 +14,7 @@ const tabs = [
   { to: "/wialon/mapa", label: "Mapa", fullOnly: false },
   { to: "/wialon/unidades", label: "Unidades", fullOnly: false },
   { to: "/wialon/historial", label: "Historial", fullOnly: false },
+  { to: "/wialon/reportes", label: "Reportes", fullOnly: false },
   { to: "/wialon/video", label: "Video", fullOnly: true },
   { to: "/wialon/cms", label: "Altas (CMS)", fullOnly: false },
 ] as const;
