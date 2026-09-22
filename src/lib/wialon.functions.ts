@@ -772,7 +772,10 @@ export const wialonReportData = createServerFn({ method: "POST" })
         data.sid,
       );
 
-      rows = (Array.isArray(res) ? res : []).map((m) => {
+      rows = (Array.isArray(res) ? res : [])
+        .filter((m) => m && m.pos && m.pos.y != null && m.pos.x != null)
+        .sort((a, b) => (a.t ?? 0) - (b.t ?? 0))
+        .map((m) => {
         const params = m.p ?? {};
         const values: Record<string, number> = {};
 
