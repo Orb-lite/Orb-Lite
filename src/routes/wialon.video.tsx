@@ -6,6 +6,7 @@ import { ExternalLink, Video } from 'lucide-react'
 import { WialonGuard } from '@/components/wialon-guard'
 import { wialonVideoSettings, wialonVideoUnits } from '@/lib/wialon.functions'
 import { PLATFORM_URLS, type WialonSession } from '@/lib/wialon-session'
+import { VideoPlayer } from '@/components/wialon/VideoPlayer'
 
 export const Route = createFileRoute('/wialon/video')({
   head: () => ({
