@@ -276,6 +276,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
                     stroke={SERIES_COLORS[0]}
                     dot={false}
                     strokeWidth={2}
+                    connectNulls
                   />
                 </LineChart>
               </ResponsiveContainer>
