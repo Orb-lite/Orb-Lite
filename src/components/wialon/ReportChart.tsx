@@ -97,6 +97,8 @@ export function ReportChart({ session }: { session: WialonSession }) {
         },
       }),
     enabled: unit != null && range != null,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const rows = reportQuery.data?.rows ?? [];
