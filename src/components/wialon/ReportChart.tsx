@@ -120,6 +120,10 @@ export function ReportChart({ session }: { session: WialonSession }) {
     const start = toUnix(from);
     const end = toUnix(to);
     if (!unit || !start || !end || end <= start) return;
+    if (range && range.from === start && range.to === end) {
+      void reportQuery.refetch();
+      return;
+    }
     setRange({ from: start, to: end });
   }
 
