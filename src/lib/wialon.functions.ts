@@ -192,6 +192,72 @@ export const wialonVideoUnits = createServerFn({ method: "POST" })
 
     return { units: checks.filter((unit): unit is { id: number; name: string; cameraCount: number } => unit != null) };
   });
+
+/**
+ * Solicita a Wialon el inicio de la transmisión/grabación de una cámara y
+ * devuelve la URL del reproductor (HLS) que expone el propio Wialon.
+ */
+export const wialonVideoStream = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        unitId: z.number().int().positive(),
+        cameraIndex: z.number().int().positive(),
+        mode: z.enum(["live", "archive"]).default("live"),
+        resolution: z.enum(["240p", "480p", "720p", "1080p"]).default("480p"),
+        timeFrom: z.number().int().positive().optional(),
+        timeTo: z.number().int().positive().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (data.host !== "full") {
+      throw new Error("El reproductor de video solo está disponible en ORB-FULL.");
+    }
+
+    const height = Number(data.resolution.replace("p", ""));
+    const params: Record<string, unknown> = {
+      itemId: data.unitId,
+      cam: data.cameraIndex,
+      video: 1,
+      audio: 0,
+      height,
+      ...(data.mode === "archive" && data.timeFrom && data.timeTo
+        ? { timeFrom: data.timeFrom, timeTo: data.timeTo }
+        : {}),
+    };
+
+    // Wialon expone la petición de video con distintos nombres según la versión
+    // del servicio; se intenta en orden y se usa la primera que responda.
+    const svcNames = ["unit/request_video", "unit/get_video_url", "unit/request_video_stream"];
+    let lastError: unknown = null;
+
+    for (const svc of svcNames) {
+      try {
+        const res = await wialonCall<{ url?: string; playlist?: string; path?: string }>(
+          "full",
+          svc,
+          params,
+          data.sid,
+        );
+        const raw = res.url ?? res.playlist ?? res.path;
+        if (!raw) continue;
+        const url = raw.startsWith("http")
+          ? raw
+          : `https://hst-api.wialon.com${raw.startsWith("/") ? "" : "/"}${raw}`;
+        return { url, mode: data.mode, resolution: data.resolution, service: svc };
+      } catch (error) {
+        if (isSessionExpired(error)) throw error;
+        lastError = error;
+      }
+    }
+
+    throw new Error(
+      lastError instanceof Error
+        ? `Wialon no entregó la transmisión: ${lastError.message}`
+        : "Wialon no entregó una URL de transmisión para esta cámara.",
+    );
+  });
 /** Historial de mensajes/recorrido de una unidad en un intervalo. */
 export const wialonHistory = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
