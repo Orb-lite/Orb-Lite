@@ -752,8 +752,10 @@ export const wialonReportData = createServerFn({ method: "POST" })
         itemId: data.unitId,
         timeFrom: data.timeFrom,
         timeTo: data.timeTo,
-        flags: 0,
-        flagsMask: 0,
+        // Solo mensajes de datos con posición GPS: de lo contrario llegan
+        // telemetrías sin velocidad y la gráfica queda plana en cero.
+        flags: 1,
+        flagsMask: 65281, // 0xFF01
         loadCount: MAX_HISTORY_MESSAGES,
       },
       data.sid,
