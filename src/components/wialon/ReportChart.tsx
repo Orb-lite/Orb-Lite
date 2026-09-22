@@ -106,7 +106,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
     () =>
       rows.map((row) => ({
         label: formatTime(row.time),
-        velocidad: row.speed ?? 0,
+        velocidad: row.speed ?? null,
         ...row.sensors,
       })),
     [rows],
