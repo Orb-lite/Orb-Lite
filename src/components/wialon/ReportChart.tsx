@@ -97,6 +97,8 @@ export function ReportChart({ session }: { session: WialonSession }) {
         },
       }),
     enabled: unit != null && range != null,
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const rows = reportQuery.data?.rows ?? [];
@@ -106,7 +108,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
     () =>
       rows.map((row) => ({
         label: formatTime(row.time),
-        velocidad: row.speed ?? 0,
+        velocidad: row.speed ?? null,
         ...row.sensors,
       })),
     [rows],
@@ -118,6 +120,10 @@ export function ReportChart({ session }: { session: WialonSession }) {
     const start = toUnix(from);
     const end = toUnix(to);
     if (!unit || !start || !end || end <= start) return;
+    if (range && range.from === start && range.to === end) {
+      void reportQuery.refetch();
+      return;
+    }
     setRange({ from: start, to: end });
   }
 
@@ -276,6 +282,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
                     stroke={SERIES_COLORS[0]}
                     dot={false}
                     strokeWidth={2}
+                    connectNulls
                   />
                 </LineChart>
               </ResponsiveContainer>
