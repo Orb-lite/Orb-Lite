@@ -6,6 +6,7 @@ import { ExternalLink, Video } from 'lucide-react'
 import { WialonGuard } from '@/components/wialon-guard'
 import { wialonVideoSettings, wialonVideoUnits } from '@/lib/wialon.functions'
 import { PLATFORM_URLS, type WialonSession } from '@/lib/wialon-session'
+import { VideoPlayer } from '@/components/wialon/VideoPlayer'
 
 export const Route = createFileRoute('/wialon/video')({
   head: () => ({
@@ -120,17 +121,21 @@ function FullVideoView({ session }: { session: WialonSession }) {
               Esta unidad no tiene cámaras configuradas o no tienes permiso para consultarlas.
             </p>
           ) : (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
               {video.data.cameras.map((camera) => (
-                <article key={camera.index} className="rounded-md border border-border/60 p-4">
-                  <p className="font-semibold">{camera.name}</p>
-                  <p className={camera.active ? 'mt-2 text-sm text-primary' : 'mt-2 text-sm text-muted-foreground'}>
-                    {camera.active ? 'Cámara activa' : 'Cámara inactiva'}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                <div key={camera.index} className="space-y-2">
+                  <VideoPlayer
+                    session={session}
+                    unitId={selectedId!}
+                    unitName={selectedUnit?.name ?? 'Unidad'}
+                    cameraIndex={camera.index}
+                    cameraName={camera.name}
+                  />
+                  <p className="px-1 text-xs text-muted-foreground">
+                    {camera.active ? 'Cámara activa' : 'Cámara inactiva'} ·{' '}
                     {camera.recording ? 'Grabación habilitada' : 'Sin grabación configurada'}
                   </p>
-                </article>
+                </div>
               ))}
             </div>
           )}
