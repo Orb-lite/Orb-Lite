@@ -54,7 +54,9 @@ export function UnitSelector({
     const needle = search.trim().toLocaleLowerCase("es-MX");
     if (!needle) return unitsQuery.data?.units ?? [];
     return (unitsQuery.data?.units ?? []).filter((unit) =>
-      `${unit.name} ${unit.id}`.toLocaleLowerCase("es-MX").includes(needle),
+      `${unit.name} ${unit.id} ${unit.imei ?? ""} ${unit.creatorName ?? ""}`
+        .toLocaleLowerCase("es-MX")
+        .includes(needle),
     );
   }, [search, unitsQuery.data?.units]);
 

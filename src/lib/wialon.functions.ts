@@ -14,6 +14,11 @@ export type WialonUnit = {
   course: number | null;
   lastMessage: number | null;
   online: boolean;
+  /** Identificador único del equipo (IMEI) cuando la cuenta tiene permiso de verlo. */
+  imei: string | null;
+  /** Usuario creador / propietario de la unidad en la plataforma. */
+  creatorId: number | null;
+  creatorName: string | null;
 };
 
 export type WialonMessage = {
@@ -34,15 +39,21 @@ export type WialonVideoCamera = {
 const ONLINE_WINDOW = 10 * 60;
 const MAX_HISTORY_MESSAGES = 3000;
 
-function normalizeUnit(item: {
-  id: number;
-  nm?: string;
-  pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null;
-  lmsg?: { t?: number } | null;
-}): WialonUnit {
+function normalizeUnit(
+  item: {
+    id: number;
+    nm?: string;
+    uid?: string;
+    crt?: number;
+    pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null;
+    lmsg?: { t?: number } | null;
+  },
+  userNames?: Map<number, string>,
+): WialonUnit {
   const pos = item.pos ?? null;
   const last = pos?.t ?? item.lmsg?.t ?? null;
   const now = Math.floor(Date.now() / 1000);
+  const creatorId = typeof item.crt === "number" && item.crt > 0 ? item.crt : null;
   return {
     id: item.id,
     name: item.nm ?? `Unidad ${item.id}`,
@@ -52,6 +63,9 @@ function normalizeUnit(item: {
     course: pos?.c ?? null,
     lastMessage: last,
     online: last != null && now - last <= ONLINE_WINDOW,
+    imei: item.uid?.trim() || null,
+    creatorId,
+    creatorName: creatorId != null ? (userNames?.get(creatorId) ?? null) : null,
   };
 }
 
@@ -94,28 +108,44 @@ export const wialonLogout = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Lista de unidades con su última posición conocida. */
+/** Lista de unidades con su última posición, IMEI y usuario creador. */
 export const wialonUnits = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
-    const res = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
-      data.host as WialonHost,
-      "core/search_items",
-      {
-        spec: {
-          itemsType: "avl_unit",
-          propName: "sys_name",
-          propValueMask: "*",
-          sortType: "sys_name",
-        },
-        force: 1,
-        flags: 1 + 1024,
-        from: 0,
-        to: 0,
-      },
-      data.sid,
-    );
-    return { units: (res.items ?? []).map(normalizeUnit) };
+    const host = data.host as WialonHost;
+    const searchSpec = (itemsType: string) => ({
+      itemsType,
+      propName: "sys_name",
+      propValueMask: "*",
+      sortType: "sys_name",
+    });
+
+    // 1 = base, 4 = facturación (creador), 256 = propiedades avanzadas (IMEI), 1024 = posición
+    const [unitsRes, usersRes] = await Promise.all([
+      wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
+        host,
+        "core/search_items",
+        { spec: searchSpec("avl_unit"), force: 1, flags: 1 + 4 + 256 + 1024, from: 0, to: 0 },
+        data.sid,
+      ),
+      // Si la cuenta no puede listar usuarios, solo se omite el nombre del creador.
+      wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
+        host,
+        "core/search_items",
+        { spec: searchSpec("user"), force: 1, flags: 1, from: 0, to: 0 },
+        data.sid,
+      ).catch((error) => {
+        if (isSessionExpired(error)) throw error;
+        return { items: [] as Array<{ id: number; nm?: string }> };
+      }),
+    ]);
+
+    const userNames = new Map<number, string>();
+    for (const user of usersRes.items ?? []) {
+      if (user.nm) userNames.set(user.id, user.nm);
+    }
+
+    return { units: (unitsRes.items ?? []).map((item) => normalizeUnit(item, userNames)) };
   });
 
 /** Configuración de las cámaras de una unidad en Wialon Hosting (ORB-FULL). */
