@@ -2,3 +2,4 @@
 - [Route planning](route-planning.md) — geocode and optimize server-side, then simplify long geometry before saving to Wialon.
 - [Wialon permission semantics](wialon-permissions.md) — creation access depends on user flags, administrator role, and account-level services together.
 - [Wialon routing providers](wialon-routing.md) — public routing services can fail independently; keep a compatible fallback and explicit no-route errors.
+- [Artifact package manager](artifact-package-manager.md) — use the artifact's Bun lockfile; root pnpm installs can mix React and email dependencies.
