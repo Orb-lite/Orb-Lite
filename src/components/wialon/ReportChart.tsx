@@ -21,9 +21,10 @@ import {
   type WialonUnit,
 } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
+import { downloadExcelWorkbook, type ExcelCell } from "@/lib/excel-export";
 
 const SERIES_COLORS = [
-  "var(--primary)",
+  "hsl(var(--primary))",
   "#38bdf8",
   "#f97316",
   "#a3e635",
@@ -69,7 +70,9 @@ export function ReportChart({ session }: { session: WialonSession }) {
   const execReport = useServerFn(wialonExecReport);
 
   const [unit, setUnit] = React.useState<WialonUnit | null>(null);
-  const [from, setFrom] = React.useState(() => toLocalInput(new Date(Date.now() - 24 * 60 * 60 * 1000)));
+  const [from, setFrom] = React.useState(() =>
+    toLocalInput(new Date(Date.now() - 24 * 60 * 60 * 1000)),
+  );
   const [to, setTo] = React.useState(() => toLocalInput(new Date()));
   const [templateKey, setTemplateKey] = React.useState("");
   const [range, setRange] = React.useState<{ from: number; to: number } | null>(null);
@@ -101,7 +104,8 @@ export function ReportChart({ session }: { session: WialonSession }) {
     gcTime: 0,
   });
 
-  const rows = reportQuery.data?.rows ?? [];
+  const reportRows = reportQuery.data?.rows;
+  const rows = React.useMemo(() => reportRows ?? [], [reportRows]);
   const sensorNames = reportQuery.data?.sensorNames ?? [];
 
   const chartData = React.useMemo(
@@ -132,11 +136,8 @@ export function ReportChart({ session }: { session: WialonSession }) {
     setExporting(true);
     setExportError(null);
     try {
-      const XLSX = await import("xlsx");
-      const book = XLSX.utils.book_new();
-
       const positionRows = rows.map((row) => {
-        const base: Record<string, string | number | null> = {
+        const base: Record<string, ExcelCell> = {
           Hora: formatTime(row.time),
           Latitud: row.lat,
           Longitud: row.lon,
@@ -146,14 +147,18 @@ export function ReportChart({ session }: { session: WialonSession }) {
         for (const name of sensorNames) base[name] = row.sensors[name] ?? null;
         return base;
       });
+      const positionHeader = positionRows.length ? Object.keys(positionRows[0]!) : ["Hora"];
+      const positionData: ExcelCell[][] = [
+        positionHeader,
+        ...(positionRows.length
+          ? positionRows.map((row) => positionHeader.map((header) => row[header] ?? null))
+          : [["Sin datos"]]),
+      ];
+      const sheets = [{ name: "Posiciones", rows: positionData }];
 
-      XLSX.utils.book_append_sheet(
-        book,
-        XLSX.utils.json_to_sheet(positionRows.length ? positionRows : [{ Hora: "Sin datos" }]),
-        "Posiciones",
+      const selected = templates.find(
+        (tpl) => `${tpl.resourceId}:${tpl.templateId}` === templateKey,
       );
-
-      const selected = templates.find((tpl) => `${tpl.resourceId}:${tpl.templateId}` === templateKey);
       if (selected) {
         const result = await execReport({
           data: {
@@ -167,17 +172,23 @@ export function ReportChart({ session }: { session: WialonSession }) {
           },
         });
 
-        result.tables.forEach((table, index) => {
-          const sheet = XLSX.utils.aoa_to_sheet([table.header, ...table.rows]);
-          const name = `${index + 1} ${table.label}`.slice(0, 31).replace(/[\\/?*[\]:]/g, " ");
-          XLSX.utils.book_append_sheet(book, sheet, name);
-        });
+        sheets.push(
+          ...result.tables.map((table, index) => ({
+            name: `${index + 1} ${table.label}`,
+            rows: [table.header, ...table.rows],
+          })),
+        );
       }
 
       const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
-      XLSX.writeFile(book, `reporte-${unit.name.replace(/\s+/g, "-")}-${stamp}.xlsx`);
+      await downloadExcelWorkbook({
+        filename: `reporte-${unit.name.replace(/\s+/g, "-")}-${stamp}.xlsx`,
+        sheets,
+      });
     } catch (error) {
-      setExportError(error instanceof Error ? error.message : "No se pudo generar el archivo de Excel.");
+      setExportError(
+        error instanceof Error ? error.message : "No se pudo generar el archivo de Excel.",
+      );
     } finally {
       setExporting(false);
     }
@@ -190,11 +201,15 @@ export function ReportChart({ session }: { session: WialonSession }) {
         className="grid gap-4 rounded-lg border border-border/60 bg-card/40 p-4 md:grid-cols-4"
       >
         <div className="md:col-span-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Unidad</label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Unidad
+          </label>
           <UnitSelector session={session} value={unit} onSelectUnit={setUnit} />
         </div>
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Desde</label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Desde
+          </label>
           <input
             type="datetime-local"
             value={from}
@@ -203,7 +218,9 @@ export function ReportChart({ session }: { session: WialonSession }) {
           />
         </div>
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hasta</label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Hasta
+          </label>
           <input
             type="datetime-local"
             value={to}
@@ -223,7 +240,10 @@ export function ReportChart({ session }: { session: WialonSession }) {
           >
             <option value="">Solo tabla de posiciones y sensores</option>
             {templates.map((tpl) => (
-              <option key={`${tpl.resourceId}:${tpl.templateId}`} value={`${tpl.resourceId}:${tpl.templateId}`}>
+              <option
+                key={`${tpl.resourceId}:${tpl.templateId}`}
+                value={`${tpl.resourceId}:${tpl.templateId}`}
+              >
                 {tpl.name} · {tpl.resourceName}
               </option>
             ))}
@@ -254,7 +274,9 @@ export function ReportChart({ session }: { session: WialonSession }) {
       {exportError ? <p className="text-sm text-destructive">{exportError}</p> : null}
       {reportQuery.isError ? (
         <p className="text-sm text-destructive">
-          {reportQuery.error instanceof Error ? reportQuery.error.message : "No se pudo generar el reporte."}
+          {reportQuery.error instanceof Error
+            ? reportQuery.error.message
+            : "No se pudo generar el reporte."}
         </p>
       ) : null}
 
@@ -267,11 +289,13 @@ export function ReportChart({ session }: { session: WialonSession }) {
       {chartData.length > 0 ? (
         <div className="space-y-8">
           <div className="rounded-lg border border-border/60 bg-card/40 p-4">
-            <h2 className="font-display text-lg font-bold uppercase tracking-wide">Velocidad por hora</h2>
+            <h2 className="font-display text-lg font-bold uppercase tracking-wide">
+              Velocidad por hora
+            </h2>
             <div className="mt-4 h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={24} />
                   <YAxis tick={{ fontSize: 11 }} unit=" km/h" />
                   <Tooltip />
@@ -297,7 +321,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
               <div className="mt-4 h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={24} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip />
