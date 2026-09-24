@@ -77,14 +77,14 @@ function WialonLayout() {
       </div>
 
       {session ? (
-        <nav className="sticky top-[8rem] z-40 mt-6 flex flex-wrap gap-2 border-b border-border/60 bg-background/95 py-3 text-sm font-semibold uppercase tracking-wide shadow-[0_8px_20px_-18px_var(--primary)] backdrop-blur sm:top-24">
+        <nav className="sticky top-[8rem] z-40 -mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto border-b border-border/60 bg-background/95 px-4 py-3 text-sm font-semibold uppercase tracking-wide shadow-[0_8px_20px_-18px_var(--primary)] backdrop-blur sm:top-24 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           {tabs
             .filter((tab) => !tab.fullOnly || session.host === "full")
             .map((tab) => (
               <Link
                 key={tab.to}
                 to={tab.to}
-                className="rounded-md px-3 py-2 text-muted-foreground hover:text-primary"
+                className="shrink-0 snap-start whitespace-nowrap rounded-md px-3 py-2 text-muted-foreground hover:text-primary"
                 activeProps={{ className: "bg-primary/10 text-primary" }}
               >
                 {tab.label}

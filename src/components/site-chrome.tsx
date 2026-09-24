@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { Menu, X } from "lucide-react";
 import logo from "@/assets/orb-lite-logo.png";
 import { CartDrawer } from "@/components/cart-drawer";
 
@@ -12,6 +14,8 @@ const nav = [
 ] as const;
 
 export function SiteHeader() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <header className="sticky top-0 z-[2000] border-b border-border/60 bg-background/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
@@ -23,19 +27,36 @@ export function SiteHeader() {
           />
         </Link>
 
-        <nav className="flex w-full flex-wrap items-center justify-end gap-x-4 gap-y-2 font-display text-xs font-bold uppercase tracking-widest sm:w-auto sm:gap-6 sm:text-sm">
+        <button
+          type="button"
+          className="inline-flex size-11 items-center justify-center rounded-md border border-border text-foreground transition-colors hover:border-primary hover:text-primary sm:hidden"
+          aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((open) => !open)}
+        >
+          {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+        </button>
+
+        <nav
+          className={`${
+            menuOpen ? "flex" : "hidden"
+          } w-full flex-col items-stretch gap-1 border-t border-border/60 pt-3 font-display text-sm font-bold uppercase tracking-widest sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-x-4 sm:gap-y-2 sm:border-0 sm:pt-0 sm:text-xs md:gap-6 md:text-sm`}
+        >
           {nav.map((item) => (
             <Link
               key={item.to}
               to={item.to}
-              className="text-muted-foreground transition-colors hover:text-primary"
+              className="rounded-md px-3 py-2 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary sm:px-0 sm:py-1"
               activeProps={{ className: "text-primary" }}
               activeOptions={{ exact: item.to === "/" }}
+              onClick={() => setMenuOpen(false)}
             >
               {item.label}
             </Link>
           ))}
-          <CartDrawer />
+          <div className="px-3 py-2 sm:px-0 sm:py-1">
+            <CartDrawer />
+          </div>
         </nav>
       </div>
     </header>
