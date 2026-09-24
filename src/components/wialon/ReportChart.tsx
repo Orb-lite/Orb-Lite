@@ -23,7 +23,7 @@ import {
 import type { WialonSession } from "@/lib/wialon-session";
 
 const SERIES_COLORS = [
-  "hsl(var(--primary))",
+  "var(--primary)",
   "#38bdf8",
   "#f97316",
   "#a3e635",
@@ -271,7 +271,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
             <div className="mt-4 h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={24} />
                   <YAxis tick={{ fontSize: 11 }} unit=" km/h" />
                   <Tooltip />
@@ -297,7 +297,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
               <div className="mt-4 h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={24} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip />
