@@ -1,2 +1,3 @@
 - [TanStack server-function validation](tanstack-server-function-validation.md) — keep cross-field checks in handlers when Zod effects break parsed input inference.
 - [Route planning](route-planning.md) — geocode and optimize server-side, then simplify long geometry before saving to Wialon.
+- [Wialon permission semantics](wialon-permissions.md) — creation access depends on user flags, administrator role, and account-level services together.
