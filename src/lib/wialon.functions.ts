@@ -1138,3 +1138,36 @@ export const wialonDeleteRoute = createServerFn({ method: "POST" })
     );
     return { ok: true };
   });
+
+// Optimiza el orden de las paradas y traza la ruta por calles (OSRM, servicio público de OpenStreetMap).
+export const optimizeRoute = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        points: z.array(z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) })).min(2).max(80),
+        roundtrip: z.boolean().default(false),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const coords = data.points.map((p) => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(";");
+    const params = data.roundtrip ? "source=first&roundtrip=true" : "source=first&roundtrip=false&destination=any";
+    const url = `https://router.project-osrm.org/trip/v1/driving/${coords}?${params}&geometries=geojson&overview=full`;
+    const res = await fetch(url, { headers: { "User-Agent": "ORB-LITE route planner" } });
+    const json = (await res.json().catch(() => null)) as {
+      code?: string;
+      trips?: Array<{ distance: number; duration: number; geometry: { coordinates: Array<[number, number]> } }>;
+      waypoints?: Array<{ waypoint_index: number }>;
+    } | null;
+    if (!res.ok || json?.code !== "Ok" || !json.trips?.[0]) {
+      throw new Error("No se pudo calcular la ruta. Revisa que las paradas estén sobre calles.");
+    }
+    const trip = json.trips[0];
+    const order = (json.waypoints ?? []).map((w, i) => ({ i, idx: w.waypoint_index })).sort((a, b) => a.idx - b.idx).map((w) => w.i);
+    let geometry = trip.geometry.coordinates.map(([lon, lat]) => ({ lat, lon }));
+    if (geometry.length > 1000) {
+      const step = Math.ceil(geometry.length / 999);
+      geometry = geometry.filter((_, i) => i % step === 0).concat(geometry[geometry.length - 1]!);
+    }
+    return { order, geometry, distanceKm: trip.distance / 1000, durationMin: trip.duration / 60 };
+  });
