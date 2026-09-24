@@ -497,61 +497,100 @@ const ACCESS_MASKS = {
 
 export type WialonAccessLevel = keyof typeof ACCESS_MASKS;
 
-/** Permisos reales del usuario conectado: qué puede crear y cuánto le queda. */
+/** Permisos reales del usuario conectado: rol, altas disponibles y límites de la cuenta. */
 export const wialonPermissions = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.extend({ userId: z.number().int() }).parse(input))
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
+    type AccountService = {
+      type?: number;
+      val?: number | string;
+      value?: number | string;
+      enabled?: boolean;
+      max?: number | string;
+    };
+    type Account = {
+      plan?: string | { name?: string; services?: Record<string, AccountService> };
+      enabled?: number;
+      services?: Record<string, AccountService>;
+    };
+
     let userFlags = 0;
+    let accountId: number | null = null;
     try {
-      const me = await wialonCall<{ item?: { fl?: number } }>(
+      const me = await wialonCall<{ item?: { fl?: number; bact?: number } }>(
         host,
         "core/search_item",
-        // `fl` pertenece a las propiedades adicionales del usuario (0x100),
-        // no a las propiedades generales (0x01).
-        { id: data.userId, flags: 1 + 256 },
+        // 0x04 devuelve la cuenta de facturación (bact); 0x100 devuelve fl.
+        { id: data.userId, flags: 1 + 4 + 256 },
         data.sid,
       );
       userFlags = me.item?.fl ?? 0;
+      accountId = me.item?.bact ?? null;
     } catch {
       userFlags = 0;
     }
 
-    type Account = {
-      plan?: string;
-      enabled?: number;
-      services?: Record<string, { type?: number; val?: number; max?: number }>;
-    };
-
     let account: Account = {};
     try {
-      account = await wialonCall<Account>(host, "core/get_account_data", { type: 1 }, data.sid);
+      account = await wialonCall<Account>(
+        host,
+        "account/get_account_data",
+        { itemId: accountId ?? data.userId, type: 1 },
+        data.sid,
+      );
     } catch {
-      account = {};
+      // Algunas cuentas antiguas exponen la vista propia en core/get_account_data.
+      try {
+        account = await wialonCall<Account>(host, "core/get_account_data", { type: 1 }, data.sid);
+      } catch {
+        account = {};
+      }
     }
 
-    const services = account.services ?? {};
-    const svcEnabled = (...names: string[]) => {
-      const svc = names.map((name) => services[name]).find(Boolean);
-      if (!svc) return null;
-      return (svc.val ?? 0) !== 0;
+    const planServices =
+      typeof account.plan === "object" && account.plan !== null ? account.plan.services : undefined;
+    const services = { ...(planServices ?? {}), ...(account.services ?? {}) };
+    const findService = (...names: string[]) => {
+      const service = names.map((name) => services[name]).find(Boolean);
+      return service ?? null;
+    };
+    const serviceEnabled = (...names: string[]) => {
+      const service = findService(...names);
+      if (!service) return null;
+      const raw = service.val ?? service.value ?? service.enabled;
+      if (raw == null) return true;
+      return typeof raw === "boolean" ? raw : Number(raw) !== 0;
+    };
+    const serviceLimit = (...names: string[]) => {
+      const service = findService(...names);
+      if (service?.max == null) return null;
+      const limit = Number(service.max);
+      return Number.isFinite(limit) ? limit : null;
     };
 
-    // En Wialon, 0x04 es “Can create items”; 0x10 solo impide cambiar ajustes.
-    const canCreateItems = (userFlags & 0x04) !== 0;
-    const unitsSvc = svcEnabled("create_units", "create_unit");
-    const usersSvc = svcEnabled("create_users", "create_user");
+    const hasCreateItemsFlag = (userFlags & 0x04) !== 0;
+    const isAdministrator = (userFlags & 0x40) !== 0;
+    // Wialon muestra al administrador superior como gestor aunque no tenga
+    // marcado explícitamente el flag "Can create items".
+    const canCreateItems = hasCreateItemsFlag || isAdministrator;
+    const unitsSvc = serviceEnabled("create_units", "create_unit", "avl_unit");
+    const usersSvc = serviceEnabled("create_users", "create_user", "users");
+    const planName =
+      typeof account.plan === "string" ? account.plan : account.plan?.name ?? null;
 
     return {
-      plan: account.plan ?? null,
+      plan: planName,
       accountEnabled: (account.enabled ?? 1) !== 0,
+      accountId,
+      isAdministrator,
+      canCreateItems,
       canCreateUnits: canCreateItems && unitsSvc !== false,
       canCreateUsers: canCreateItems && usersSvc !== false,
-      canCreateItems,
       limits: {
-        units: services["create_units"]?.max ?? services["create_unit"]?.max ?? null,
-        users: services["create_users"]?.max ?? services["create_user"]?.max ?? null,
+        units: serviceLimit("create_units", "create_unit", "avl_unit"),
+        users: serviceLimit("create_users", "create_user", "users"),
       },
     };
   });
