@@ -10,9 +10,10 @@ type Props = {
   onMovePoint: (index: number, p: Point) => void;
   color: string;
   preview?: Point[] | null;
+  path?: Point[] | null;
 };
 
-export default function RouteBuilderMap({ points, onAddPoint, onMovePoint, color, preview }: Props) {
+export default function RouteBuilderMap({ points, onAddPoint, onMovePoint, color, preview, path }: Props) {
   const container = React.useRef<HTMLDivElement | null>(null);
   const map = React.useRef<L.Map | null>(null);
   const layer = React.useRef<L.LayerGroup | null>(null);
@@ -55,7 +56,9 @@ export default function RouteBuilderMap({ points, onAddPoint, onMovePoint, color
       }).addTo(group);
       map.current?.fitBounds(line.getBounds(), { padding: [30, 30] });
     }
-    if (points.length > 1) {
+    if (path && path.length > 1) {
+      L.polyline(path.map((p) => [p.lat, p.lon] as L.LatLngExpression), { color, weight: 5 }).addTo(group);
+    } else if (points.length > 1) {
       L.polyline(points.map((p) => [p.lat, p.lon] as L.LatLngExpression), { color, weight: 5 }).addTo(group);
     }
     points.forEach((p, i) => {
@@ -64,7 +67,7 @@ export default function RouteBuilderMap({ points, onAddPoint, onMovePoint, color
         icon: L.divIcon({
           className: "",
           iconSize: [0, 0],
-          html: `<div style="transform:translate(-50%,-50%);width:22px;height:22px;border-radius:999px;background:${color};border:2px solid #0f172a;display:grid;place-items:center;font:700 11px system-ui;color:#0f172a">${i + 1}</div>`,
+          html: `<div style="transform:translate(-50%,-50%);width:22px;height:22px;border-radius:999px;background:${color};border:2px solid #0f172a;display:grid;place-items:center;font:700 11px system-ui;color:#0f172a">${i === 0 ? "S" : i + 1}</div>`,
         }),
       });
       marker.on("dragend", () => {
@@ -73,7 +76,7 @@ export default function RouteBuilderMap({ points, onAddPoint, onMovePoint, color
       });
       marker.addTo(group);
     });
-  }, [points, color, preview]);
+  }, [points, color, preview, path]);
 
   return <div ref={container} className="h-[520px] w-full rounded-lg border border-border/60" />;
 }
