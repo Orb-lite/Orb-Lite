@@ -1,0 +1,2 @@
+- [TanStack server-function validation](tanstack-server-function-validation.md) — keep cross-field checks in handlers when Zod effects break parsed input inference.
+- [Route planning](route-planning.md) — geocode and optimize server-side, then simplify long geometry before saving to Wialon.
