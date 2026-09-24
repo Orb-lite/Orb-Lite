@@ -183,6 +183,7 @@ function RutasView({ session }: { session: WialonSession }) {
 
   function clearPlan() {
     setPlannedRoute(null);
+    setGeocodedAddresses([]);
     setDraft(null);
     setMessage(null);
   }
@@ -279,11 +280,16 @@ function RutasView({ session }: { session: WialonSession }) {
     setError(null);
     setMessage(null);
     try {
+      const cachedLocations =
+        geocodedAddresses.length === stops.length + 1 &&
+        geocodedAddresses[0]?.query === origin.trim() &&
+        geocodedAddresses.slice(1).every((location, index) => location.query === stops[index]);
       const result = await planRoute({
         data: {
           origin: origin.trim(),
           addresses: stops,
           returnToOrigin,
+          ...(cachedLocations ? { locations: geocodedAddresses } : {}),
         },
       });
       setPlannedRoute(result);
@@ -308,6 +314,15 @@ function RutasView({ session }: { session: WialonSession }) {
       setPlanning(false);
     }
   }
+
+  const handleDraftChange = React.useCallback(
+    (nextDraft: { type: "circle" | "polygon" | "line"; points: DrawingPoint[] } | null) => {
+      if (drawing && nextDraft?.type === "line") {
+        setDraft({ points: nextDraft.points });
+      }
+    },
+    [drawing],
+  );
 
   async function saveRoute(event: React.FormEvent) {
     event.preventDefault();
@@ -366,11 +381,7 @@ function RutasView({ session }: { session: WialonSession }) {
             addressPoints={addressPoints}
             drawMode={drawing ? "line" : null}
             drawingResetKey={drawingResetKey}
-            onDraftChange={(nextDraft) =>
-              drawing && nextDraft?.type === "line"
-                ? setDraft({ points: nextDraft.points })
-                : undefined
-            }
+            onDraftChange={handleDraftChange}
           />
         </ClientOnly>
 

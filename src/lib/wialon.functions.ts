@@ -929,6 +929,13 @@ export type WialonGeocodedAddress = {
   lon: number;
 };
 
+const plannedLocationSchema = z.object({
+  query: z.string().trim().min(3),
+  label: z.string().trim().min(1),
+  lat: z.number().finite(),
+  lon: z.number().finite(),
+});
+
 type GeocodeMatch = { lat?: string; lon?: string; display_name?: string };
 
 async function geocodeAddress(address: string): Promise<WialonGeocodedAddress> {
@@ -988,6 +995,7 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
           .min(1, "Captura al menos una dirección.")
           .max(30, "Puedes planificar hasta 30 paradas por ruta."),
         returnToOrigin: z.boolean(),
+        locations: z.array(plannedLocationSchema).max(31).optional(),
       })
       .parse(input),
   )
@@ -1002,10 +1010,21 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
       waypoints?: Array<{ waypoint_index?: number }>;
     };
 
-    const locations = [
-      await geocodeAddress(data.origin),
-      ...(await Promise.all(data.addresses.map((address) => geocodeAddress(address)))),
+    const requestedLocations = [
+      { query: data.origin, label: data.origin },
+      ...data.addresses.map((address) => ({ query: address, label: address })),
     ];
+    const locationsMatchRequest =
+      data.locations?.length === requestedLocations.length &&
+      data.locations.every(
+        (location, index) => location.query === requestedLocations[index]?.query,
+      );
+    const locations = locationsMatchRequest
+      ? data.locations!
+      : [
+          await geocodeAddress(data.origin),
+          ...(await Promise.all(data.addresses.map((address) => geocodeAddress(address)))),
+        ];
     const coordinates = locations.map((location) => `${location.lon},${location.lat}`).join(";");
     const routeServices = [
       "https://router.project-osrm.org/trip/v1/driving/",
@@ -1073,7 +1092,7 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
       stops: orderedIndexes.map(({ index }) => {
         const location = locations[index]!;
         return {
-          label: location.label,
+          label: location.query,
           lat: location.lat,
           lon: location.lon,
           isOrigin: index === 0,
