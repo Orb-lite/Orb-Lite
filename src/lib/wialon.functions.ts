@@ -1035,3 +1035,106 @@ export const wialonExecReport = createServerFn({ method: "POST" })
 
     return { tables };
   });
+
+// ================= Creador de rutas =================
+// Las rutas se guardan en la plataforma como geocercas tipo línea (t = 1) dentro de un recurso.
+
+export const wialonRouteResources = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost;
+    const res = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
+      host,
+      "core/search_items",
+      {
+        spec: { itemsType: "avl_resource", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
+        force: 1,
+        flags: 1,
+        from: 0,
+        to: 0,
+      },
+      data.sid,
+    );
+    const resources = (res.items ?? []).map((r) => ({ id: r.id, name: r.nm ?? `Recurso ${r.id}` }));
+    const routes: Array<{ id: number; name: string; resourceId: number; resource: string; points: Array<{ lat: number; lon: number }> }> = [];
+    for (const resource of resources) {
+      try {
+        const zones = await wialonCall<Array<{ id: number; n?: string; t?: number; p?: Array<{ x: number; y: number }> }>>(
+          host,
+          "resource/get_zone_data",
+          { itemId: resource.id, col: [], flags: 0x1f },
+          data.sid,
+        );
+        for (const zone of Array.isArray(zones) ? zones : []) {
+          if (zone.t !== 1) continue;
+          routes.push({
+            id: zone.id,
+            name: zone.n ?? `Ruta ${zone.id}`,
+            resourceId: resource.id,
+            resource: resource.name,
+            points: (zone.p ?? []).map((p) => ({ lat: p.y, lon: p.x })),
+          });
+        }
+      } catch {
+        // recurso sin permiso de lectura de geocercas
+      }
+    }
+    return { resources, routes };
+  });
+
+export const wialonSaveRoute = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        resourceId: z.number().int().positive(),
+        name: z.string().trim().min(1).max(100),
+        description: z.string().max(500).optional(),
+        width: z.number().int().min(10).max(2000).default(50),
+        color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#a3e635"),
+        points: z.array(z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) })).min(2).max(1000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost;
+    const color = parseInt("ff" + data.color.slice(1), 16);
+    const result = await wialonCall<unknown>(
+      host,
+      "resource/update_zone",
+      {
+        itemId: data.resourceId,
+        id: 0,
+        callMode: "create",
+        n: data.name,
+        d: data.description ?? "",
+        t: 1,
+        w: data.width,
+        f: 0,
+        c: color,
+        tc: 0,
+        ts: 12,
+        min: 0,
+        max: 18,
+        path: "",
+        libId: 0,
+        p: data.points.map((p) => ({ x: p.lon, y: p.lat, r: data.width })),
+      },
+      data.sid,
+    );
+    const id = Array.isArray(result) && typeof result[0] === "number" ? result[0] : null;
+    return { ok: true, id };
+  });
+
+export const wialonDeleteRoute = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    sessionSchema.extend({ resourceId: z.number().int().positive(), routeId: z.number().int().nonnegative() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    await wialonCall(
+      data.host as WialonHost,
+      "resource/update_zone",
+      { itemId: data.resourceId, id: data.routeId, callMode: "delete" },
+      data.sid,
+    );
+    return { ok: true };
+  });
