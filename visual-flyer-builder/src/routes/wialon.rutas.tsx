@@ -12,12 +12,18 @@ import {
   RotateCcw,
   Trash2,
 } from "lucide-react";
-import WialonMap, { type DrawingPoint, type MapGeofence } from "@/components/wialon-map";
+import WialonMap, {
+  type DrawingPoint,
+  type MapAddressPoint,
+  type MapGeofence,
+} from "@/components/wialon-map";
 import { WialonGuard } from "@/components/wialon-guard";
 import {
   wialonCreateRoute,
+  wialonGeocodeAddresses,
   wialonGeofences,
   wialonPlanRoute,
+  type WialonGeocodedAddress,
   type WialonPlannedRoutePoint,
   type WialonPlannedRouteStop,
 } from "@/lib/wialon.functions";
@@ -39,6 +45,7 @@ export const Route = createFileRoute("/wialon/rutas")({
 
 type RouteDraft = { points: DrawingPoint[] };
 type RouteInputMode = "addresses" | "map";
+type AddressPreviewPoint = WialonGeocodedAddress & { isOrigin: boolean };
 type PlannedRoute = {
   points: WialonPlannedRoutePoint[];
   distanceMeters: number;
@@ -112,6 +119,7 @@ function buildWazeUrl(stop: WialonPlannedRouteStop) {
 function RutasView({ session }: { session: WialonSession }) {
   const fetchGeofences = useServerFn(wialonGeofences);
   const createRoute = useServerFn(wialonCreateRoute);
+  const geocodeAddresses = useServerFn(wialonGeocodeAddresses);
   const planRoute = useServerFn(wialonPlanRoute);
   const queryClient = useQueryClient();
   const [name, setName] = React.useState("");
@@ -121,11 +129,13 @@ function RutasView({ session }: { session: WialonSession }) {
   const [addresses, setAddresses] = React.useState([""]);
   const [returnToOrigin, setReturnToOrigin] = React.useState(true);
   const [inputMode, setInputMode] = React.useState<RouteInputMode>("addresses");
+  const [geocodedAddresses, setGeocodedAddresses] = React.useState<AddressPreviewPoint[]>([]);
   const [plannedRoute, setPlannedRoute] = React.useState<PlannedRoute | null>(null);
   const [drawing, setDrawing] = React.useState(false);
   const [drawingResetKey, setDrawingResetKey] = React.useState(0);
   const [draft, setDraft] = React.useState<RouteDraft | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [geocoding, setGeocoding] = React.useState(false);
   const [planning, setPlanning] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -158,6 +168,16 @@ function RutasView({ session }: { session: WialonSession }) {
         },
       ]
     : [];
+  const addressPoints: MapAddressPoint[] =
+    inputMode === "addresses"
+      ? geocodedAddresses.map((point, index) => ({
+          lat: point.lat,
+          lon: point.lon,
+          label: point.label,
+          order: point.isOrigin ? "S" : String(index),
+          isOrigin: point.isOrigin,
+        }))
+      : [];
   const googleMapsUrls = plannedRoute ? buildGoogleMapsUrls(plannedRoute) : [];
   const nextWazeStop = plannedRoute?.stops.find((stop) => !stop.isOrigin) ?? null;
 
@@ -169,6 +189,7 @@ function RutasView({ session }: { session: WialonSession }) {
 
   function updateOrigin(value: string) {
     setOrigin(value);
+    setGeocodedAddresses([]);
     clearPlan();
   }
 
@@ -176,6 +197,7 @@ function RutasView({ session }: { session: WialonSession }) {
     setAddresses((current) =>
       current.map((address, currentIndex) => (currentIndex === index ? value : address)),
     );
+    setGeocodedAddresses([]);
     clearPlan();
   }
 
@@ -185,12 +207,45 @@ function RutasView({ session }: { session: WialonSession }) {
 
   function removeAddress(index: number) {
     setAddresses((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    setGeocodedAddresses([]);
     clearPlan();
   }
 
   function selectInputMode(mode: RouteInputMode) {
     setInputMode(mode);
     setError(null);
+  }
+
+  async function handleGeocodeAddresses() {
+    const stops = addresses.map((address) => address.trim()).filter(Boolean);
+    if (origin.trim().length < 3) {
+      setError("Captura el punto de salida.");
+      return;
+    }
+    if (stops.length === 0) {
+      setError("Captura al menos una dirección de destino.");
+      return;
+    }
+
+    setGeocoding(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await geocodeAddresses({
+        data: { addresses: [origin.trim(), ...stops] },
+      });
+      setGeocodedAddresses(
+        result.locations.map((location, index) => ({
+          ...location,
+          isOrigin: index === 0,
+        })),
+      );
+      setMessage(`${result.locations.length} puntos ubicados en el mapa.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudieron ubicar las direcciones.");
+    } finally {
+      setGeocoding(false);
+    }
   }
 
   function startDrawing() {
@@ -232,6 +287,15 @@ function RutasView({ session }: { session: WialonSession }) {
         },
       });
       setPlannedRoute(result);
+      setGeocodedAddresses(
+        result.stops.map((stop) => ({
+          query: stop.label,
+          label: stop.label,
+          lat: stop.lat,
+          lon: stop.lon,
+          isOrigin: stop.isOrigin,
+        })),
+      );
       setDraft({
         points: result.points.map((point) => ({ ...point, radius: 0 })),
       });
@@ -299,6 +363,7 @@ function RutasView({ session }: { session: WialonSession }) {
           <WialonMap
             units={[]}
             geofences={[...mapRoutes, ...plannedMapRoute]}
+            addressPoints={addressPoints}
             drawMode={drawing ? "line" : null}
             drawingResetKey={drawingResetKey}
             onDraftChange={(nextDraft) =>
@@ -399,6 +464,20 @@ function RutasView({ session }: { session: WialonSession }) {
                     </button>
                   </div>
                 ))}
+              </div>
+
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => void handleGeocodeAddresses()}
+                  disabled={geocoding}
+                  className="w-full rounded-md border border-primary px-4 py-3 text-sm font-semibold text-primary hover:bg-primary/10 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {geocoding ? "Buscando direcciones…" : "Buscar puntos en el mapa"}
+                </button>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Ubica el origen y cada dirección como un punto numerado antes de optimizar.
+                </p>
               </div>
 
               <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm">

@@ -883,6 +883,62 @@ export type WialonPlannedRouteStop = {
   isOrigin: boolean;
 };
 
+export type WialonGeocodedAddress = {
+  query: string;
+  label: string;
+  lat: number;
+  lon: number;
+};
+
+type GeocodeMatch = { lat?: string; lon?: string; display_name?: string };
+
+async function geocodeAddress(address: string): Promise<WialonGeocodedAddress> {
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("q", address);
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "ORB-LITE route planner",
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) {
+    throw new Error("El servicio de direcciones no está disponible.");
+  }
+
+  const matches = (await response.json()) as GeocodeMatch[];
+  const match = matches[0];
+  const lat = Number(match?.lat);
+  const lon = Number(match?.lon);
+  if (!match || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+    throw new Error(`No se encontró la dirección: ${address}`);
+  }
+  return {
+    query: address,
+    label: match.display_name?.trim() || address,
+    lat,
+    lon,
+  };
+}
+
+/** Busca las direcciones escritas para mostrar sus puntos en el mapa antes de crear la ruta. */
+export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        addresses: z
+          .array(z.string().trim().min(3, "Cada punto necesita una dirección."))
+          .min(1, "Captura al menos una dirección.")
+          .max(31, "Puedes ubicar hasta 31 puntos a la vez."),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => ({
+    locations: await Promise.all(data.addresses.map((address) => geocodeAddress(address))),
+  }));
+
 export const wialonPlanRoute = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
@@ -897,8 +953,6 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    type GeocodeMatch = { lat?: string; lon?: string; display_name?: string };
-    type Location = { label: string; lat: number; lon: number };
     type TripResponse = {
       code?: string;
       trips?: Array<{
@@ -909,39 +963,9 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
       waypoints?: Array<{ waypoint_index?: number }>;
     };
 
-    async function geocode(address: string): Promise<Location> {
-      const url = new URL("https://nominatim.openstreetmap.org/search");
-      url.searchParams.set("format", "jsonv2");
-      url.searchParams.set("limit", "1");
-      url.searchParams.set("q", address);
-      const response = await fetch(url, {
-        headers: {
-          Accept: "application/json",
-          "User-Agent": "ORB-LITE route planner",
-        },
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!response.ok) {
-        throw new Error("El servicio de direcciones no está disponible.");
-      }
-
-      const matches = (await response.json()) as GeocodeMatch[];
-      const match = matches[0];
-      const lat = Number(match?.lat);
-      const lon = Number(match?.lon);
-      if (!match || !Number.isFinite(lat) || !Number.isFinite(lon)) {
-        throw new Error(`No se encontró la dirección: ${address}`);
-      }
-      return {
-        label: match.display_name?.trim() || address,
-        lat,
-        lon,
-      };
-    }
-
     const locations = [
-      await geocode(data.origin),
-      ...(await Promise.all(data.addresses.map((address) => geocode(address)))),
+      await geocodeAddress(data.origin),
+      ...(await Promise.all(data.addresses.map((address) => geocodeAddress(address)))),
     ];
     const coordinates = locations.map((location) => `${location.lon},${location.lat}`).join(";");
     const routeUrl = new URL(`https://router.project-osrm.org/trip/v1/driving/${coordinates}`);
