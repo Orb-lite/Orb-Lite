@@ -29,7 +29,7 @@ export const Route = createFileRoute("/wialon/rutas")({
       { title: "Rutas | Plataforma ORB-LITE" },
       {
         name: "description",
-        content: "Crea rutas lineales en Wialon dibujándolas sobre el mapa.",
+        content: "Crea rutas lineales en Wialon con puntos del mapa o direcciones escritas.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -38,6 +38,7 @@ export const Route = createFileRoute("/wialon/rutas")({
 });
 
 type RouteDraft = { points: DrawingPoint[] };
+type RouteInputMode = "addresses" | "map";
 type PlannedRoute = {
   points: WialonPlannedRoutePoint[];
   distanceMeters: number;
@@ -119,6 +120,7 @@ function RutasView({ session }: { session: WialonSession }) {
   const [origin, setOrigin] = React.useState("");
   const [addresses, setAddresses] = React.useState([""]);
   const [returnToOrigin, setReturnToOrigin] = React.useState(true);
+  const [inputMode, setInputMode] = React.useState<RouteInputMode>("addresses");
   const [plannedRoute, setPlannedRoute] = React.useState<PlannedRoute | null>(null);
   const [drawing, setDrawing] = React.useState(false);
   const [drawingResetKey, setDrawingResetKey] = React.useState(0);
@@ -184,6 +186,11 @@ function RutasView({ session }: { session: WialonSession }) {
   function removeAddress(index: number) {
     setAddresses((current) => current.filter((_, currentIndex) => currentIndex !== index));
     clearPlan();
+  }
+
+  function selectInputMode(mode: RouteInputMode) {
+    setInputMode(mode);
+    setError(null);
   }
 
   function startDrawing() {
@@ -280,8 +287,8 @@ function RutasView({ session }: { session: WialonSession }) {
     <div className="space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">
-          Captura el punto de salida y las direcciones. El planificador geocodifica y ordena las
-          paradas para obtener el recorrido más eficiente.
+          Elige entre escribir las direcciones de todos los puntos o marcar cada punto directamente
+          sobre el mapa.
         </p>
       </div>
 
@@ -303,88 +310,144 @@ function RutasView({ session }: { session: WialonSession }) {
         </ClientOnly>
 
         <form onSubmit={saveRoute} className="rounded-lg border border-border/60 p-5">
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-            <div className="flex items-start gap-3">
-              <Navigation className="mt-0.5 size-5 shrink-0 text-primary" />
-              <div>
-                <h2 className="font-display text-sm font-bold uppercase tracking-widest">
-                  Planificador inteligente
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Optimiza el orden de las paradas y calcula la ruta considerando el regreso.
-                </p>
-              </div>
+          <div className="rounded-lg border border-border/60 bg-card/40 p-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Método de creación
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => selectInputMode("addresses")}
+                className={`rounded-md border px-3 py-2 text-sm font-semibold ${
+                  inputMode === "addresses"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                }`}
+              >
+                Direcciones escritas
+              </button>
+              <button
+                type="button"
+                onClick={() => selectInputMode("map")}
+                className={`rounded-md border px-3 py-2 text-sm font-semibold ${
+                  inputMode === "map"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                }`}
+              >
+                Puntos en mapa
+              </button>
             </div>
+          </div>
 
-            <label className="mt-4 block text-sm">
-              Punto de salida
-              <input
-                value={origin}
-                onChange={(event) => updateOrigin(event.target.value)}
-                className={inputClass}
-                placeholder="Ej. Av. Vallarta 1000, Guadalajara"
-                required
-              />
-            </label>
-
-            <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm">Direcciones de destino</span>
-                <button
-                  type="button"
-                  onClick={addAddress}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                >
-                  <Plus className="size-3.5" /> Agregar
-                </button>
+          {inputMode === "addresses" ? (
+            <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+              <div className="flex items-start gap-3">
+                <Navigation className="mt-0.5 size-5 shrink-0 text-primary" />
+                <div>
+                  <h2 className="font-display text-sm font-bold uppercase tracking-widest">
+                    Planificador inteligente
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Optimiza el orden de las paradas y calcula la ruta considerando el regreso.
+                  </p>
+                </div>
               </div>
-              {addresses.map((address, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <span className="w-5 shrink-0 text-center text-xs text-muted-foreground">
-                    {index + 1}
-                  </span>
-                  <input
-                    value={address}
-                    onChange={(event) => updateAddress(index, event.target.value)}
-                    className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-                    placeholder={`Dirección ${index + 1}`}
-                    required
-                  />
+
+              <label className="mt-4 block text-sm">
+                Punto de salida
+                <input
+                  value={origin}
+                  onChange={(event) => updateOrigin(event.target.value)}
+                  className={inputClass}
+                  placeholder="Ej. Av. Vallarta 1000, Guadalajara"
+                  required
+                />
+              </label>
+
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm">Direcciones de destino</span>
                   <button
                     type="button"
-                    onClick={() => removeAddress(index)}
-                    disabled={addresses.length === 1}
-                    className="rounded-md p-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
-                    aria-label={`Eliminar dirección ${index + 1}`}
+                    onClick={addAddress}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                   >
-                    <Trash2 className="size-4" />
+                    <Plus className="size-3.5" /> Agregar
                   </button>
                 </div>
-              ))}
+                {addresses.map((address, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="w-5 shrink-0 text-center text-xs text-muted-foreground">
+                      {index + 1}
+                    </span>
+                    <input
+                      value={address}
+                      onChange={(event) => updateAddress(index, event.target.value)}
+                      className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                      placeholder={`Dirección ${index + 1}`}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeAddress(index)}
+                      disabled={addresses.length === 1}
+                      className="rounded-md p-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
+                      aria-label={`Eliminar dirección ${index + 1}`}
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={returnToOrigin}
+                  onChange={(event) => {
+                    setReturnToOrigin(event.target.checked);
+                    clearPlan();
+                  }}
+                  className="size-4 accent-primary"
+                />
+                Regresar al punto de salida
+              </label>
+
+              <button
+                type="button"
+                onClick={() => void handlePlanRoute()}
+                disabled={planning}
+                className="mt-4 w-full rounded-md bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:cursor-wait disabled:opacity-60"
+              >
+                {planning ? "Calculando ruta…" : "Optimizar ruta"}
+              </button>
             </div>
-
-            <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={returnToOrigin}
-                onChange={(event) => {
-                  setReturnToOrigin(event.target.checked);
-                  clearPlan();
-                }}
-                className="size-4 accent-primary"
-              />
-              Regresar al punto de salida
-            </label>
-
-            <button
-              type="button"
-              onClick={() => void handlePlanRoute()}
-              disabled={planning}
-              className="mt-4 w-full rounded-md bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:cursor-wait disabled:opacity-60"
-            >
-              {planning ? "Calculando ruta…" : "Optimizar ruta"}
-            </button>
-          </div>
+          ) : (
+            <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+              <div className="flex items-start gap-3">
+                <Map className="mt-0.5 size-5 shrink-0 text-primary" />
+                <div>
+                  <h2 className="font-display text-sm font-bold uppercase tracking-widest">
+                    Puntos en mapa
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Haz clic sobre el mapa para agregar los puntos en el orden de la ruta.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={startDrawing}
+                className="mt-4 w-full rounded-md border border-primary px-4 py-3 text-sm font-semibold text-primary hover:bg-primary/10"
+              >
+                {drawing ? "Dibujando en el mapa…" : "Comenzar a dibujar"}
+              </button>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Puedes guardar la ruta usando únicamente los puntos que marques en el mapa.
+              </p>
+            </div>
+          )}
 
           {plannedRoute ? (
             <div className="mt-4 rounded-lg border border-border/60 bg-card/40 p-4">
@@ -528,17 +591,6 @@ function RutasView({ session }: { session: WialonSession }) {
               />
             </span>
           </label>
-
-          <button
-            type="button"
-            onClick={startDrawing}
-            className="mt-5 w-full rounded-md border border-primary px-4 py-3 text-sm font-semibold text-primary hover:bg-primary/10"
-          >
-            {drawing ? "Dibujando manualmente…" : "O dibujar manualmente"}
-          </button>
-          <p className="mt-2 text-xs text-muted-foreground">
-            La ruta optimizada también puede ajustarse manualmente sobre el mapa.
-          </p>
 
           {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
           {message ? (
