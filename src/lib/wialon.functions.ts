@@ -1007,21 +1007,48 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
       ...(await Promise.all(data.addresses.map((address) => geocodeAddress(address)))),
     ];
     const coordinates = locations.map((location) => `${location.lon},${location.lat}`).join(";");
-    const routeUrl = new URL(`https://router.project-osrm.org/trip/v1/driving/${coordinates}`);
-    routeUrl.searchParams.set("overview", "full");
-    routeUrl.searchParams.set("geometries", "geojson");
-    routeUrl.searchParams.set("source", "first");
-    routeUrl.searchParams.set("roundtrip", data.returnToOrigin ? "true" : "false");
+    const routeServices = [
+      "https://router.project-osrm.org/trip/v1/driving/",
+      "https://routing.openstreetmap.de/routed-car/trip/v1/driving/",
+    ];
+    let trip: TripResponse | null = null;
+    let lastRouteCode: string | null = null;
 
-    const routeResponse = await fetch(routeUrl, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!routeResponse.ok) {
-      throw new Error("El servicio de optimización de rutas no está disponible.");
+    for (const service of routeServices) {
+      const routeUrl = new URL(`${service}${coordinates}`);
+      routeUrl.searchParams.set("overview", "full");
+      routeUrl.searchParams.set("geometries", "geojson");
+      routeUrl.searchParams.set("source", "first");
+      routeUrl.searchParams.set("roundtrip", data.returnToOrigin ? "true" : "false");
+      if (!data.returnToOrigin) routeUrl.searchParams.set("destination", "last");
+
+      try {
+        const routeResponse = await fetch(routeUrl, {
+          headers: {
+            Accept: "application/json",
+            "User-Agent": "ORB-LITE route planner",
+          },
+          signal: AbortSignal.timeout(20000),
+        });
+        const payload = (await routeResponse.json()) as TripResponse;
+        lastRouteCode = payload.code ?? `HTTP_${routeResponse.status}`;
+        if (routeResponse.ok && payload.code === "Ok") {
+          trip = payload;
+          break;
+        }
+      } catch {
+        lastRouteCode = "TIMEOUT_OR_NETWORK_ERROR";
+      }
     }
 
-    const trip = (await routeResponse.json()) as TripResponse;
+    if (!trip) {
+      throw new Error(
+        lastRouteCode === "NoRoute"
+          ? "No se encontró una ruta entre las direcciones indicadas."
+          : "El servicio de optimización de rutas no está disponible. Intenta de nuevo en unos segundos.",
+      );
+    }
+
     const selectedTrip = trip.trips?.[0];
     const coordinatesForMap = selectedTrip?.geometry?.coordinates ?? [];
     if (trip.code !== "Ok" || !selectedTrip || coordinatesForMap.length < 2) {

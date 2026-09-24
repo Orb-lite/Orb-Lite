@@ -356,7 +356,7 @@ function RutasView({ session }: { session: WialonSession }) {
         </p>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.85fr)] xl:grid-cols-[minmax(0,1.45fr)_minmax(420px,0.8fr)]">
         <ClientOnly
           fallback={<div className="h-[560px] rounded-lg border border-border/60 bg-card/40" />}
         >
@@ -374,7 +374,7 @@ function RutasView({ session }: { session: WialonSession }) {
           />
         </ClientOnly>
 
-        <form onSubmit={saveRoute} className="rounded-lg border border-border/60 p-5">
+        <form onSubmit={saveRoute} className="min-w-0 rounded-lg border border-border/60 p-5">
           <div className="rounded-lg border border-border/60 bg-card/40 p-4">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Método de creación
