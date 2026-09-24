@@ -2,7 +2,16 @@ import * as React from "react";
 import { ClientOnly, createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Clock3, Map, Navigation, Plus, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Check,
+  Clock3,
+  ExternalLink,
+  Map,
+  Navigation,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import WialonMap, { type DrawingPoint, type MapGeofence } from "@/components/wialon-map";
 import { WialonGuard } from "@/components/wialon-guard";
 import {
@@ -56,6 +65,49 @@ function formatDuration(seconds: number) {
   return remaining > 0 ? `${hours} h ${remaining} min` : `${hours} h`;
 }
 
+function stopCoordinates(stop: WialonPlannedRouteStop) {
+  return `${stop.lat},${stop.lon}`;
+}
+
+function buildGoogleMapsUrls(route: PlannedRoute) {
+  const origin = route.stops.find((stop) => stop.isOrigin) ?? route.stops[0];
+  const destinations = route.stops.filter((stop) => !stop.isOrigin);
+  if (!origin || destinations.length === 0) return [];
+
+  const sequence = route.returnToOrigin
+    ? [origin, ...destinations, origin]
+    : [origin, ...destinations];
+  const urls: string[] = [];
+  const maxWaypoints = 9;
+
+  for (let start = 0; start < sequence.length - 1;) {
+    const end = Math.min(start + maxWaypoints + 1, sequence.length - 1);
+    const params = new URLSearchParams({
+      api: "1",
+      origin: stopCoordinates(sequence[start]!),
+      destination: stopCoordinates(sequence[end]!),
+      travelmode: "driving",
+    });
+    const waypoints = sequence
+      .slice(start + 1, end)
+      .map((stop) => stopCoordinates(stop))
+      .join("|");
+    if (waypoints) params.set("waypoints", waypoints);
+    urls.push(`https://www.google.com/maps/dir/?${params.toString()}`);
+    start = end;
+  }
+
+  return urls;
+}
+
+function buildWazeUrl(stop: WialonPlannedRouteStop) {
+  const params = new URLSearchParams({
+    ll: stopCoordinates(stop),
+    navigate: "yes",
+  });
+  return `https://www.waze.com/ul?${params.toString()}`;
+}
+
 function RutasView({ session }: { session: WialonSession }) {
   const fetchGeofences = useServerFn(wialonGeofences);
   const createRoute = useServerFn(wialonCreateRoute);
@@ -104,6 +156,8 @@ function RutasView({ session }: { session: WialonSession }) {
         },
       ]
     : [];
+  const googleMapsUrls = plannedRoute ? buildGoogleMapsUrls(plannedRoute) : [];
+  const nextWazeStop = plannedRoute?.stops.find((stop) => !stop.isOrigin) ?? null;
 
   function clearPlan() {
     setPlannedRoute(null);
@@ -363,6 +417,49 @@ function RutasView({ session }: { session: WialonSession }) {
               {plannedRoute.returnToOrigin ? (
                 <p className="mt-2 text-xs text-primary">La ruta considera el regreso al origen.</p>
               ) : null}
+              <div className="mt-4 border-t border-border/60 pt-3">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Exportar navegación
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {googleMapsUrls.length === 1 ? (
+                    <a
+                      href={googleMapsUrls[0]}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-primary/50 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
+                    >
+                      <ExternalLink className="size-3.5" /> Abrir en Google Maps
+                    </a>
+                  ) : (
+                    googleMapsUrls.map((url, index) => (
+                      <a
+                        key={url}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-primary/50 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
+                      >
+                        <ExternalLink className="size-3.5" /> Google Maps · tramo {index + 1}
+                      </a>
+                    ))
+                  )}
+                  {nextWazeStop ? (
+                    <a
+                      href={buildWazeUrl(nextWazeStop)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-semibold hover:border-primary hover:text-primary"
+                    >
+                      <ExternalLink className="size-3.5" /> Abrir siguiente parada en Waze
+                    </a>
+                  ) : null}
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Waze abre una parada a la vez; usa el enlace Waze de cada parada para seguir el
+                  orden recomendado.
+                </p>
+              </div>
             </div>
           ) : null}
 
