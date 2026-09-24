@@ -29,6 +29,27 @@ export type WialonMessage = {
   course: number | null;
 };
 
+export type WialonGeofencePoint = {
+  lat: number;
+  lon: number;
+  radius: number;
+};
+
+export type WialonGeofence = {
+  id: number;
+  resourceId: number;
+  resource: string;
+  name: string;
+  type: 1 | 2 | 3;
+  color: string;
+  points: WialonGeofencePoint[];
+};
+
+export type WialonGeofenceResource = {
+  id: number;
+  name: string;
+};
+
 export type WialonVideoCamera = {
   index: number;
   name: string;
@@ -476,61 +497,100 @@ const ACCESS_MASKS = {
 
 export type WialonAccessLevel = keyof typeof ACCESS_MASKS;
 
-/** Permisos reales del usuario conectado: qué puede crear y cuánto le queda. */
+/** Permisos reales del usuario conectado: rol, altas disponibles y límites de la cuenta. */
 export const wialonPermissions = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.extend({ userId: z.number().int() }).parse(input))
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
+    type AccountService = {
+      type?: number;
+      val?: number | string;
+      value?: number | string;
+      enabled?: boolean;
+      max?: number | string;
+    };
+    type Account = {
+      plan?: string | { name?: string; services?: Record<string, AccountService> };
+      enabled?: number;
+      services?: Record<string, AccountService>;
+    };
+
     let userFlags = 0;
+    let accountId: number | null = null;
     try {
-      const me = await wialonCall<{ item?: { fl?: number } }>(
+      const me = await wialonCall<{ item?: { fl?: number; bact?: number } }>(
         host,
         "core/search_item",
-        // `fl` pertenece a las propiedades adicionales del usuario (0x100),
-        // no a las propiedades generales (0x01).
-        { id: data.userId, flags: 1 + 256 },
+        // 0x04 devuelve la cuenta de facturación (bact); 0x100 devuelve fl.
+        { id: data.userId, flags: 1 + 4 + 256 },
         data.sid,
       );
       userFlags = me.item?.fl ?? 0;
+      accountId = me.item?.bact ?? null;
     } catch {
       userFlags = 0;
     }
 
-    type Account = {
-      plan?: string;
-      enabled?: number;
-      services?: Record<string, { type?: number; val?: number; max?: number }>;
-    };
-
     let account: Account = {};
     try {
-      account = await wialonCall<Account>(host, "core/get_account_data", { type: 1 }, data.sid);
+      account = await wialonCall<Account>(
+        host,
+        "account/get_account_data",
+        { itemId: accountId ?? data.userId, type: 1 },
+        data.sid,
+      );
     } catch {
-      account = {};
+      // Algunas cuentas antiguas exponen la vista propia en core/get_account_data.
+      try {
+        account = await wialonCall<Account>(host, "core/get_account_data", { type: 1 }, data.sid);
+      } catch {
+        account = {};
+      }
     }
 
-    const services = account.services ?? {};
-    const svcEnabled = (...names: string[]) => {
-      const svc = names.map((name) => services[name]).find(Boolean);
-      if (!svc) return null;
-      return (svc.val ?? 0) !== 0;
+    const planServices =
+      typeof account.plan === "object" && account.plan !== null ? account.plan.services : undefined;
+    const services = { ...(planServices ?? {}), ...(account.services ?? {}) };
+    const findService = (...names: string[]) => {
+      const service = names.map((name) => services[name]).find(Boolean);
+      return service ?? null;
+    };
+    const serviceEnabled = (...names: string[]) => {
+      const service = findService(...names);
+      if (!service) return null;
+      const raw = service.val ?? service.value ?? service.enabled;
+      if (raw == null) return true;
+      return typeof raw === "boolean" ? raw : Number(raw) !== 0;
+    };
+    const serviceLimit = (...names: string[]) => {
+      const service = findService(...names);
+      if (service?.max == null) return null;
+      const limit = Number(service.max);
+      return Number.isFinite(limit) ? limit : null;
     };
 
-    // En Wialon, 0x04 es “Can create items”; 0x10 solo impide cambiar ajustes.
-    const canCreateItems = (userFlags & 0x04) !== 0;
-    const unitsSvc = svcEnabled("create_units", "create_unit");
-    const usersSvc = svcEnabled("create_users", "create_user");
+    const hasCreateItemsFlag = (userFlags & 0x04) !== 0;
+    const isAdministrator = (userFlags & 0x40) !== 0;
+    // Wialon muestra al administrador superior como gestor aunque no tenga
+    // marcado explícitamente el flag "Can create items".
+    const canCreateItems = hasCreateItemsFlag || isAdministrator;
+    const unitsSvc = serviceEnabled("create_units", "create_unit", "avl_unit");
+    const usersSvc = serviceEnabled("create_users", "create_user", "users");
+    const planName =
+      typeof account.plan === "string" ? account.plan : account.plan?.name ?? null;
 
     return {
-      plan: account.plan ?? null,
+      plan: planName,
       accountEnabled: (account.enabled ?? 1) !== 0,
+      accountId,
+      isAdministrator,
+      canCreateItems,
       canCreateUnits: canCreateItems && unitsSvc !== false,
       canCreateUsers: canCreateItems && usersSvc !== false,
-      canCreateItems,
       limits: {
-        units: services["create_units"]?.max ?? services["create_unit"]?.max ?? null,
-        users: services["create_users"]?.max ?? services["create_user"]?.max ?? null,
+        units: serviceLimit("create_units", "create_unit", "avl_unit"),
+        users: serviceLimit("create_users", "create_user", "users"),
       },
     };
   });
@@ -685,28 +745,52 @@ export const wialonGeofences = createServerFn({ method: "POST" })
           sortType: "sys_name",
         },
         force: 1,
-        flags: 1 + 4096,
+        flags: 1,
         from: 0,
         to: 0,
       },
       data.sid,
     );
 
-    const zones: Array<{ id: number; name: string; resource: string; type: number }> = [];
+    const zones: WialonGeofence[] = [];
     for (const resource of resources.items ?? []) {
       try {
-        const res = await wialonCall<Array<{ id: number; n?: string; t?: number }>>(
+        const res = await wialonCall<
+          Array<{
+            id: number;
+            n?: string;
+            t?: number;
+            c?: number;
+            p?: Array<{ x?: number; y?: number; r?: number }>;
+            b?: { cen_x?: number; cen_y?: number };
+          }>
+        >(
           host,
           "resource/get_zone_data",
-          { itemId: resource.id, col: [], flags: 1 },
+          { itemId: resource.id, col: [], flags: 0x04 | 0x08 | 0x10 },
           data.sid,
         );
         for (const zone of Array.isArray(res) ? res : []) {
+          const points = (zone.p ?? [])
+            .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+            .map((point) => ({
+              lat: point.y as number,
+              lon: point.x as number,
+              radius: point.r ?? 0,
+            }));
+          if (points.length === 0 && zone.b?.cen_x != null && zone.b.cen_y != null) {
+            points.push({ lat: zone.b.cen_y, lon: zone.b.cen_x, radius: 0 });
+          }
+
+          const rawColor = zone.c ?? 0x38bdf8;
           zones.push({
             id: zone.id,
+            resourceId: resource.id,
             name: zone.n ?? `Zona ${zone.id}`,
             resource: resource.nm ?? `#${resource.id}`,
-            type: zone.t ?? 0,
+            type: zone.t === 1 || zone.t === 2 || zone.t === 3 ? zone.t : 2,
+            color: `#${(rawColor & 0xffffff).toString(16).padStart(6, "0")}`,
+            points,
           });
         }
       } catch {
@@ -714,7 +798,262 @@ export const wialonGeofences = createServerFn({ method: "POST" })
       }
     }
 
-    return { zones };
+    return {
+      zones,
+      resources: (resources.items ?? []).map((resource) => ({
+        id: resource.id,
+        name: resource.nm ?? `#${resource.id}`,
+      })),
+    };
+  });
+
+export const wialonCreateGeofence = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        resourceId: z.number().int().positive(),
+        name: z.string().trim().min(2, "Captura un nombre para la geocerca.").max(100),
+        type: z.enum(["circle", "polygon"]),
+        color: z.number().int().min(0).max(0xffffff),
+        points: z
+          .array(
+            z.object({
+              lat: z.number().finite(),
+              lon: z.number().finite(),
+              radius: z.number().finite().nonnegative().max(1000000),
+            }),
+          )
+          .min(1)
+          .max(1000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (data.type === "circle" && data.points.length !== 1) {
+      throw new Error("Un círculo necesita centro y radio.");
+    }
+    if (data.type === "circle" && (data.points[0]?.radius ?? 0) < 10) {
+      throw new Error("El círculo debe medir al menos 10 metros.");
+    }
+    if (data.type === "polygon" && data.points.length < 3) {
+      throw new Error("El polígono necesita al menos tres puntos.");
+    }
+
+    const result = await wialonCall<Array<number | Record<string, unknown> | null>>(
+      data.host as WialonHost,
+      "resource/update_zone",
+      {
+        itemId: data.resourceId,
+        id: 0,
+        callMode: "create",
+        n: data.name,
+        d: "",
+        t: data.type === "circle" ? 3 : 2,
+        w: 3,
+        f: 0x20,
+        c: data.color,
+        tc: 0xffffff,
+        ts: 12,
+        p: data.points.map((point) => ({ x: point.lon, y: point.lat, r: point.radius })),
+      },
+      data.sid,
+    );
+
+    const id = Array.isArray(result) && typeof result[0] === "number" ? result[0] : null;
+    if (!id) throw new Error("La geocerca no se pudo crear.");
+    return { id, name: data.name };
+  });
+
+export const wialonCreateRoute = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        resourceId: z.number().int().positive(),
+        name: z.string().trim().min(2, "Captura un nombre para la ruta.").max(100),
+        color: z.number().int().min(0).max(0xffffff),
+        points: z
+          .array(
+            z.object({
+              lat: z.number().finite(),
+              lon: z.number().finite(),
+              radius: z.number().finite().nonnegative().max(1000000),
+            }),
+          )
+          .min(2, "Una ruta necesita al menos dos puntos.")
+          .max(1000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const result = await wialonCall<Array<number | Record<string, unknown> | null>>(
+      data.host as WialonHost,
+      "resource/update_zone",
+      {
+        itemId: data.resourceId,
+        id: 0,
+        callMode: "create",
+        n: data.name,
+        d: "",
+        t: 1,
+        w: 4,
+        f: 0x20,
+        c: data.color,
+        tc: 0xffffff,
+        ts: 12,
+        p: data.points.map((point) => ({ x: point.lon, y: point.lat, r: 0 })),
+      },
+      data.sid,
+    );
+
+    const id = Array.isArray(result) && typeof result[0] === "number" ? result[0] : null;
+    if (!id) throw new Error("La ruta no se pudo crear.");
+    return { id, name: data.name };
+  });
+
+export type WialonPlannedRoutePoint = {
+  lat: number;
+  lon: number;
+};
+
+export type WialonPlannedRouteStop = {
+  label: string;
+  lat: number;
+  lon: number;
+  isOrigin: boolean;
+};
+
+export type WialonGeocodedAddress = {
+  query: string;
+  label: string;
+  lat: number;
+  lon: number;
+};
+
+type GeocodeMatch = { lat?: string; lon?: string; display_name?: string };
+
+async function geocodeAddress(address: string): Promise<WialonGeocodedAddress> {
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("format", "jsonv2");
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("q", address);
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "ORB-LITE route planner",
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) {
+    throw new Error("El servicio de direcciones no está disponible.");
+  }
+
+  const matches = (await response.json()) as GeocodeMatch[];
+  const match = matches[0];
+  const lat = Number(match?.lat);
+  const lon = Number(match?.lon);
+  if (!match || !Number.isFinite(lat) || !Number.isFinite(lon)) {
+    throw new Error(`No se encontró la dirección: ${address}`);
+  }
+  return {
+    query: address,
+    label: match.display_name?.trim() || address,
+    lat,
+    lon,
+  };
+}
+
+/** Busca las direcciones escritas para mostrar sus puntos en el mapa antes de crear la ruta. */
+export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        addresses: z
+          .array(z.string().trim().min(3, "Cada punto necesita una dirección."))
+          .min(1, "Captura al menos una dirección.")
+          .max(31, "Puedes ubicar hasta 31 puntos a la vez."),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => ({
+    locations: await Promise.all(data.addresses.map((address) => geocodeAddress(address))),
+  }));
+
+export const wialonPlanRoute = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        origin: z.string().trim().min(3, "Captura el punto de salida."),
+        addresses: z
+          .array(z.string().trim().min(3, "Cada parada necesita una dirección."))
+          .min(1, "Captura al menos una dirección.")
+          .max(30, "Puedes planificar hasta 30 paradas por ruta."),
+        returnToOrigin: z.boolean(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    type TripResponse = {
+      code?: string;
+      trips?: Array<{
+        distance?: number;
+        duration?: number;
+        geometry?: { coordinates?: Array<[number, number]> };
+      }>;
+      waypoints?: Array<{ waypoint_index?: number }>;
+    };
+
+    const locations = [
+      await geocodeAddress(data.origin),
+      ...(await Promise.all(data.addresses.map((address) => geocodeAddress(address)))),
+    ];
+    const coordinates = locations.map((location) => `${location.lon},${location.lat}`).join(";");
+    const routeUrl = new URL(`https://router.project-osrm.org/trip/v1/driving/${coordinates}`);
+    routeUrl.searchParams.set("overview", "full");
+    routeUrl.searchParams.set("geometries", "geojson");
+    routeUrl.searchParams.set("source", "first");
+    routeUrl.searchParams.set("roundtrip", data.returnToOrigin ? "true" : "false");
+
+    const routeResponse = await fetch(routeUrl, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!routeResponse.ok) {
+      throw new Error("El servicio de optimización de rutas no está disponible.");
+    }
+
+    const trip = (await routeResponse.json()) as TripResponse;
+    const selectedTrip = trip.trips?.[0];
+    const coordinatesForMap = selectedTrip?.geometry?.coordinates ?? [];
+    if (trip.code !== "Ok" || !selectedTrip || coordinatesForMap.length < 2) {
+      throw new Error("No se pudo encontrar una ruta entre las direcciones indicadas.");
+    }
+    const samplingStep = Math.max(1, Math.ceil(coordinatesForMap.length / 900));
+    const sampledCoordinates = coordinatesForMap.filter(
+      (_, index) => index % samplingStep === 0 || index === coordinatesForMap.length - 1,
+    );
+
+    const orderedIndexes = (trip.waypoints ?? [])
+      .map((waypoint, index) => ({
+        index,
+        order: waypoint.waypoint_index ?? index,
+      }))
+      .sort((left, right) => left.order - right.order);
+
+    return {
+      points: sampledCoordinates.map(([lon, lat]) => ({ lat, lon })),
+      distanceMeters: Math.round(selectedTrip.distance ?? 0),
+      durationSeconds: Math.round(selectedTrip.duration ?? 0),
+      stops: orderedIndexes.map(({ index }) => {
+        const location = locations[index]!;
+        return {
+          label: location.label,
+          lat: location.lat,
+          lon: location.lon,
+          isOrigin: index === 0,
+        };
+      }),
+      returnToOrigin: data.returnToOrigin,
+    };
   });
 
 export const wialonDrivers = createServerFn({ method: "POST" })
@@ -1034,140 +1373,4 @@ export const wialonExecReport = createServerFn({ method: "POST" })
     }
 
     return { tables };
-  });
-
-// ================= Creador de rutas =================
-// Las rutas se guardan en la plataforma como geocercas tipo línea (t = 1) dentro de un recurso.
-
-export const wialonRouteResources = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
-  .handler(async ({ data }) => {
-    const host = data.host as WialonHost;
-    const res = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
-      host,
-      "core/search_items",
-      {
-        spec: { itemsType: "avl_resource", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
-        force: 1,
-        flags: 1,
-        from: 0,
-        to: 0,
-      },
-      data.sid,
-    );
-    const resources = (res.items ?? []).map((r) => ({ id: r.id, name: r.nm ?? `Recurso ${r.id}` }));
-    const routes: Array<{ id: number; name: string; resourceId: number; resource: string; points: Array<{ lat: number; lon: number }> }> = [];
-    for (const resource of resources) {
-      try {
-        const zones = await wialonCall<Array<{ id: number; n?: string; t?: number; p?: Array<{ x: number; y: number }> }>>(
-          host,
-          "resource/get_zone_data",
-          { itemId: resource.id, col: [], flags: 0x1f },
-          data.sid,
-        );
-        for (const zone of Array.isArray(zones) ? zones : []) {
-          if (zone.t !== 1) continue;
-          routes.push({
-            id: zone.id,
-            name: zone.n ?? `Ruta ${zone.id}`,
-            resourceId: resource.id,
-            resource: resource.name,
-            points: (zone.p ?? []).map((p) => ({ lat: p.y, lon: p.x })),
-          });
-        }
-      } catch {
-        // recurso sin permiso de lectura de geocercas
-      }
-    }
-    return { resources, routes };
-  });
-
-export const wialonSaveRoute = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    sessionSchema
-      .extend({
-        resourceId: z.number().int().positive(),
-        name: z.string().trim().min(1).max(100),
-        description: z.string().max(500).optional(),
-        width: z.number().int().min(10).max(2000).default(50),
-        color: z.string().regex(/^#[0-9a-fA-F]{6}$/).default("#a3e635"),
-        points: z.array(z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) })).min(2).max(1000),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data }) => {
-    const host = data.host as WialonHost;
-    const color = parseInt("ff" + data.color.slice(1), 16);
-    const result = await wialonCall<unknown>(
-      host,
-      "resource/update_zone",
-      {
-        itemId: data.resourceId,
-        id: 0,
-        callMode: "create",
-        n: data.name,
-        d: data.description ?? "",
-        t: 1,
-        w: data.width,
-        f: 0,
-        c: color,
-        tc: 0,
-        ts: 12,
-        min: 0,
-        max: 18,
-        path: "",
-        libId: 0,
-        p: data.points.map((p) => ({ x: p.lon, y: p.lat, r: data.width })),
-      },
-      data.sid,
-    );
-    const id = Array.isArray(result) && typeof result[0] === "number" ? result[0] : null;
-    return { ok: true, id };
-  });
-
-export const wialonDeleteRoute = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    sessionSchema.extend({ resourceId: z.number().int().positive(), routeId: z.number().int().nonnegative() }).parse(input),
-  )
-  .handler(async ({ data }) => {
-    await wialonCall(
-      data.host as WialonHost,
-      "resource/update_zone",
-      { itemId: data.resourceId, id: data.routeId, callMode: "delete" },
-      data.sid,
-    );
-    return { ok: true };
-  });
-
-// Optimiza el orden de las paradas y traza la ruta por calles (OSRM, servicio público de OpenStreetMap).
-export const optimizeRoute = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        points: z.array(z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) })).min(2).max(80),
-        roundtrip: z.boolean().default(false),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data }) => {
-    const coords = data.points.map((p) => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(";");
-    const params = data.roundtrip ? "source=first&roundtrip=true" : "source=first&roundtrip=false&destination=any";
-    const url = `https://router.project-osrm.org/trip/v1/driving/${coords}?${params}&geometries=geojson&overview=full`;
-    const res = await fetch(url, { headers: { "User-Agent": "ORB-LITE route planner" } });
-    const json = (await res.json().catch(() => null)) as {
-      code?: string;
-      trips?: Array<{ distance: number; duration: number; geometry: { coordinates: Array<[number, number]> } }>;
-      waypoints?: Array<{ waypoint_index: number }>;
-    } | null;
-    if (!res.ok || json?.code !== "Ok" || !json.trips?.[0]) {
-      throw new Error("No se pudo calcular la ruta. Revisa que las paradas estén sobre calles.");
-    }
-    const trip = json.trips[0];
-    const order = (json.waypoints ?? []).map((w, i) => ({ i, idx: w.waypoint_index })).sort((a, b) => a.idx - b.idx).map((w) => w.i);
-    let geometry = trip.geometry.coordinates.map(([lon, lat]) => ({ lat, lon }));
-    if (geometry.length > 1000) {
-      const step = Math.ceil(geometry.length / 999);
-      geometry = geometry.filter((_, i) => i % step === 0).concat(geometry[geometry.length - 1]!);
-    }
-    return { order, geometry, distanceKm: trip.distance / 1000, durationMin: trip.duration / 60 };
   });

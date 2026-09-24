@@ -175,13 +175,15 @@ function CmsView({ session }: { session: WialonSession }) {
             {permissions.data?.limits.units != null ? (
               <span>Límite de unidades: {permissions.data.limits.units}</span>
             ) : null}
+            {permissions.data?.isAdministrator ? <span>Rol: administrador</span> : null}
             {permissions.data?.plan ? <span>Plan: {permissions.data.plan}</span> : null}
           </div>
         )}
         {!canCreateUnits && !canCreateUsers && !permissions.isLoading ? (
           <p className="mt-2 text-muted-foreground">
-            Tu cuenta no tiene habilitadas las altas. Pide a ORB-LITE que active el permiso de crear
-            unidades y usuarios.
+            {permissions.data?.isAdministrator
+              ? 'Wialon reconoce el rol de administrador, pero la cuenta no tiene activos los servicios necesarios para crear unidades o usuarios.'
+              : 'Wialon no reporta habilitado el permiso de crear unidades y usuarios para este usuario.'}
           </p>
         ) : null}
       </div>

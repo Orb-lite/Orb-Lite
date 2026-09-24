@@ -12,10 +12,34 @@ export type MapUnit = {
   online: boolean;
 };
 
+export type MapGeofence = {
+  id: number;
+  name: string;
+  resource?: string;
+  type: 1 | 2 | 3;
+  color: string;
+  points: Array<{ lat: number; lon: number; radius: number }>;
+};
+
+export type DrawingMode = "circle" | "polygon" | "line";
+export type DrawingPoint = { lat: number; lon: number; radius: number };
+export type MapAddressPoint = {
+  lat: number;
+  lon: number;
+  label: string;
+  order: string;
+  isOrigin?: boolean;
+};
+
 type Props = {
   units: MapUnit[];
   track?: Array<{ lat: number; lon: number }>;
   focusId?: number | null;
+  geofences?: MapGeofence[];
+  addressPoints?: MapAddressPoint[];
+  drawMode?: DrawingMode | null;
+  drawingResetKey?: number;
+  onDraftChange?: (draft: { type: DrawingMode; points: DrawingPoint[] } | null) => void;
 };
 
 function escapeHtml(value: string) {
@@ -54,10 +78,29 @@ function unitMarkerHtml(unit: MapUnit, focused: boolean, markerStyle: MarkerStyl
   </div>`;
 }
 
-export default function WialonMap({ units, track, focusId }: Props) {
+function addressMarkerHtml(point: MapAddressPoint) {
+  const color = point.isOrigin ? "#38bdf8" : "#f59e0b";
+  return `<div style="display:grid;place-items:center;transform:translate(-50%,-50%);width:26px;height:26px;border:2px solid #0f172a;border-radius:999px;background:${color};box-shadow:0 2px 7px rgba(15,23,42,.45);color:#0f172a;font:800 12px/1 system-ui,sans-serif">${escapeHtml(point.order)}</div>`;
+}
+
+export default function WialonMap({
+  units,
+  track,
+  focusId,
+  geofences = [],
+  addressPoints = [],
+  drawMode = null,
+  drawingResetKey = 0,
+  onDraftChange,
+}: Props) {
   const container = React.useRef<HTMLDivElement | null>(null);
   const map = React.useRef<L.Map | null>(null);
   const layer = React.useRef<L.LayerGroup | null>(null);
+  const geofenceLayer = React.useRef<L.LayerGroup | null>(null);
+  const addressLayer = React.useRef<L.LayerGroup | null>(null);
+  const draftLayer = React.useRef<L.LayerGroup | null>(null);
+  const draftPoints = React.useRef<DrawingPoint[]>([]);
+  const [draftVersion, setDraftVersion] = React.useState(0);
   const [markerStyle, setMarkerStyle] = React.useState<MarkerStyle>("vehicle");
 
   React.useEffect(() => {
@@ -76,15 +119,182 @@ export default function WialonMap({ units, track, focusId }: Props) {
       maxZoom: 20,
     });
     streets.addTo(map.current);
-    L.control.layers({ Calles: streets, Satélite: satellite, Oscuro: dark }, undefined, { position: "topright" }).addTo(map.current);
+    L.control
+      .layers({ Calles: streets, Satélite: satellite, Oscuro: dark }, undefined, {
+        position: "topright",
+      })
+      .addTo(map.current);
     layer.current = L.layerGroup().addTo(map.current);
+    geofenceLayer.current = L.layerGroup().addTo(map.current);
+    addressLayer.current = L.layerGroup().addTo(map.current);
+    draftLayer.current = L.layerGroup().addTo(map.current);
 
     return () => {
       map.current?.remove();
       map.current = null;
       layer.current = null;
+      geofenceLayer.current = null;
+      addressLayer.current = null;
+      draftLayer.current = null;
     };
   }, []);
+
+  React.useEffect(() => {
+    draftPoints.current = [];
+    draftLayer.current?.clearLayers();
+    onDraftChange?.(drawMode ? { type: drawMode, points: [] } : null);
+  }, [drawMode, drawingResetKey, onDraftChange]);
+
+  React.useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+
+    const onClick = (event: L.LeafletMouseEvent) => {
+      if (!drawMode) return;
+      const point = { lat: event.latlng.lat, lon: event.latlng.lng, radius: 0 };
+      if (drawMode === "circle") {
+        if (draftPoints.current.length === 0) {
+          draftPoints.current = [point];
+        } else {
+          const center = draftPoints.current[0]!;
+          const radius = m.distance([center.lat, center.lon], [point.lat, point.lon]);
+          draftPoints.current = [{ ...center, radius: Math.max(1, Math.round(radius)) }];
+        }
+      } else {
+        draftPoints.current = [...draftPoints.current, point];
+      }
+      setDraftVersion((version) => version + 1);
+      onDraftChange?.({ type: drawMode, points: [...draftPoints.current] });
+    };
+
+    m.on("click", onClick);
+    return () => {
+      m.off("click", onClick);
+    };
+  }, [drawMode, onDraftChange]);
+
+  React.useEffect(() => {
+    const group = draftLayer.current;
+    if (!group) return;
+    group.clearLayers();
+    const points = draftPoints.current;
+    if (points.length === 0) return;
+    const latLngs = points.map((point) => [point.lat, point.lon] as L.LatLngExpression);
+    if (drawMode === "circle") {
+      const center = points[0]!;
+      L.circle([center.lat, center.lon], {
+        radius: center.radius || 40,
+        color: "#f59e0b",
+        fillColor: "#f59e0b",
+        fillOpacity: 0.18,
+        dashArray: "6 5",
+      }).addTo(group);
+    } else if (drawMode === "line") {
+      L.polyline(latLngs, {
+        color: "#f59e0b",
+        weight: 4,
+        opacity: 0.85,
+        dashArray: "8 6",
+      }).addTo(group);
+      for (const point of points) {
+        L.circleMarker([point.lat, point.lon], {
+          radius: 5,
+          color: "#fff",
+          weight: 2,
+          fillColor: "#f59e0b",
+          fillOpacity: 1,
+        }).addTo(group);
+      }
+    } else {
+      L.polygon(latLngs, {
+        color: "#f59e0b",
+        fillColor: "#f59e0b",
+        fillOpacity: 0.18,
+        dashArray: "6 5",
+      }).addTo(group);
+      for (const point of points) {
+        L.circleMarker([point.lat, point.lon], {
+          radius: 5,
+          color: "#fff",
+          weight: 2,
+          fillColor: "#f59e0b",
+          fillOpacity: 1,
+        }).addTo(group);
+      }
+    }
+  }, [drawMode, drawingResetKey, draftVersion]);
+
+  React.useEffect(() => {
+    const group = geofenceLayer.current;
+    if (!group) return;
+    group.clearLayers();
+    const bounds: L.LatLngExpression[] = [];
+
+    for (const fence of geofences) {
+      if (fence.points.length === 0) continue;
+      const color = fence.color || "#38bdf8";
+      const positions = fence.points.map((point) => [point.lat, point.lon] as L.LatLngExpression);
+      let shape: L.Layer;
+      if (fence.type === 3) {
+        const center = fence.points[0]!;
+        shape = L.circle([center.lat, center.lon], {
+          radius: Math.max(center.radius, 1),
+          color,
+          fillColor: color,
+          fillOpacity: 0.2,
+          weight: 2,
+        });
+        bounds.push([center.lat, center.lon]);
+      } else if (fence.type === 1) {
+        shape = L.polyline(positions, { color, weight: 4, opacity: 0.8 });
+        bounds.push(...positions);
+      } else {
+        shape = L.polygon(positions, {
+          color,
+          fillColor: color,
+          fillOpacity: 0.2,
+          weight: 2,
+        });
+        bounds.push(...positions);
+      }
+      shape.bindTooltip(
+        `<strong>${escapeHtml(fence.name)}</strong>${fence.resource ? `<br/>${escapeHtml(fence.resource)}` : ""}`,
+      );
+      shape.addTo(group);
+    }
+
+    if (bounds.length > 0 && units.length === 0 && !track?.length) {
+      map.current?.fitBounds(L.latLngBounds(bounds).pad(0.2), { maxZoom: 15 });
+    }
+  }, [geofences, units.length, track]);
+
+  React.useEffect(() => {
+    const group = addressLayer.current;
+    if (!group) return;
+    group.clearLayers();
+    if (addressPoints.length === 0) return;
+
+    const bounds: L.LatLngExpression[] = [];
+    for (const point of addressPoints) {
+      const marker = L.marker([point.lat, point.lon], {
+        icon: L.divIcon({
+          className: "wialon-address-marker",
+          html: addressMarkerHtml(point),
+          iconSize: [26, 26],
+          iconAnchor: [13, 13],
+        }),
+      });
+      marker.bindTooltip(
+        `<strong>${escapeHtml(point.order)} · ${escapeHtml(point.label)}</strong>`,
+      );
+      marker.addTo(group);
+      bounds.push([point.lat, point.lon]);
+    }
+
+    if (units.length === 0 && !track?.length) {
+      map.current?.fitBounds(L.latLngBounds(bounds).pad(0.2), { maxZoom: 16 });
+    }
+  }, [addressPoints, units.length, track]);
 
   React.useEffect(() => {
     const m = map.current;
@@ -149,14 +359,26 @@ export default function WialonMap({ units, track, focusId }: Props) {
       bounds.push(...line);
     }
 
-    if (bounds.length > 0) {
+    if (bounds.length > 0 && geofences.length === 0) {
       m.fitBounds(L.latLngBounds(bounds).pad(0.2), { maxZoom: 15 });
     }
-  }, [units, track, focusId, markerStyle]);
+  }, [units, track, focusId, markerStyle, geofences.length]);
 
   return (
     <div className="relative h-[480px] w-full overflow-hidden rounded-lg border border-border/60">
       <div ref={container} className="h-full w-full" />
+      {drawMode ? (
+        <div className="absolute bottom-3 left-3 z-[1000] max-w-[260px] rounded-lg border border-amber-300/60 bg-background/95 px-3 py-2 text-xs shadow-md backdrop-blur-sm">
+          <strong className="block text-amber-600">Modo de dibujo activo</strong>
+          <span className="text-muted-foreground">
+            {drawMode === "circle"
+              ? "Haz clic en el centro y después en el borde."
+              : drawMode === "line"
+                ? "Haz clic para añadir los puntos de la ruta."
+                : "Haz clic para añadir los vértices del polígono."}
+          </span>
+        </div>
+      ) : null}
       <div className="absolute left-1/2 top-3 z-[1000] -translate-x-1/2 flex items-center gap-2 rounded-lg border border-border/80 bg-background/90 p-1.5 text-xs font-semibold shadow-md backdrop-blur-sm">
         <span className="px-2 text-muted-foreground">Vista</span>
         <button
