@@ -1,7 +1,12 @@
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { LogOut } from "lucide-react";
-import { PLATFORM_LABEL, useWialonKeepAlive, useWialonSession, writeSession } from "@/lib/wialon-session";
+import {
+  PLATFORM_LABEL,
+  useWialonKeepAlive,
+  useWialonSession,
+  writeSession,
+} from "@/lib/wialon-session";
 import { wialonLogout, wialonPing } from "@/lib/wialon.functions";
 import orbLiteLogo from "@/assets/orb-lite-logo.png";
 import orbFullLogo from "@/assets/orb-full-logo.jpg.asset.json";
@@ -42,7 +47,7 @@ function WialonLayout() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-5 py-10">
+    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-center gap-4">
           <img
@@ -51,7 +56,9 @@ function WialonLayout() {
             className="h-14 w-auto"
           />
           <div>
-            <h1 className="font-display text-3xl font-bold uppercase tracking-wide">Plataforma de rastreo</h1>
+            <h1 className="font-display text-3xl font-bold uppercase tracking-wide">
+              Plataforma de rastreo
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {session
                 ? `${session.userName} · ${PLATFORM_LABEL[session.host]}`
@@ -70,7 +77,7 @@ function WialonLayout() {
       </div>
 
       {session ? (
-        <nav className="mt-6 flex flex-wrap gap-2 border-b border-border/60 pb-3 text-sm font-semibold uppercase tracking-wide">
+        <nav className="sticky top-[8rem] z-40 mt-6 flex flex-wrap gap-2 border-b border-border/60 bg-background/95 py-3 text-sm font-semibold uppercase tracking-wide shadow-[0_8px_20px_-18px_var(--primary)] backdrop-blur sm:top-24">
           {tabs
             .filter((tab) => !tab.fullOnly || session.host === "full")
             .map((tab) => (

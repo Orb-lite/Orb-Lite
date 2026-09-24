@@ -365,7 +365,7 @@ export default function WialonMap({
   }, [units, track, focusId, markerStyle, geofences.length]);
 
   return (
-    <div className="relative h-[480px] w-full overflow-hidden rounded-lg border border-border/60">
+    <div className="relative isolate z-0 h-[480px] w-full overflow-hidden rounded-lg border border-border/60">
       <div ref={container} className="h-full w-full" />
       {drawMode ? (
         <div className="absolute bottom-3 left-3 z-[1000] max-w-[260px] rounded-lg border border-amber-300/60 bg-background/95 px-3 py-2 text-xs shadow-md backdrop-blur-sm">

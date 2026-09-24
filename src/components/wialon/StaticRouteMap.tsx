@@ -49,7 +49,7 @@ export function StaticRouteMap({ unit, zoom = 16, className }: StaticRouteMapPro
 
   return (
     <div
-      className={`h-72 overflow-hidden rounded-xl border border-border/60 sm:h-96 ${className ?? ""}`}
+      className={`relative isolate z-0 h-72 overflow-hidden rounded-xl border border-border/60 sm:h-96 ${className ?? ""}`}
     >
       <MapContainer center={position} zoom={zoom} scrollWheelZoom className="h-full w-full">
         <TileLayer
