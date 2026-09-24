@@ -181,10 +181,10 @@ function RutasView({ session }: { session: WialonSession }) {
   const googleMapsUrls = plannedRoute ? buildGoogleMapsUrls(plannedRoute) : [];
   const nextWazeStop = plannedRoute?.stops.find((stop) => !stop.isOrigin) ?? null;
 
-  function clearPlan() {
+  function clearPlan(clearDraft = true) {
     setPlannedRoute(null);
     setGeocodedAddresses([]);
-    setDraft(null);
+    if (clearDraft) setDraft(null);
     setMessage(null);
   }
 
@@ -260,19 +260,38 @@ function RutasView({ session }: { session: WialonSession }) {
 
   function resetDrawing() {
     setPlannedRoute(null);
+    setGeocodedAddresses([]);
     setDraft(null);
     setDrawing(false);
     setDrawingResetKey((value) => value + 1);
   }
 
   async function handlePlanRoute() {
-    const stops = addresses.map((address) => address.trim()).filter(Boolean);
-    if (origin.trim().length < 3) {
+    const drawnPoints = draft?.points ?? [];
+    const isMapPlan = inputMode === "map";
+    const stops = isMapPlan
+      ? drawnPoints.slice(1).map((_, index) => `Punto ${index + 2}`)
+      : addresses.map((address) => address.trim()).filter(Boolean);
+    const planOrigin = isMapPlan ? "Punto 1" : origin.trim();
+    const mapLocations: WialonGeocodedAddress[] = isMapPlan
+      ? drawnPoints.map((point, index) => ({
+          query: `Punto ${index + 1}`,
+          label: `Punto ${index + 1}`,
+          lat: point.lat,
+          lon: point.lon,
+        }))
+      : [];
+
+    if (!isMapPlan && planOrigin.length < 3) {
       setError("Captura el punto de salida.");
       return;
     }
     if (stops.length === 0) {
-      setError("Captura al menos una dirección de destino.");
+      setError(
+        isMapPlan
+          ? "Dibuja al menos dos puntos en el mapa."
+          : "Captura al menos una dirección de destino.",
+      );
       return;
     }
 
@@ -281,15 +300,20 @@ function RutasView({ session }: { session: WialonSession }) {
     setMessage(null);
     try {
       const cachedLocations =
+        !isMapPlan &&
         geocodedAddresses.length === stops.length + 1 &&
-        geocodedAddresses[0]?.query === origin.trim() &&
+        geocodedAddresses[0]?.query === planOrigin &&
         geocodedAddresses.slice(1).every((location, index) => location.query === stops[index]);
       const result = await planRoute({
         data: {
-          origin: origin.trim(),
+          origin: planOrigin,
           addresses: stops,
           returnToOrigin,
-          ...(cachedLocations ? { locations: geocodedAddresses } : {}),
+          ...(isMapPlan
+            ? { locations: mapLocations }
+            : cachedLocations
+              ? { locations: geocodedAddresses }
+              : {}),
         },
       });
       setPlannedRoute(result);
@@ -534,8 +558,28 @@ function RutasView({ session }: { session: WialonSession }) {
                 {drawing ? "Dibujando en el mapa…" : "Comenzar a dibujar"}
               </button>
               <p className="mt-2 text-xs text-muted-foreground">
-                Puedes guardar la ruta usando únicamente los puntos que marques en el mapa.
+                Marca al menos dos puntos. El primero será la salida y los demás serán paradas.
               </p>
+              <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={returnToOrigin}
+                  onChange={(event) => {
+                    setReturnToOrigin(event.target.checked);
+                    clearPlan(false);
+                  }}
+                  className="size-4 accent-primary"
+                />
+                Regresar al punto de salida
+              </label>
+              <button
+                type="button"
+                onClick={() => void handlePlanRoute()}
+                disabled={planning || (draft?.points.length ?? 0) < 2}
+                className="mt-4 w-full rounded-md bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {planning ? "Calculando ruta…" : "Optimizar ruta"}
+              </button>
             </div>
           )}
 
