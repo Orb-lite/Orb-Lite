@@ -109,7 +109,7 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
     to: { row: dataHeaderRow, column: columnCount },
   };
   sheet.views = [{ state: "frozen", ySplit: dataHeaderRow }];
-  sheet.properties.tabColor = BRAND.lime;
+  sheet.properties.tabColor = { argb: BRAND.lime };
 }
 
 function workbookImageAnchor(

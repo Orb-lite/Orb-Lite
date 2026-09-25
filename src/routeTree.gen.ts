@@ -26,6 +26,7 @@ import { Route as PanelTokenRouteImport } from './routes/panel.$token'
 import { Route as WialonIndexRouteImport } from './routes/wialon.index'
 import { Route as WialonCallbackRouteImport } from './routes/wialon.callback'
 import { Route as WialonCmsRouteImport } from './routes/wialon.cms'
+import { Route as WialonGeocercasRouteImport } from './routes/wialon.geocercas'
 import { Route as WialonHistorialRouteImport } from './routes/wialon.historial'
 import { Route as WialonMapaRouteImport } from './routes/wialon.mapa'
 import { Route as WialonReportesRouteImport } from './routes/wialon.reportes'
@@ -121,6 +122,11 @@ const WialonCmsRoute = WialonCmsRouteImport.update({
   path: '/cms',
   getParentRoute: () => WialonRoute,
 } as any)
+const WialonGeocercasRoute = WialonGeocercasRouteImport.update({
+  id: '/geocercas',
+  path: '/geocercas',
+  getParentRoute: () => WialonRoute,
+} as any)
 const WialonHistorialRoute = WialonHistorialRouteImport.update({
   id: '/historial',
   path: '/historial',
@@ -186,6 +192,7 @@ export interface FileRoutesByFullPath {
   '/panel/$token': typeof PanelTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/geocercas': typeof WialonGeocercasRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/reportes': typeof WialonReportesRoute
@@ -212,6 +219,7 @@ export interface FileRoutesByTo {
   '/panel/$token': typeof PanelTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/geocercas': typeof WialonGeocercasRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/reportes': typeof WialonReportesRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/panel/$token': typeof PanelTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/geocercas': typeof WialonGeocercasRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/reportes': typeof WialonReportesRoute
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/panel/$token'
     | '/wialon/callback'
     | '/wialon/cms'
+    | '/wialon/geocercas'
     | '/wialon/historial'
     | '/wialon/mapa'
     | '/wialon/reportes'
@@ -296,6 +306,7 @@ export interface FileRouteTypes {
     | '/panel/$token'
     | '/wialon/callback'
     | '/wialon/cms'
+    | '/wialon/geocercas'
     | '/wialon/historial'
     | '/wialon/mapa'
     | '/wialon/reportes'
@@ -324,6 +335,7 @@ export interface FileRouteTypes {
     | '/panel/$token'
     | '/wialon/callback'
     | '/wialon/cms'
+    | '/wialon/geocercas'
     | '/wialon/historial'
     | '/wialon/mapa'
     | '/wialon/reportes'
@@ -474,6 +486,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WialonCmsRouteImport
       parentRoute: typeof WialonRoute
     }
+    '/wialon/geocercas': {
+      id: '/wialon/geocercas'
+      path: '/geocercas'
+      fullPath: '/wialon/geocercas'
+      preLoaderRoute: typeof WialonGeocercasRouteImport
+      parentRoute: typeof WialonRoute
+    }
     '/wialon/historial': {
       id: '/wialon/historial'
       path: '/historial'
@@ -558,6 +577,7 @@ const AuthenticatedRouteRouteWithChildren =
 interface WialonRouteChildren {
   WialonCallbackRoute: typeof WialonCallbackRoute
   WialonCmsRoute: typeof WialonCmsRoute
+  WialonGeocercasRoute: typeof WialonGeocercasRoute
   WialonHistorialRoute: typeof WialonHistorialRoute
   WialonMapaRoute: typeof WialonMapaRoute
   WialonReportesRoute: typeof WialonReportesRoute
@@ -570,6 +590,7 @@ interface WialonRouteChildren {
 const WialonRouteChildren: WialonRouteChildren = {
   WialonCallbackRoute: WialonCallbackRoute,
   WialonCmsRoute: WialonCmsRoute,
+  WialonGeocercasRoute: WialonGeocercasRoute,
   WialonHistorialRoute: WialonHistorialRoute,
   WialonMapaRoute: WialonMapaRoute,
   WialonReportesRoute: WialonReportesRoute,
