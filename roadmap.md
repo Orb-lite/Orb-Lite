@@ -9,4 +9,4 @@
 - [x] Quitar exportación PDF de Historial y Reportes
 - [ ] Extender diseño azul/lima/plateado a celdas vacías del Excel
 - [ ] Dibujar solo paradas reales como puntos en las rutas; conservar el trazo por calles.
-- [ ] Pedir correo obligatorio al compartir una ruta y enviar ahí el resumen del viaje y notas al terminar.
+- [ ] Pedir correo obligatorio en el generador de enlace para operadores y enviar ahí el resumen del viaje y notas al terminar.
