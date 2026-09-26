@@ -186,12 +186,14 @@ export async function smartGeocode(
       };
 
       const features = photonData.features ?? [];
-      const match = features.find(
-        (f) =>
-          f.properties?.countrycode?.toUpperCase() === "MX" ||
-          f.properties?.country === "México" ||
-          f.properties?.country === "Mexico",
-      );
+      // Preferir resultados de México cuando existan, pero aceptar cualquier país.
+      const match =
+        features.find(
+          (f) =>
+            f.properties?.countrycode?.toUpperCase() === "MX" ||
+            f.properties?.country === "México" ||
+            f.properties?.country === "Mexico",
+        ) ?? features[0];
       const coords = match?.geometry?.coordinates;
       if (coords && coords.length >= 2) {
         const lon = Number(coords[0]);
@@ -220,7 +222,7 @@ export async function smartGeocode(
     // Si Photon falla, continuar a Nominatim
   }
 
-  // D. Fallback con OpenStreetMap Nominatim limitado a México, con reintento
+  // D. Fallback con OpenStreetMap Nominatim (global), con reintento
   // usando solo el nombre del lugar cuando la búsqueda completa no da resultados.
   const nominatimQueries = [cleanInput];
   const shortName = cleanInput.split(",")[0]?.trim();
@@ -236,7 +238,6 @@ export async function smartGeocode(
       nominatimUrl.searchParams.set("limit", "1");
       nominatimUrl.searchParams.set("q", query);
       nominatimUrl.searchParams.set("addressdetails", "1");
-      nominatimUrl.searchParams.set("countrycodes", "mx");
 
       const nominatimRes = await fetch(nominatimUrl, {
         headers: {
