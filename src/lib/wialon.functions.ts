@@ -1223,36 +1223,42 @@ export const wialonDeleteGeofence = createServerFn({ method: "POST" })
 export type { StoredUserRoute } from "./user-routes.server";
 
 /**
- * Cadena de creadores hacia arriba: el usuario, el admin de su cuenta,
- * el distribuidor que creó la cuenta padre y el super admin que creó al
- * distribuidor. Las rutas solo las ven ellos.
+ * Usuarios visibles según los permisos que Wialon le dio a la sesión:
+ * core/search_items solo devuelve los usuarios a los que la cuenta tiene
+ * acceso. Las rutas se muestran exactamente con ese criterio.
  */
-async function resolveCreatorChain(
+async function resolveAccessibleUserIds(
   host: WialonHost,
   sid: string,
   userId: number,
 ): Promise<number[]> {
-  const ids: number[] = [];
-  const seen = new Set<number>();
-  let current: number | null = userId;
-  while (current != null && !seen.has(current) && ids.length < 12) {
-    seen.add(current);
-    ids.push(current);
-    try {
-      const result: { item?: { crt?: number } } | undefined =
-        await wialonCall<{ item?: { crt?: number } }>(
-          host,
-          "core/search_item",
-          { id: current, flags: 0x1 },
-          sid,
-        );
-      const crt: number | undefined = result?.item?.crt;
-      current = typeof crt === "number" && crt > 0 ? crt : null;
-    } catch {
-      current = null;
+  const ids = new Set<number>([userId]);
+  try {
+    const result: { items?: Array<{ id?: number }> } | undefined =
+      await wialonCall<{ items?: Array<{ id?: number }> }>(
+        host,
+        "core/search_items",
+        {
+          spec: {
+            itemsType: "avl_user",
+            propName: "sys_name",
+            propValueMask: "*",
+            sortType: "sys_name",
+          },
+          force: 1,
+          flags: 0x1,
+          from: 0,
+          to: 0,
+        },
+        sid,
+      );
+    for (const item of result?.items ?? []) {
+      if (typeof item.id === "number" && item.id > 0) ids.add(item.id);
     }
+  } catch {
+    // Sin permiso para listar usuarios: solo las rutas propias.
   }
-  return ids;
+  return [...ids];
 }
 
 export const getUserRoutes = createServerFn({ method: "POST" })
@@ -1270,7 +1276,7 @@ export const getUserRoutes = createServerFn({ method: "POST" })
     let visibleIds = [data.userId];
     if (data.host && data.sid) {
       try {
-        visibleIds = await resolveCreatorChain(
+        visibleIds = await resolveAccessibleUserIds(
           data.host as WialonHost,
           data.sid,
           data.userId,

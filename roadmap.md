@@ -11,3 +11,5 @@
 - [x] Dibujar solo paradas reales como puntos en las rutas; conservar el trazo por calles.
 - [x] Pedir correo obligatorio en el generador de enlace para operadores y enviar ahí el resumen del viaje y notas al terminar.
 - [ ] Usar datos de Google Maps (Places/Routes) para geocodificar y trazar rutas, server-side vía gateway
+- [x] Rutas: visibilidad segun permisos de Wialon (usuarios accesibles por la sesion)
+- [x] Geocercas: visibilidad segun permisos de Wialon (acceso directo + arbol de creadores/cuentas)
