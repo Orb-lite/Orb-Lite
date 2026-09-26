@@ -1238,13 +1238,14 @@ async function resolveCreatorChain(
     seen.add(current);
     ids.push(current);
     try {
-      const result = await wialonCall<{ item?: { crt?: number } }>(
-        host,
-        "core/search_item",
-        { id: current, flags: 0x1 },
-        sid,
-      );
-      const crt = result?.item?.crt;
+      const result: { item?: { crt?: number } } | undefined =
+        await wialonCall<{ item?: { crt?: number } }>(
+          host,
+          "core/search_item",
+          { id: current, flags: 0x1 },
+          sid,
+        );
+      const crt: number | undefined = result?.item?.crt;
       current = typeof crt === "number" && crt > 0 ? crt : null;
     } catch {
       current = null;
