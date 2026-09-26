@@ -394,9 +394,8 @@ export const wialonVideoStream = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
-    // Intentamos la transmisión directa (HLS) para reproducirla en la
-    // plataforma. Si la unidad/cuenta no la expone, se abre el reproductor
-    // oficial de Wialon como respaldo.
+    // La transmisión debe reproducirse dentro de ORB-LITE. No devolvemos la
+    // página oficial como respaldo porque eso sacaría al usuario del sistema.
     try {
       const stream = await wialonCall<string | { url?: string }>(
         host,
@@ -416,22 +415,9 @@ export const wialonVideoStream = createServerFn({ method: "POST" })
     } catch (error) {
       console.error("[video] get_live_stream", error);
     }
-    const res = await wialonCall<{ authHash?: string }>(
-      host,
-      "core/create_auth_hash",
-      {},
-      data.sid,
+    throw new Error(
+      "La cámara no entregó una transmisión compatible para verla dentro de la plataforma.",
     );
-    const base = APP_URLS[host];
-    const url = res.authHash
-      ? `${base}?authHash=${encodeURIComponent(res.authHash)}&lang=es`
-      : base;
-    return {
-      url,
-      mode: data.mode,
-      resolution: data.resolution,
-      service: "official_player",
-    };
   });
 /** Historial de mensajes/recorrido de una unidad en un intervalo. */
 export const wialonHistory = createServerFn({ method: "POST" })
