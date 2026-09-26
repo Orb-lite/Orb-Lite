@@ -229,6 +229,7 @@ export function DynamicTrack({
             url={MAP_PROVIDERS.cartoDark.url}
             subdomains={MAP_PROVIDERS.cartoDark.subdomains}
             maxZoom={MAP_PROVIDERS.cartoDark.maxZoom}
+            className={DARK_TILE_CLASS}
           />
           <FitTrack points={positions} />
           {positions.length > 1 && (

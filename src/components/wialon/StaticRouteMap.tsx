@@ -77,6 +77,7 @@ export function StaticRouteMap({
           url={MAP_PROVIDERS.cartoDark.url}
           subdomains={MAP_PROVIDERS.cartoDark.subdomains}
           maxZoom={MAP_PROVIDERS.cartoDark.maxZoom}
+          className={DARK_TILE_CLASS}
         />
         <FollowLastPosition position={position} />
         <Marker position={position} icon={icon}>
