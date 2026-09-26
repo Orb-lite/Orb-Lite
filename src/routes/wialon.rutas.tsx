@@ -17,7 +17,6 @@ import {
   EyeOff,
   Lock,
   Link2,
-  ShieldCheck,
   Layers,
   Route as RouteIcon,
 } from "lucide-react";
@@ -864,10 +863,6 @@ function RutasView({ session }: { session: WialonSession }) {
                   <h2 className="font-display text-sm font-bold uppercase tracking-widest">
                     Planificador inteligente
                   </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Optimiza el orden de las paradas. Puedes escribir calles,
-                    lugares, coordenadas o enlaces de Google Maps.
-                  </p>
                 </div>
               </div>
 
@@ -931,10 +926,6 @@ function RutasView({ session }: { session: WialonSession }) {
                     ? "Buscando direcciones…"
                     : "Buscar puntos en el mapa"}
                 </button>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Ubica el origen y cada dirección como un punto numerado antes
-                  de optimizar.
-                </p>
               </div>
 
               <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm">
@@ -967,10 +958,6 @@ function RutasView({ session }: { session: WialonSession }) {
                   <h2 className="font-display text-sm font-bold uppercase tracking-widest">
                     Puntos en mapa
                   </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Haz clic sobre el mapa para agregar los puntos en el orden
-                    de la ruta.
-                  </p>
                 </div>
               </div>
               <button
@@ -980,10 +967,6 @@ function RutasView({ session }: { session: WialonSession }) {
               >
                 {drawing ? "Dibujando en el mapa…" : "Comenzar a dibujar"}
               </button>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Marca al menos dos puntos. El primero será la salida y los demás
-                serán paradas.
-              </p>
               <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -1083,10 +1066,6 @@ function RutasView({ session }: { session: WialonSession }) {
                     </a>
                   ) : null}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Waze abre una parada a la vez; usa el enlace Waze de cada
-                  parada para seguir el orden recomendado.
-                </p>
               </div>
             </div>
           ) : null}
@@ -1153,15 +1132,7 @@ function RutasView({ session }: { session: WialonSession }) {
                 ))}
               </select>
             </label>
-          ) : (
-            <div className="mt-3 flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-primary">
-              <Lock className="size-3.5 shrink-0" />
-              <span>
-                Se guardará exclusivamente en tu cuenta de usuario (privada en
-                nuestro servidor).
-              </span>
-            </div>
-          )}
+          ) : null}
 
           {error ? (
             <p className="mt-4 text-sm text-destructive">{error}</p>
@@ -1205,9 +1176,6 @@ function RutasView({ session }: { session: WialonSession }) {
                 <h2 className="font-display text-base font-bold uppercase tracking-wide text-foreground">
                   Rutas de Wialon Logistics
                 </h2>
-                <p className="text-xs text-muted-foreground">
-                  Rutas creadas en la aplicación Logistics de tu cuenta ORB-FULL.
-                </p>
               </div>
             </div>
             <span className="rounded-full bg-primary/10 px-3 py-1 font-mono text-xs font-semibold text-primary">
@@ -1311,19 +1279,9 @@ function RutasView({ session }: { session: WialonSession }) {
               <Lock className="size-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-display text-base font-bold uppercase tracking-wide text-foreground">
-                  Mis Rutas Guardadas
-                </h2>
-                <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                  <ShieldCheck className="size-3" /> Exclusivo de tu cuenta
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Guardadas en nuestro servidor fuera de Wialon. Solo visibles
-                cuando inicia sesión tu cuenta (
-                {session.userName || `ID ${session.userId}`}).
-              </p>
+              <h2 className="font-display text-base font-bold uppercase tracking-wide text-foreground">
+                Mis Rutas Guardadas
+              </h2>
             </div>
           </div>
           <span className="rounded-full bg-primary/10 px-3 py-1 font-mono text-xs font-semibold text-primary">

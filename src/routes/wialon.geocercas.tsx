@@ -353,9 +353,6 @@ function GeocercasView({ session }: { session: WialonSession }) {
               <h2 className="font-display text-sm font-bold uppercase tracking-widest text-foreground">
                 Nueva Geocerca
               </h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Se guardará directamente en Wialon
-              </p>
             </div>
             <button
               type="button"

@@ -100,11 +100,6 @@ function WialonLoginPage() {
             Iniciar sesión con Wialon
           </button>
 
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            Serás redirigido a la página oficial de Wialon. Al terminar,
-            regresarás automáticamente a ORB-LITE con una sesión temporal; nunca
-            vemos ni almacenamos tu contraseña.
-          </p>
         </section>
       </div>
 
