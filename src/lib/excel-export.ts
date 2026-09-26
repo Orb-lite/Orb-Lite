@@ -158,7 +158,7 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   const logoCol = Math.floor(logoLeftPx / colPx);
   const logoColOff = (logoLeftPx % colPx) * 9525;
   const logo = workbookImageAnchor(logoId, logoCol, 0, logoWidth, 94);
-  logo.range.tl.colOff = logoColOff;
+  (logo.range.tl as { col: number; row: number; colOff?: number }).colOff = logoColOff;
   sheet.addImage(logo.id, logo.range);
 
   const header = sheet.getRow(5);
