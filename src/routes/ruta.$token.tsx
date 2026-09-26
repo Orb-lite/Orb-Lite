@@ -156,18 +156,6 @@ function SharedRoutePage() {
           </a>
         ) : null}
 
-        {route && nextIndex === -1 && stops.length > 0 ? (
-          route.reportSent ? (
-            <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-4 font-display text-sm font-bold uppercase tracking-widest text-primary">
-              <Flag className="size-5" /> Resumen enviado
-            </div>
-          ) : (
-            <button type="button" onClick={() => void sendSummary()} disabled={sending} className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-4 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:opacity-50">
-              <Flag className="size-5" /> {sending ? "Enviando…" : "Terminar y enviar resumen"}
-            </button>
-          )
-        ) : null}
-
         {error ? (
           <p className="mb-4 text-center text-sm text-destructive">{error}</p>
         ) : null}
@@ -251,6 +239,18 @@ function SharedRoutePage() {
             );
           })}
         </ol>
+
+        {route && nextIndex === -1 && stops.length > 0 ? (
+          route.reportSent ? (
+            <div className="mt-6 flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-4 font-display text-sm font-bold uppercase tracking-widest text-primary">
+              <Flag className="size-5" /> Resumen enviado
+            </div>
+          ) : (
+            <button type="button" onClick={() => void sendSummary()} disabled={sending} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-4 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:opacity-50">
+              <Flag className="size-5" /> {sending ? "Enviando…" : "Terminar y enviar resumen"}
+            </button>
+          )
+        ) : null}
 
         {route && doneCount > 0 ? (
           <section className="mt-8 rounded-xl border border-border/70 bg-card/60 p-4">
