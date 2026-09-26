@@ -323,6 +323,63 @@ export type Database = {
         }
         Relationships: []
       }
+      user_routes: {
+        Row: {
+          addresses: Json | null
+          color: string
+          created_at: string
+          distance_meters: number | null
+          duration_seconds: number | null
+          id: string
+          name: string
+          origin: string | null
+          points: Json
+          report_email: string | null
+          report_sent_at: string | null
+          route_stops: Json | null
+          share_token: string | null
+          stops: Json | null
+          user_id: number
+          user_name: string | null
+        }
+        Insert: {
+          addresses?: Json | null
+          color?: string
+          created_at?: string
+          distance_meters?: number | null
+          duration_seconds?: number | null
+          id: string
+          name: string
+          origin?: string | null
+          points?: Json
+          report_email?: string | null
+          report_sent_at?: string | null
+          route_stops?: Json | null
+          share_token?: string | null
+          stops?: Json | null
+          user_id: number
+          user_name?: string | null
+        }
+        Update: {
+          addresses?: Json | null
+          color?: string
+          created_at?: string
+          distance_meters?: number | null
+          duration_seconds?: number | null
+          id?: string
+          name?: string
+          origin?: string | null
+          points?: Json
+          report_email?: string | null
+          report_sent_at?: string | null
+          route_stops?: Json | null
+          share_token?: string | null
+          stops?: Json | null
+          user_id?: number
+          user_name?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
