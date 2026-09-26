@@ -182,7 +182,14 @@ export async function smartGeocode(
         }>;
       };
 
-      const match = photonData.features?.[0];
+      // Preferir resultados en México; ignorar coincidencias de otros países
+      // (p. ej. "Catedral de Guadalajara" resolvía a Sigüenza, España).
+      const features = photonData.features ?? [];
+      const match =
+        features.find((f) => f.properties?.country === "México") ??
+        (features.length > 0 && features.every((f) => !f.properties?.country)
+          ? features[0]
+          : undefined);
       const coords = match?.geometry?.coordinates;
       if (coords && coords.length >= 2) {
         const lon = Number(coords[0]);
@@ -211,42 +218,52 @@ export async function smartGeocode(
     // Si Photon falla, continuar a Nominatim
   }
 
-  // D. Fallback con OpenStreetMap Nominatim con parámetros optimizados
-  try {
-    const nominatimUrl = new URL("https://nominatim.openstreetmap.org/search");
-    nominatimUrl.searchParams.set("format", "jsonv2");
-    nominatimUrl.searchParams.set("limit", "1");
-    nominatimUrl.searchParams.set("q", cleanInput);
-    nominatimUrl.searchParams.set("addressdetails", "1");
+  // D. Fallback con OpenStreetMap Nominatim limitado a México, con reintento
+  // usando solo el nombre del lugar cuando la búsqueda completa no da resultados.
+  const nominatimQueries = [cleanInput];
+  const shortName = cleanInput.split(",")[0]?.trim();
+  if (shortName && shortName.length >= 3 && shortName !== cleanInput) {
+    nominatimQueries.push(shortName);
+  }
 
-    const nominatimRes = await fetch(nominatimUrl, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "ORB-LITE-App/2.0 (GPS Satelital)",
-      },
-      signal: AbortSignal.timeout(10000),
-    });
+  for (const query of nominatimQueries) {
+    try {
+      const nominatimUrl = new URL("https://nominatim.openstreetmap.org/search");
+      nominatimUrl.searchParams.set("format", "jsonv2");
+      nominatimUrl.searchParams.set("limit", "1");
+      nominatimUrl.searchParams.set("q", query);
+      nominatimUrl.searchParams.set("addressdetails", "1");
+      nominatimUrl.searchParams.set("countrycodes", "mx");
 
-    if (nominatimRes.ok) {
-      const matches = (await nominatimRes.json()) as Array<{
-        lat?: string;
-        lon?: string;
-        display_name?: string;
-      }>;
-      const match = matches[0];
-      const lat = Number(match?.lat);
-      const lon = Number(match?.lon);
-      if (match && Number.isFinite(lat) && Number.isFinite(lon)) {
-        return {
-          query: cleanInput,
-          label: match.display_name?.trim() || cleanInput,
-          lat,
-          lon,
-        };
+      const nominatimRes = await fetch(nominatimUrl, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "ORB-LITE-App/2.0 (GPS Satelital)",
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (nominatimRes.ok) {
+        const matches = (await nominatimRes.json()) as Array<{
+          lat?: string;
+          lon?: string;
+          display_name?: string;
+        }>;
+        const match = matches[0];
+        const lat = Number(match?.lat);
+        const lon = Number(match?.lon);
+        if (match && Number.isFinite(lat) && Number.isFinite(lon)) {
+          return {
+            query: cleanInput,
+            label: match.display_name?.trim() || cleanInput,
+            lat,
+            lon,
+          };
+        }
       }
+    } catch {
+      // Continuar con la siguiente variante
     }
-  } catch {
-    // Continuar
   }
 
   throw new Error(
