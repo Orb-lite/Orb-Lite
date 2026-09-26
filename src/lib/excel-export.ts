@@ -78,7 +78,8 @@ function stripeDataRows(
   rowCount: number,
   bandEnd: number,
 ) {
-  const lastRow = 5 + rowCount + 12;
+  const fillEndCol = Math.max(bandEnd, 16);
+  const lastRow = Math.max(6 + rowCount, 120);
   for (let index = 0; index < rowCount; index += 1) {
     const row = sheet.getRow(6 + index);
     for (let col = 1; col <= columnCount; col += 1) {
@@ -93,7 +94,7 @@ function stripeDataRows(
   }
   for (let rowNumber = 6; rowNumber <= lastRow; rowNumber += 1) {
     const row = sheet.getRow(rowNumber);
-    for (let col = columnCount + 1; col <= bandEnd; col += 1) {
+    for (let col = columnCount + 1; col <= fillEndCol; col += 1) {
       row.getCell(col).fill = {
         type: "pattern",
         pattern: "solid",
@@ -103,7 +104,7 @@ function stripeDataRows(
   }
   for (let rowNumber = 6 + rowCount; rowNumber <= lastRow; rowNumber += 1) {
     const row = sheet.getRow(rowNumber);
-    for (let col = 1; col <= bandEnd; col += 1) {
+    for (let col = 1; col <= fillEndCol; col += 1) {
       row.getCell(col).fill = {
         type: "pattern",
         pattern: "solid",
@@ -133,7 +134,8 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   sheet.getRow(2).height = 30;
   sheet.getRow(4).height = 24;
 
-  for (let col = 1; col <= bandEnd; col += 1) {
+  const fillEndCol = Math.max(bandEnd, 16);
+  for (let col = 1; col <= fillEndCol; col += 1) {
     sheet.getCell(1, col).fill = navyFill();
     sheet.getCell(2, col).fill = navyFill();
     sheet.getCell(3, col).fill = navyFill();
