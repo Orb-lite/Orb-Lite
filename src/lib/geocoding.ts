@@ -159,8 +159,10 @@ export async function smartGeocode(
   try {
     const photonUrl = new URL("https://photon.komoot.io/api/");
     photonUrl.searchParams.set("q", cleanInput);
-    photonUrl.searchParams.set("limit", "1");
-    photonUrl.searchParams.set("lang", "es");
+    photonUrl.searchParams.set("limit", "5");
+    // Sesgo hacia Guadalajara/México (Photon no acepta lang=es).
+    photonUrl.searchParams.set("lat", "20.67");
+    photonUrl.searchParams.set("lon", "-103.35");
 
     const photonRes = await fetch(photonUrl, {
       headers: { Accept: "application/json" },
@@ -178,18 +180,18 @@ export async function smartGeocode(
             city?: string;
             state?: string;
             country?: string;
+            countrycode?: string;
           };
         }>;
       };
 
-      // Preferir resultados en México; ignorar coincidencias de otros países
-      // (p. ej. "Catedral de Guadalajara" resolvía a Sigüenza, España).
       const features = photonData.features ?? [];
-      const match =
-        features.find((f) => f.properties?.country === "México") ??
-        (features.length > 0 && features.every((f) => !f.properties?.country)
-          ? features[0]
-          : undefined);
+      const match = features.find(
+        (f) =>
+          f.properties?.countrycode?.toUpperCase() === "MX" ||
+          f.properties?.country === "México" ||
+          f.properties?.country === "Mexico",
+      );
       const coords = match?.geometry?.coordinates;
       if (coords && coords.length >= 2) {
         const lon = Number(coords[0]);
