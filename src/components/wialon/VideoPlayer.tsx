@@ -45,6 +45,7 @@ export function VideoPlayer({
   const [resolution, setResolution] = React.useState<VideoResolution>("480p");
   const [url, setUrl] = React.useState<string | null>(null);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const popupRef = React.useRef<Window | null>(null);
 
   const request = useMutation({
     mutationFn: () =>
@@ -59,8 +60,11 @@ export function VideoPlayer({
         },
       }),
     onSuccess: (result) => {
-      window.open(result.url, "_blank", "noopener,noreferrer");
+      const win = popupRef.current;
+      if (win && !win.closed) win.location.href = result.url;
+      else window.open(result.url, "_blank");
     },
+    onError: () => popupRef.current?.close(),
   });
 
   // Reproduce la URL entregada por Wialon (HLS) en el elemento <video>.
@@ -137,7 +141,10 @@ export function VideoPlayer({
           ) : (
             <button
               type="button"
-              onClick={() => request.mutate()}
+              onClick={() => {
+                popupRef.current = window.open("", "_blank");
+                request.mutate();
+              }}
               disabled={request.isPending}
               className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
             >
