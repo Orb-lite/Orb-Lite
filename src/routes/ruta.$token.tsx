@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, MapPin, Navigation, Flag, Loader2 } from "lucide-react";
+import { Check, MapPin, Navigation, Flag, Loader2, Download } from "lucide-react";
 import * as React from "react";
 import {
   getSharedRoute,
   markSharedStopVisited,
   commentSharedStop,
 } from "@/lib/route-share.functions";
+import { downloadExcelWorkbook } from "@/lib/excel-export";
 
 export const Route = createFileRoute("/ruta/$token")({
   head: () => ({
@@ -196,9 +197,18 @@ function SharedRoutePage() {
 
         {route && doneCount > 0 ? (
           <section className="mt-8 rounded-xl border border-border/70 bg-card/60 p-4">
-            <h2 className="font-display text-sm font-bold uppercase tracking-widest">
-              Reporte de visitas
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="font-display text-sm font-bold uppercase tracking-widest">
+                Reporte de visitas
+              </h2>
+              <button
+                type="button"
+                onClick={() => void exportVisitReport(route.name, stops)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-primary/50 px-2.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+              >
+                <Download className="size-3.5" /> Excel
+              </button>
+            </div>
             <ul className="mt-3 divide-y divide-border/60 text-sm">
               {stops.map((stop, index) =>
                 stop.visitedAt ? (
