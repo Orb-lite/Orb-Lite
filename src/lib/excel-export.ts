@@ -356,16 +356,150 @@ export async function captureChartAsPng(container: HTMLElement) {
   }
 }
 
+/** Gráfica nativa de Excel (editable) generada dentro del archivo. */
+export interface ExcelChartDefinition {
+  /** Hoja de donde salen los datos (debe existir en `sheets`). */
+  sheetName: string;
+  title: string;
+  /** Columna 1-based con las categorías (eje X); por defecto 1. */
+  categoryColumn?: number;
+  /** Series: nombre y columna 1-based de los valores. */
+  series: Array<{ name: string; column: number }>;
+  /** Número de filas de datos (los datos empiezan en la fila 6). */
+  dataRows: number;
+}
+
+function columnLetter(column: number): string {
+  let letter = "";
+  let current = column;
+  while (current > 0) {
+    const remainder = (current - 1) % 26;
+    letter = String.fromCharCode(65 + remainder) + letter;
+    current = Math.floor((current - 1) / 26);
+  }
+  return letter;
+}
+
+function chartXml(definition: ExcelChartDefinition): string {
+  const sheet = `'${definition.sheetName.replace(/'/g, "''")}'`;
+  const lastRow = 5 + definition.dataRows;
+  const categoryColumn = columnLetter(definition.categoryColumn ?? 1);
+  const seriesXml = definition.series
+    .map((serie, index) => {
+      const valueColumn = columnLetter(serie.column);
+      return `<c:ser><c:idx val="${index}"/><c:order val="${index}"/><c:tx><c:strRef><c:f>${sheet}!$${valueColumn}$5</c:f></c:strRef></c:tx><c:spPr><a:ln w="28575"><a:solidFill><a:srgbClr val="A3E635"/></a:solidFill></a:ln></c:spPr><c:cat><c:strRef><c:f>${sheet}!$${categoryColumn}$6:$${categoryColumn}$${lastRow}</c:f></c:strRef></c:cat><c:val><c:numRef><c:f>${sheet}!$${valueColumn}$6:$${valueColumn}$${lastRow}</c:f></c:numRef></c:val><c:smooth val="0"/></c:ser>`;
+    })
+    .join("");
+  const axBase = 100000000 + definition.title.length;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><c:lang val="es-MX"/><c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1400" b="1"><a:solidFill><a:srgbClr val="17233D"/></a:solidFill></a:defRPr></a:pPr><a:r><a:rPr lang="es-MX" sz="1400" b="1"><a:solidFill><a:srgbClr val="17233D"/></a:solidFill></a:rPr><a:t>${definition.title.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:plotArea><c:layout/><c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>${seriesXml}<c:marker val="1"/><c:axId val="${axBase}"/><c:axId val="${axBase + 1}"/></c:lineChart><c:catAx><c:axId val="${axBase}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:crossAx val="${axBase + 1}"/></c:catAx><c:valAx><c:axId val="${axBase + 1}"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/><c:crossAx val="${axBase}"/></c:valAx></c:plotArea><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart></c:chartSpace>`;
+}
+
+/**
+ * Inserta gráficas nativas de Excel dentro del .xlsx generado por ExcelJS
+ * (ExcelJS no soporta gráficas): se abre el archivo como zip, se agregan
+ * las partes de la gráfica y se anclan en el dibujo de la hoja destino.
+ */
+async function injectNativeCharts(
+  buffer: ArrayBuffer,
+  charts: ExcelChartDefinition[],
+): Promise<Blob> {
+  const JSZip = (await import("jszip")).default;
+  const zip = await JSZip.loadAsync(buffer);
+
+  const workbookXml = await zip.file("xl/workbook.xml")!.async("string");
+  const workbookRels = await zip.file("xl/_rels/workbook.xml.rels")!.async("string");
+
+  let contentTypes = await zip.file("[Content_Types].xml")!.async("string");
+  let chartIndex = 1;
+  while (zip.file(`xl/charts/chart${chartIndex}.xml`)) chartIndex += 1;
+
+  for (const definition of charts) {
+    const sheetMatch = workbookXml.match(
+      new RegExp(
+        `<sheet[^>]*name="${definition.sheetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"[^>]*r:id="(rId\\d+)"`,
+      ),
+    );
+    if (!sheetMatch) continue;
+    const relMatch = workbookRels.match(
+      new RegExp(`<Relationship[^>]*Id="${sheetMatch[1]}"[^>]*Target="([^"]+)"`),
+    );
+    if (!relMatch) continue;
+    const sheetPath = `xl/${relMatch[1]!.replace(/^\//, "").replace(/^xl\//, "")}`;
+    const sheetFile = zip.file(sheetPath);
+    if (!sheetFile) continue;
+
+    const relsPath = sheetPath.replace(
+      /worksheets\/([^/]+)$/,
+      "worksheets/_rels/$1.rels",
+    );
+    const relsFile = zip.file(relsPath);
+    if (!relsFile) continue;
+    let sheetRels = await relsFile.async("string");
+    const drawingMatch = sheetRels.match(
+      /<Relationship[^>]*Type="[^"]*\/drawing"[^>]*Target="([^"]+)"/,
+    );
+    if (!drawingMatch) continue;
+    const drawingPath = drawingMatch[1]!.replace(/^\.\.\//, "xl/");
+    const drawingFile = zip.file(drawingPath);
+    if (!drawingFile) continue;
+    let drawingXml = await drawingFile.async("string");
+    const drawingRelsPath = drawingPath.replace(
+      /drawings\/([^/]+)$/,
+      "drawings/_rels/$1.rels",
+    );
+    let drawingRels = (await zip.file(drawingRelsPath)?.async("string")) ?? "";
+
+    const chartPath = `xl/charts/chart${chartIndex}.xml`;
+    const existingIds = [...drawingRels.matchAll(/Id="rId(\d+)"/g)].map((m) =>
+      Number(m[1]),
+    );
+    const newRelId = `rId${Math.max(0, ...existingIds) + 1}`;
+    const frameId = 100 + chartIndex;
+    const fromRow = 5 + definition.dataRows + 2;
+    const anchor = `<xdr:twoCellAnchor><xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${fromRow}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>9</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${fromRow + 18}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${frameId}" name="${definition.title.replace(/"/g, "")}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:id="${newRelId}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`;
+
+    drawingXml = drawingXml.replace("</xdr:wsDr>", `${anchor}</xdr:wsDr>`);
+    zip.file(drawingPath, drawingXml);
+
+    if (drawingRels) {
+      drawingRels = drawingRels.replace(
+        "</Relationships>",
+        `<Relationship Id="${newRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart${chartIndex}.xml"/></Relationships>`,
+      );
+    } else {
+      drawingRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="${newRelId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart${chartIndex}.xml"/></Relationships>`;
+    }
+    zip.file(drawingRelsPath, drawingRels);
+
+    zip.file(chartPath, chartXml(definition));
+    contentTypes = contentTypes.replace(
+      "</Types>",
+      `<Override PartName="/xl/charts/chart${chartIndex}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/></Types>`,
+    );
+    chartIndex += 1;
+  }
+
+  zip.file("[Content_Types].xml", contentTypes);
+  return zip.generateAsync({
+    type: "blob",
+    mimeType:
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
+
 export async function downloadExcelWorkbook({
   filename,
   sheets,
   map,
   images,
+  charts,
 }: {
   filename: string;
   sheets: ExcelSheetDefinition[];
   map?: ExcelMapDefinition;
   images?: ExcelMapDefinition[];
+  charts?: ExcelChartDefinition[];
 }) {
   const ExcelJS = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
