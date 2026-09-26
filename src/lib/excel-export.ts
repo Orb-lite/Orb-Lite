@@ -160,7 +160,7 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
     );
   }
 
-  stripeDataRows(sheet, columnCount, rows.length - 1);
+  stripeDataRows(sheet, columnCount, rows.length - 1, bandEnd);
 
   sheet.autoFilter = {
     from: { row: 5, column: 1 },
