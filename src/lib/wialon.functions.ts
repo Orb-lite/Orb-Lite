@@ -5,7 +5,6 @@ import {
   isSessionExpired,
   WialonError,
   WIALON_HOSTS,
-  APP_URLS,
   type WialonHost,
 } from "@/lib/wialon.server";
 import { smartGeocode } from "@/lib/geocoding";
