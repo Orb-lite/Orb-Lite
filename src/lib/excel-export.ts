@@ -139,6 +139,163 @@ export async function captureElementAsPng(element: HTMLElement) {
   return canvas.toDataURL("image/png");
 }
 
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("No se pudo cargar una imagen del mapa."));
+    image.src = src;
+  });
+}
+
+/**
+ * Dibuja el recorrido sobre las losetas oscuras de Esri en un canvas.
+ * A diferencia de capturar el mapa interactivo (Leaflet no se puede
+ * fotografiar por restricciones de los navegadores), aquí la imagen se
+ * construye pieza por pieza y siempre sale completa.
+ */
+export async function renderTrackMapImage(
+  track: Array<{ lat: number; lon: number }>,
+) {
+  if (track.length === 0) throw new Error("El recorrido no tiene puntos.");
+
+  const TILE = 256;
+  const lats = track.map((p) => p.lat);
+  const lons = track.map((p) => p.lon);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLon = Math.min(...lons);
+  const maxLon = Math.max(...lons);
+
+  const project = (lat: number, lon: number, zoom: number) => {
+    const sin = Math.sin((lat * Math.PI) / 180);
+    const scale = TILE * 2 ** zoom;
+    return {
+      x: ((lon + 180) / 360) * scale,
+      y: (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale,
+    };
+  };
+
+  let zoom = 16;
+  while (zoom > 3) {
+    const a = project(maxLat, minLon, zoom);
+    const b = project(minLat, maxLon, zoom);
+    if (b.x - a.x <= 7 * TILE && b.y - a.y <= 5 * TILE) break;
+    zoom -= 1;
+  }
+
+  const topLeft = project(maxLat, minLon, zoom);
+  const bottomRight = project(minLat, maxLon, zoom);
+  const pad = 40;
+  const x0 = Math.floor((topLeft.x - pad) / TILE);
+  const x1 = Math.floor((bottomRight.x + pad) / TILE);
+  const y0 = Math.floor((topLeft.y - pad) / TILE);
+  const y1 = Math.floor((bottomRight.y + pad) / TILE);
+  const maxTile = 2 ** zoom - 1;
+  const originX = x0 * TILE;
+  const originY = y0 * TILE;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = (x1 - x0 + 1) * TILE;
+  canvas.height = (y1 - y0 + 1) * TILE;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No se pudo preparar la imagen del mapa.");
+  ctx.fillStyle = "#17233d";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const jobs: Array<Promise<void>> = [];
+  for (let tx = Math.max(0, x0); tx <= Math.min(maxTile, x1); tx += 1) {
+    for (let ty = Math.max(0, y0); ty <= Math.min(maxTile, y1); ty += 1) {
+      const url = `https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/${zoom}/${ty}/${tx}`;
+      jobs.push(
+        loadImage(url)
+          .then((img) => {
+            ctx.drawImage(img, tx * TILE - originX, ty * TILE - originY);
+          })
+          .catch(() => undefined),
+      );
+    }
+  }
+  await Promise.all(jobs);
+
+  const toCanvas = (lat: number, lon: number) => {
+    const p = project(lat, lon, zoom);
+    return { x: p.x - originX, y: p.y - originY };
+  };
+
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  ctx.strokeStyle = "#a3e635";
+  ctx.lineWidth = 5;
+  ctx.shadowColor = "rgba(0,0,0,0.6)";
+  ctx.shadowBlur = 6;
+  ctx.beginPath();
+  track.forEach((point, index) => {
+    const p = toCanvas(point.lat, point.lon);
+    if (index === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  });
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  const drawDot = (lat: number, lon: number, color: string, radius: number) => {
+    const p = toCanvas(lat, lon);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+  };
+
+  const first = track[0]!;
+  const last = track[track.length - 1]!;
+  drawDot(first.lat, first.lon, "#22c55e", 10);
+  drawDot(last.lat, last.lon, "#ef4444", 10);
+
+  return canvas.toDataURL("image/png");
+}
+
+/**
+ * Convierte una gráfica de Recharts (SVG) a PNG. html2canvas no sabe
+ * dibujar SVG, por eso se serializa el SVG y se pinta en un canvas.
+ */
+export async function captureChartAsPng(container: HTMLElement) {
+  const svg = container.querySelector("svg");
+  if (!svg) throw new Error("No se encontró la gráfica para exportar.");
+
+  const box = svg.getBoundingClientRect();
+  const width = Math.max(1, Math.round(box.width));
+  const height = Math.max(1, Math.round(box.height));
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", String(width));
+  clone.setAttribute("height", String(height));
+
+  const serialized = new XMLSerializer().serializeToString(clone);
+  const svgUrl = URL.createObjectURL(
+    new Blob([serialized], { type: "image/svg+xml;charset=utf-8" }),
+  );
+  try {
+    const image = await loadImage(svgUrl);
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("No se pudo preparar la imagen de la gráfica.");
+    ctx.fillStyle = "#0e1f39";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(scale, scale);
+    ctx.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL("image/png");
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
 export async function downloadExcelWorkbook({
   filename,
   sheets,
