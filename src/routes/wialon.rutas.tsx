@@ -582,6 +582,36 @@ function RutasView({ session }: { session: WialonSession }) {
     setTimeout(() => setMessage(null), 3000);
   }
 
+  async function handleShareUserRoute(route: StoredUserRoute) {
+    setSharingUserRouteId(route.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await shareUserRoute({
+        data: { userId: session.userId, routeId: route.id },
+      });
+      const url = `${window.location.origin}/ruta/${result.token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        setMessage(
+          `Enlace de "${route.name}" copiado. Los operadores no necesitan iniciar sesión.`,
+        );
+      } catch {
+        window.prompt("Copia el enlace de la ruta:", url);
+      }
+      setCopiedUserRouteId(route.id);
+      window.setTimeout(() => setCopiedUserRouteId(null), 4000);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "No se pudo generar el enlace de la ruta.",
+      );
+    } finally {
+      setSharingUserRouteId(null);
+    }
+  }
+
   async function handleDeleteUserRoute(route: StoredUserRoute) {
     if (confirmDeleteUserRouteId !== route.id) {
       setConfirmDeleteUserRouteId(route.id);
@@ -1374,6 +1404,27 @@ function RutasView({ session }: { session: WialonSession }) {
                           <ExternalLink className="size-3" />
                         </a>
                       ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => handleShareUserRoute(route)}
+                        disabled={sharingUserRouteId === route.id}
+                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors disabled:opacity-50 ${
+                          copiedUserRouteId === route.id
+                            ? "bg-primary/15 text-primary font-semibold"
+                            : "text-primary hover:bg-primary/10"
+                        }`}
+                        title="Generar enlace para operadores (sin iniciar sesión, con check de visitas y Waze)"
+                      >
+                        <Link2 className="size-3.5" />
+                        <span>
+                          {sharingUserRouteId === route.id
+                            ? "…"
+                            : copiedUserRouteId === route.id
+                              ? "¡Copiado!"
+                              : "Enlace"}
+                        </span>
+                      </button>
                     </div>
 
                     <button
