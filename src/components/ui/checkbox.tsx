@@ -6,7 +6,7 @@ export type CheckedState = boolean | "indeterminate";
 
 export interface CheckboxProps extends Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
-  "onChange"
+  "onChange" | "defaultChecked"
 > {
   checked?: CheckedState;
   defaultChecked?: CheckedState;
