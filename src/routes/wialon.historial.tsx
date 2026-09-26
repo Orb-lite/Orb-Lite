@@ -11,7 +11,11 @@ import {
   type WialonMessage,
 } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
-import { downloadExcelWorkbook, renderTrackMapImage } from "@/lib/excel-export";
+import {
+  downloadExcelWorkbook,
+  downloadPdfReport,
+  renderTrackMapImage,
+} from "@/lib/excel-export";
 
 const WialonMap = React.lazy(() => import("@/components/wialon-map"));
 
@@ -105,54 +109,73 @@ function HistorialView({ session }: { session: WialonSession }) {
     .filter((m) => m.lat != null && m.lon != null)
     .map((m) => ({ lat: m.lat as number, lon: m.lon as number }));
 
-  async function onExport() {
-    if (!result) return;
+  async function buildExport() {
+    if (!result) return null;
+    const mapDataUrl = track.length > 0 ? await renderTrackMapImage(track) : null;
+    const selectedUnit = units.find((unit) => unit.id === selected);
+    const historyRows: Array<Array<string | number | null>> = [
+      ["Fecha", "Latitud", "Longitud", "Velocidad (km/h)", "Rumbo (°)"],
+      ...result.messages.map((message) => [
+        new Date(message.time * 1000).toLocaleString("es-MX"),
+        message.lat,
+        message.lon,
+        message.speed,
+        message.course,
+      ]),
+    ];
+    const summaryRows: Array<Array<string | number | null>> = [
+      ["Campo", "Valor"],
+      ["Unidad", selectedUnit?.name ?? `Unidad ${selected ?? ""}`],
+      ["Desde", new Date(from).toLocaleString("es-MX")],
+      ["Hasta", new Date(to).toLocaleString("es-MX")],
+      ["Mensajes", result.total],
+      ["Puntos con ubicación", result.points],
+      ["Velocidad máxima (km/h)", Math.round(result.maxSpeed)],
+    ];
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+    const baseName = `historial-${(selectedUnit?.name ?? "unidad").replace(/\s+/g, "-")}-${stamp}`;
+    return { mapDataUrl, historyRows, summaryRows, baseName, selectedUnit };
+  }
+
+  async function onExport(format: "xlsx" | "pdf") {
     setExporting(true);
     setError(null);
     try {
-      const mapDataUrl = track.length > 0 ? await renderTrackMapImage(track) : null;
-      const selectedUnit = units.find((unit) => unit.id === selected);
-      const historyRows: Array<Array<string | number | null>> = [
-        ["Fecha", "Latitud", "Longitud", "Velocidad (km/h)", "Rumbo (°)"],
-        ...result.messages.map((message) => [
-          new Date(message.time * 1000).toLocaleString("es-MX"),
-          message.lat,
-          message.lon,
-          message.speed,
-          message.course,
-        ]),
+      const data = await buildExport();
+      if (!data) return;
+      const sheets = [
+        { name: "Recorrido", rows: data.historyRows },
+        { name: "Resumen", rows: data.summaryRows },
       ];
-      const summaryRows: Array<Array<string | number | null>> = [
-        ["Campo", "Valor"],
-        ["Unidad", selectedUnit?.name ?? `Unidad ${selected ?? ""}`],
-        ["Desde", new Date(from).toLocaleString("es-MX")],
-        ["Hasta", new Date(to).toLocaleString("es-MX")],
-        ["Mensajes", result.total],
-        ["Puntos con ubicación", result.points],
-        ["Velocidad máxima (km/h)", Math.round(result.maxSpeed)],
-      ];
-      const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
-      await downloadExcelWorkbook({
-        filename: `historial-${(selectedUnit?.name ?? "unidad").replace(/\s+/g, "-")}-${stamp}.xlsx`,
-        sheets: [
-          { name: "Recorrido", rows: historyRows },
-          { name: "Resumen", rows: summaryRows },
-        ],
-        ...(mapDataUrl
-          ? {
-              map: {
-                sheetName: "Recorrido",
-                title: "Mapa del recorrido",
-                dataUrl: mapDataUrl,
-              },
-            }
-          : {}),
-      });
+      if (format === "xlsx") {
+        await downloadExcelWorkbook({
+          filename: `${data.baseName}.xlsx`,
+          sheets,
+          ...(data.mapDataUrl
+            ? {
+                map: {
+                  sheetName: "Recorrido",
+                  title: "Mapa del recorrido",
+                  dataUrl: data.mapDataUrl,
+                },
+              }
+            : {}),
+        });
+      } else {
+        await downloadPdfReport({
+          filename: `${data.baseName}.pdf`,
+          title: `Historial · ${data.selectedUnit?.name ?? "Unidad"}`,
+          sheets,
+          ...(data.mapDataUrl
+            ? { images: [{ title: "Mapa del recorrido", dataUrl: data.mapDataUrl }] }
+            : {}),
+        });
+      }
     } catch (cause) {
       setError(
         cause instanceof Error
           ? cause.message
-          : "No se pudo generar el archivo de Excel.",
+          : "No se pudo generar el archivo.",
       );
     } finally {
       setExporting(false);
@@ -263,19 +286,30 @@ function HistorialView({ session }: { session: WialonSession }) {
               Se muestran los primeros 200 registros. El Excel incluye todos los
               mensajes y el mapa.
             </p>
-            <button
-              type="button"
-              onClick={() => void onExport()}
-              disabled={exporting}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:cursor-wait disabled:opacity-60"
-            >
-              {exporting ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => void onExport("xlsx")}
+                disabled={exporting}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:cursor-wait disabled:opacity-60"
+              >
+                {exporting ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Download className="size-4" />
+                )}
+                {exporting ? "Generando…" : "Excel"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void onExport("pdf")}
+                disabled={exporting}
+                className="inline-flex items-center gap-2 rounded-md border border-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary disabled:cursor-wait disabled:opacity-60"
+              >
                 <Download className="size-4" />
-              )}
-              {exporting ? "Generando…" : "Exportar Excel"}
-            </button>
+                PDF
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-border/60">
