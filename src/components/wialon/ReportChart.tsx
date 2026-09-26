@@ -203,10 +203,31 @@ export function ReportChart({ session }: { session: WialonSession }) {
         );
       }
 
+      const chartImages: ExcelMapDefinition[] = [];
+      if (speedChartRef.current) {
+        chartImages.push({
+          sheetName: "Posiciones",
+          title: "Velocidad por hora",
+          dataUrl: await captureChartAsPng(speedChartRef.current),
+          width: 720,
+          height: 360,
+        });
+      }
+      if (isFull && sensorNames.length > 0 && sensorChartRef.current) {
+        chartImages.push({
+          sheetName: "Posiciones",
+          title: "Sensores en tiempo de medición",
+          dataUrl: await captureChartAsPng(sensorChartRef.current),
+          width: 720,
+          height: 400,
+        });
+      }
+
       const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
       await downloadExcelWorkbook({
         filename: `reporte-${unit.name.replace(/\s+/g, "-")}-${stamp}.xlsx`,
         sheets,
+        ...(chartImages.length > 0 ? { images: chartImages } : {}),
       });
     } catch (error) {
       setExportError(
@@ -325,7 +346,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
             <h2 className="font-display text-lg font-bold uppercase tracking-wide">
               Velocidad por hora
             </h2>
-            <div className="mt-4 h-72">
+            <div ref={speedChartRef} className="mt-4 h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
