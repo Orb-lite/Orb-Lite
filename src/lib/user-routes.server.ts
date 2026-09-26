@@ -6,6 +6,10 @@ export type SharedRouteStop = {
   lon: number;
   visitedAt?: string;
   comment?: string;
+  /** Si el operador tuvo acercamiento con el cliente en la visita. */
+  contact?: boolean;
+  /** Distancia en metros entre el operador y la parada al dar el check. */
+  checkDistance?: number;
 };
 
 export type StoredUserRoute = {
@@ -179,11 +183,23 @@ export async function markSharedStop(
   token: string,
   stopIndex: number,
   visited: boolean,
+  check?: { contact: boolean; note: string; distance: number },
 ): Promise<StoredUserRoute | null> {
   const route = await getRouteByShareToken(token);
   if (!route || !route.stops || !route.stops[stopIndex]) return null;
-  if (visited) route.stops[stopIndex].visitedAt = new Date().toISOString();
-  else delete route.stops[stopIndex].visitedAt;
+  const stop = route.stops[stopIndex];
+  if (visited) {
+    stop.visitedAt = new Date().toISOString();
+    if (check) {
+      stop.contact = check.contact;
+      stop.comment = check.note;
+      stop.checkDistance = Math.round(check.distance);
+    }
+  } else {
+    delete stop.visitedAt;
+    delete stop.contact;
+    delete stop.checkDistance;
+  }
   const { error } = await supabaseAdmin
     .from("user_routes")
     .update({ stops: route.stops })
