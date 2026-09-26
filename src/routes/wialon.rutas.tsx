@@ -17,7 +17,6 @@ import {
   EyeOff,
   Lock,
   Link2,
-  ShieldCheck,
   Layers,
   Route as RouteIcon,
 } from "lucide-react";
