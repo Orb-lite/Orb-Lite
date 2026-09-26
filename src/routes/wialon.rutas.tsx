@@ -274,9 +274,7 @@ function RutasView({ session }: { session: WialonSession }) {
     type: 1,
     color: ROUTE_COLOR,
     points: route.points,
-    markerPoints: route.routeStops?.length
-      ? route.routeStops
-      : undefined,
+    ...(route.routeStops?.length ? { markerPoints: route.routeStops } : {}),
   }));
 
   const mapRoutes: MapGeofence[] = visibleRoutes.map((route) => ({
@@ -1329,7 +1327,7 @@ function RutasView({ session }: { session: WialonSession }) {
               const isDeleting = deletingUserRouteId === route.id;
               const isFocused = focusedUserRouteId === route.id;
               const isConfirming = confirmDeleteUserRouteId === route.id;
-              const gmapsUrl = buildGoogleMapsUrlForPoints(route.points);
+              const gmapsUrl = buildGoogleMapsUrlForPoints(route.routeStops?.length ? route.routeStops : route.points);
 
               return (
                 <div
