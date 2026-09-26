@@ -1360,6 +1360,14 @@ type GeocodeMatch = { lat?: string; lon?: string; display_name?: string };
 let geocodeQueue: Promise<unknown> = Promise.resolve();
 async function geocodeAddress(address: string): Promise<WialonGeocodedAddress> {
   const run = geocodeQueue.then(async () => {
+    // Preferir Google Maps (Places New): mejor correspondencia entre lugar y domicilio.
+    try {
+      const { googleGeocodePlace } = await import("@/lib/google-maps.server");
+      const google = await googleGeocodePlace(address);
+      if (google) return google;
+    } catch {
+      // Si Google no está disponible, continuar con los buscadores gratuitos.
+    }
     try {
       return await smartGeocode(address);
     } catch {
@@ -1440,6 +1448,57 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
             data.addresses.map((address) => geocodeAddress(address)),
           )),
         ];
+    const toStop = (location: (typeof locations)[number], index: number) => ({
+      label: location.query,
+      lat: location.lat,
+      lon: location.lon,
+      isOrigin: index === 0,
+    });
+
+    // 1. Preferir Google Routes API: trazo por calles y orden óptimo de paradas.
+    //    La optimización de Google admite hasta 25 paradas intermedias.
+    const stopLocations = locations.slice(1);
+    if (stopLocations.length >= 1 && stopLocations.length <= 25) {
+      try {
+        const { googleComputeOptimizedRoute } = await import(
+          "@/lib/google-maps.server"
+        );
+        const googleRoute = await googleComputeOptimizedRoute({
+          origin: locations[0]!,
+          intermediates: stopLocations,
+          returnToOrigin: data.returnToOrigin,
+        });
+        if (googleRoute) {
+          const order = googleRoute.optimizedIntermediateOrder;
+          const orderedStops =
+            order.length ===
+            (data.returnToOrigin
+              ? stopLocations.length
+              : stopLocations.length - 1)
+              ? [
+                  toStop(locations[0]!, 0),
+                  ...order.map((stopIndex) =>
+                    toStop(stopLocations[stopIndex]!, stopIndex + 1),
+                  ),
+                  ...(data.returnToOrigin
+                    ? []
+                    : [toStop(stopLocations[stopLocations.length - 1]!, stopLocations.length)]),
+                ]
+              : locations.map(toStop);
+          return {
+            points: googleRoute.points,
+            distanceMeters: googleRoute.distanceMeters,
+            durationSeconds: googleRoute.durationSeconds,
+            stops: orderedStops,
+            returnToOrigin: data.returnToOrigin,
+          };
+        }
+      } catch {
+        // Si Google no está disponible, continuar con los servicios gratuitos.
+      }
+    }
+
+    // 2. Respaldo gratuito (OSRM) para rutas con más de 25 paradas o si Google falla.
     const coordinates = locations
       .map((location) => `${location.lon},${location.lat}`)
       .join(";");
@@ -1513,15 +1572,7 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
       points: sampledCoordinates.map(([lon, lat]) => ({ lat, lon })),
       distanceMeters: Math.round(selectedTrip.distance ?? 0),
       durationSeconds: Math.round(selectedTrip.duration ?? 0),
-      stops: orderedIndexes.map(({ index }) => {
-        const location = locations[index]!;
-        return {
-          label: location.query,
-          lat: location.lat,
-          lon: location.lon,
-          isOrigin: index === 0,
-        };
-      }),
+      stops: orderedIndexes.map(({ index }) => toStop(locations[index]!, index)),
       returnToOrigin: data.returnToOrigin,
     };
   });
