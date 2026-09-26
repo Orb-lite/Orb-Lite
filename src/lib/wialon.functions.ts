@@ -5,6 +5,7 @@ import {
   isSessionExpired,
   WialonError,
   WIALON_HOSTS,
+  APP_URLS,
   type WialonHost,
 } from "@/lib/wialon.server";
 import { smartGeocode } from "@/lib/geocoding";
@@ -392,62 +393,26 @@ export const wialonVideoStream = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
+    // La API remota de Wialon no expone la transmisión en vivo: el video se
+    // reproduce en el reproductor oficial. Generamos un authHash para abrirlo
+    // con la sesión ya iniciada.
     const host = data.host as WialonHost;
-    const height = Number(data.resolution.replace("p", ""));
-    const params: Record<string, unknown> = {
-      itemId: data.unitId,
-      cam: data.cameraIndex,
-      video: 1,
-      audio: 0,
-      height,
-      ...(data.mode === "archive" && data.timeFrom && data.timeTo
-        ? { timeFrom: data.timeFrom, timeTo: data.timeTo }
-        : {}),
-    };
-
-    const svcNames = [
-      "unit/request_video",
-      "unit/request_video_stream",
-      "unit/get_video_url",
-      "unit/create_video_stream",
-      "unit/get_camera_image",
-    ];
-    let lastError: unknown = null;
-    const apiDomain =
-      WIALON_HOSTS[host] ||
-      (host === "lite" ? "hst-api.wialon.com" : "hst-api.wialon.us");
-
-    for (const svc of svcNames) {
-      try {
-        const res = await wialonCall<{
-          url?: string;
-          playlist?: string;
-          path?: string;
-          stream?: string;
-        }>(host, svc, params, data.sid);
-
-        const raw = res.url ?? res.playlist ?? res.path ?? res.stream;
-        if (!raw) continue;
-        const url = raw.startsWith("http")
-          ? raw
-          : `https://${apiDomain}${raw.startsWith("/") ? "" : "/"}${raw}`;
-        return {
-          url,
-          mode: data.mode,
-          resolution: data.resolution,
-          service: svc,
-        };
-      } catch (error) {
-        if (isSessionExpired(error)) throw error;
-        lastError = error;
-      }
-    }
-
-    throw new Error(
-      lastError instanceof Error
-        ? `Wialon: ${lastError.message}`
-        : "Wialon no entregó una transmisión activa para esta cámara en este momento.",
+    const res = await wialonCall<{ authHash?: string }>(
+      host,
+      "core/create_auth_hash",
+      {},
+      data.sid,
     );
+    const base = APP_URLS[host];
+    const url = res.authHash
+      ? `${base}?authHash=${encodeURIComponent(res.authHash)}&lang=es`
+      : base;
+    return {
+      url,
+      mode: data.mode,
+      resolution: data.resolution,
+      service: "official_player",
+    };
   });
 /** Historial de mensajes/recorrido de una unidad en un intervalo. */
 export const wialonHistory = createServerFn({ method: "POST" })
