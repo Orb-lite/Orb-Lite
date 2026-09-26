@@ -1,6 +1,5 @@
 import type { Worksheet } from "exceljs";
 import orbLiteLogoUrl from "@/assets/orb-lite-logo.png";
-import formatoBaseUrl from "@/assets/formato_base.xlsx?url";
 
 export type ExcelCell = string | number | boolean | null;
 
@@ -370,26 +369,12 @@ export async function downloadExcelWorkbook({
   workbook.creator = "ORB-LITE";
   workbook.created = new Date();
 
-  // La primera hoja se construye sobre la plantilla real (formato_base.xlsx)
-  // para conservar logotipo, banda azul y estilos exactos.
-  const templateResponse = await fetch(formatoBaseUrl);
-  if (!templateResponse.ok) throw new Error("No se pudo cargar la plantilla de Excel.");
-  await workbook.xlsx.load(await templateResponse.arrayBuffer());
-  const templateSheet = workbook.worksheets[0];
-  if (!templateSheet) throw new Error("La plantilla de Excel está vacía.");
-  for (const extra of workbook.worksheets.slice(1)) workbook.removeWorksheet(extra.id);
-
   const logoDataUrl = await loadLogoDataUrl();
   const logoId = workbook.addImage({ base64: logoDataUrl, extension: "png" });
 
   for (const [index, definition] of sheets.entries()) {
-    if (index === 0) {
-      templateSheet.name = safeSheetName(definition.name, index);
-      fillTemplateSheet(templateSheet, definition.rows, definition.name);
-    } else {
-      const sheet = workbook.addWorksheet(safeSheetName(definition.name, index));
-      styleSheet(sheet, definition.rows, definition.name, logoId);
-    }
+    const sheet = workbook.addWorksheet(safeSheetName(definition.name, index));
+    styleSheet(sheet, definition.rows, definition.name, logoId);
   }
 
   const extraImages = [...(map ? [map] : []), ...(images ?? [])];
