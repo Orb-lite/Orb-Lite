@@ -966,16 +966,21 @@ export const wialonGeofences = createServerFn({ method: "POST" })
       { itemsType: "avl_resource", propName: "rel_account_name", propValueMask: "*", sortType: "sys_name", propType: "accounttree" },
     ];
     const byId = new Map<number, ZoneResource>();
-    const results = await Promise.allSettled(
-      specs.map((spec) =>
-        wialonCall<{ items?: ZoneResource[] }>(
+    // Wialon solo acepta una petición a la vez por sesión: ir en secuencia.
+    const results: PromiseSettledResult<{ items?: ZoneResource[] }>[] = [];
+    for (const spec of specs) {
+      try {
+        const value = await wialonCall<{ items?: ZoneResource[] }>(
           host,
           "core/search_items",
           { spec, force: 1, flags: 0x1 | 0x1000, from: 0, to: 0 },
           data.sid,
-        ),
-      ),
-    );
+        );
+        results.push({ status: "fulfilled", value });
+      } catch (reason) {
+        results.push({ status: "rejected", reason });
+      }
+    }
     for (const r of results) {
       if (r.status !== "fulfilled") continue;
       for (const item of r.value.items ?? []) {
@@ -990,24 +995,18 @@ export const wialonGeofences = createServerFn({ method: "POST" })
     const resources = { items: [...byId.values()] };
 
     const zones: WialonGeofence[] = [];
-    const loadResource = async (resource: ZoneResource) => {
+    type ZoneData = Array<{
+      id: number;
+      n?: string;
+      t?: number;
+      c?: number;
+      p?: Array<{ x?: number; y?: number; r?: number }>;
+      b?: { cen_x?: number; cen_y?: number };
+    }>;
+    const loadResource = async (resource: ZoneResource, res: unknown) => {
       try {
-        const res = await wialonCall<
-          Array<{
-            id: number;
-            n?: string;
-            t?: number;
-            c?: number;
-            p?: Array<{ x?: number; y?: number; r?: number }>;
-            b?: { cen_x?: number; cen_y?: number };
-          }>
-        >(
-          host,
-          "resource/get_zone_data",
-          { itemId: resource.id, col: [], flags: 0x04 | 0x08 | 0x10 },
-          data.sid,
-        );
-        for (const zone of Array.isArray(res) ? res : []) {
+        if (!Array.isArray(res)) throw new Error("sin datos");
+        for (const zone of res as ZoneData) {
           const points = (zone.p ?? [])
             .filter(
               (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
@@ -1059,8 +1058,30 @@ export const wialonGeofences = createServerFn({ method: "POST" })
       }
     };
     const list = resources.items;
-    for (let i = 0; i < list.length; i += 8) {
-      await Promise.all(list.slice(i, i + 8).map(loadResource));
+    // Una sola petición por lote (core/batch) para no saturar la sesión.
+    for (let i = 0; i < list.length; i += 40) {
+      const chunk = list.slice(i, i + 40);
+      let answers: unknown[] = [];
+      try {
+        const r = await wialonCall<unknown[]>(
+          host,
+          "core/batch",
+          {
+            params: chunk.map((resource) => ({
+              svc: "resource/get_zone_data",
+              params: { itemId: resource.id, col: [], flags: 0x04 | 0x08 | 0x10 },
+            })),
+            flags: 0,
+          },
+          data.sid,
+        );
+        answers = Array.isArray(r) ? r : [];
+      } catch {
+        answers = [];
+      }
+      for (let j = 0; j < chunk.length; j++) {
+        await loadResource(chunk[j]!, answers[j]);
+      }
     }
 
     return {
