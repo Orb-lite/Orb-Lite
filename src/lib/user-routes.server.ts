@@ -98,11 +98,12 @@ export async function setRouteShare(
   const all = await ensureFile();
   const route = all.find((r) => r.id === routeId && r.userId === userId);
   if (!route) return null;
+  const recipientChanged = route.reportEmail !== reportEmail;
   route.shareToken = shareToken;
   route.stops = stops;
   if (reportEmail) route.reportEmail = reportEmail;
   else delete route.reportEmail;
-  delete route.reportSentAt;
+  if (recipientChanged) delete route.reportSentAt;
   await fs.writeFile(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
   return route;
 }
