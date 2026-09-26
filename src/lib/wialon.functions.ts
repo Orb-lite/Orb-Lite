@@ -1350,8 +1350,19 @@ const plannedLocationSchema = z.object({
 
 type GeocodeMatch = { lat?: string; lon?: string; display_name?: string };
 
+// Los geocodificadores gratuitos limitan solicitudes simultáneas: se procesan en fila.
+let geocodeQueue: Promise<unknown> = Promise.resolve();
 async function geocodeAddress(address: string): Promise<WialonGeocodedAddress> {
-  const result = await smartGeocode(address);
+  const run = geocodeQueue.then(async () => {
+    try {
+      return await smartGeocode(address);
+    } catch {
+      await new Promise((r) => setTimeout(r, 1200));
+      return await smartGeocode(address);
+    }
+  });
+  geocodeQueue = run.catch(() => undefined);
+  const result = await run;
   return {
     query: address,
     label: result.label,
