@@ -1276,7 +1276,7 @@ export const getUserRoutes = createServerFn({ method: "POST" })
     let visibleIds = [data.userId];
     if (data.host && data.sid) {
       try {
-        visibleIds = await resolveCreatorChain(
+        visibleIds = await resolveAccessibleUserIds(
           data.host as WialonHost,
           data.sid,
           data.userId,
