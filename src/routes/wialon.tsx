@@ -1,4 +1,9 @@
-import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { LogOut } from "lucide-react";
 import {
@@ -22,7 +27,7 @@ const tabs = [
   { to: "/wialon/unidades", label: "Unidades", fullOnly: false },
   { to: "/wialon/historial", label: "Historial", fullOnly: false },
   { to: "/wialon/reportes", label: "Reportes", fullOnly: false },
-  { to: "/wialon/video", label: "Video", fullOnly: false },
+  { to: "/wialon/video", label: "Video", fullOnly: true },
   { to: "/wialon/cms", label: "Altas (CMS)", fullOnly: false },
 ] as const;
 
