@@ -51,7 +51,7 @@ export default function SharedRouteMap({
     >
       <TileLayer {...DARK_BASE_CONFIG} />
       <TileLayer url={DARK_LABELS_CONFIG.url} maxZoom={19} maxNativeZoom={16} />
-      <Polyline positions={line.map((p) => [p.lat, p.lon])} pathOptions={{ color: "#92d700", weight: 4 }} />
+      <Polyline positions={line.map((p) => [p.lat, p.lon] as [number, number])} pathOptions={{ color: "#92d700", weight: 4 }} />
       {stops.map((s, i) => (
         <Marker
           key={i}
