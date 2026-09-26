@@ -24,11 +24,13 @@ function safeSheetName(name: string, index: number) {
 
 const BRAND = {
   navy: "FF17233D",
+  navyAlt: "FF22304E",
   slate: "FF1E293B",
   lime: "FFA3E635",
   paleLime: "FFE5F7B8",
   border: "FFE2E8F0",
-  stripe: "FFF4F7FB",
+  stripe: "FF22304E",
+  silver: "FFD7DEE8",
   white: "FFFFFFFF",
 };
 
@@ -64,16 +66,21 @@ function headerStyle(cell: import("exceljs").Cell) {
   };
 }
 
+/**
+ * Fondo azul marino en toda la hoja y letras plateadas en los datos;
+ * las filas alternas llevan un azul un poco más claro para distinguirse.
+ */
 function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number) {
   for (let index = 0; index < rowCount; index += 1) {
-    if (index % 2 !== 1) continue;
     const row = sheet.getRow(6 + index);
     for (let col = 1; col <= columnCount; col += 1) {
-      row.getCell(col).fill = {
+      const cell = row.getCell(col);
+      cell.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: BRAND.stripe },
+        fgColor: { argb: index % 2 === 1 ? BRAND.navyAlt : BRAND.navy },
       };
+      cell.font = { color: { argb: BRAND.silver } };
     }
   }
 }
@@ -99,6 +106,8 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   sheet.getRow(4).height = 24;
 
   for (let col = 1; col <= bandEnd; col += 1) {
+    sheet.getCell(1, col).fill = navyFill();
+    sheet.getCell(2, col).fill = navyFill();
     sheet.getCell(3, col).fill = navyFill();
     sheet.getCell(4, col).fill = navyFill();
   }
@@ -406,11 +415,12 @@ export async function downloadPdfReport({
 
   const logoDataUrl = await loadLogoDataUrl();
 
+  const pageHeight = doc.internal.pageSize.getHeight();
   const drawHeader = () => {
-    doc.setFillColor(22, 34, 61); // azul marino de la plantilla
-    doc.rect(0, 0, pageWidth, 74, "F");
+    doc.setFillColor(23, 35, 61); // fondo azul marino en toda la página
+    doc.rect(0, 0, pageWidth, pageHeight, "F");
     doc.addImage(logoDataUrl, "PNG", margin, 12, 84, 50);
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(215, 222, 232); // plateado
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
     doc.text(title, margin + 100, 36);
@@ -436,9 +446,9 @@ export async function downloadPdfReport({
       head: [(header ?? []).map((cell) => String(cell ?? ""))],
       body: body.map((row) => row.map((cell) => String(cell ?? ""))),
       margin: { left: margin, right: margin },
-      styles: { fontSize: 8, cellPadding: 4 },
+      styles: { fontSize: 8, cellPadding: 4, fillColor: [23, 35, 61], textColor: [215, 222, 232], lineColor: [163, 230, 53], lineWidth: 0.5 },
       headStyles: { fillColor: [163, 230, 53], textColor: [23, 35, 61], fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [244, 247, 251] },
+      alternateRowStyles: { fillColor: [34, 48, 78] },
       didDrawPage: () => drawHeader(),
     });
     cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 24;
@@ -447,7 +457,7 @@ export async function downloadPdfReport({
   for (const image of images ?? []) {
     doc.addPage();
     drawHeader();
-    doc.setTextColor(23, 35, 61);
+    doc.setTextColor(215, 222, 232);
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
     doc.text(image.title, margin, 110);
