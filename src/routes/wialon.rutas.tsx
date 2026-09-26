@@ -30,6 +30,7 @@ import type {
 } from "@/components/wialon-map";
 
 const WialonMap = React.lazy(() => import("@/components/wialon-map"));
+import { shareUserRoute } from "@/lib/route-share.functions";
 import {
   getUserRoutes,
   saveUserRoute,
@@ -198,6 +199,12 @@ function RutasView({ session }: { session: WialonSession }) {
   const [busy, setBusy] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<number | null>(null);
   const [deletingUserRouteId, setDeletingUserRouteId] = React.useState<
+    string | null
+  >(null);
+  const [sharingUserRouteId, setSharingUserRouteId] = React.useState<
+    string | null
+  >(null);
+  const [copiedUserRouteId, setCopiedUserRouteId] = React.useState<
     string | null
   >(null);
   const [confirmDeleteUserRouteId, setConfirmDeleteUserRouteId] =
