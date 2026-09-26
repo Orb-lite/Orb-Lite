@@ -16,6 +16,7 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Link2,
   ShieldCheck,
   Layers,
   Route as RouteIcon,
