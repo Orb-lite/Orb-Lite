@@ -414,9 +414,14 @@ export const wialonVideoStream = createServerFn({ method: "POST" })
     } catch (error) {
       console.error("[video] get_live_stream", error);
     }
-    throw new Error(
-      "La cámara no entregó una transmisión compatible para verla dentro de la plataforma.",
-    );
+    return {
+      url: null as string | null,
+      mode: data.mode,
+      resolution: data.resolution,
+      service: "unavailable" as const,
+      error:
+        "La cámara no entregó una transmisión compatible para verla dentro de la plataforma.",
+    };
   });
 /** Historial de mensajes/recorrido de una unidad en un intervalo. */
 export const wialonHistory = createServerFn({ method: "POST" })

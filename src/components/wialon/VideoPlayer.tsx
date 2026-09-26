@@ -44,6 +44,7 @@ export function VideoPlayer({
   const streamFn = useServerFn(wialonVideoStream);
   const [resolution, setResolution] = React.useState<VideoResolution>("480p");
   const [url, setUrl] = React.useState<string | null>(null);
+  const [streamError, setStreamError] = React.useState<string | null>(null);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
 
   const request = useMutation({
@@ -59,10 +60,18 @@ export function VideoPlayer({
         },
       }),
     onSuccess: (result) => {
-      if (result.service === "hls") {
+      if (result.service === "hls" && result.url) {
         setUrl(result.url);
+        setStreamError(null);
+      } else {
+        setStreamError(
+          ("error" in result && result.error) ||
+            "La cámara no entregó una transmisión compatible.",
+        );
       }
     },
+    onError: (e) =>
+      setStreamError(e instanceof Error ? e.message : "No se pudo iniciar el video."),
   });
 
   // Reproduce la URL entregada por Wialon (HLS) en el elemento <video>.
