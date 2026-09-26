@@ -141,12 +141,14 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
     sheet.getCell(3, col).fill = navyFill();
     sheet.getCell(4, col).fill = navyFill();
   }
+  sheet.mergeCells(3, 1, 3, bandEnd);
   sheet.getCell(3, 1).value = "ORB-LITE · Rastreo GPS satelital";
   sheet.getCell(3, 1).font = { color: { argb: BRAND.white } };
+  sheet.getCell(3, 1).alignment = { vertical: "middle", horizontal: "center" };
   sheet.mergeCells(4, 1, 4, bandEnd);
   sheet.getCell(4, 1).value = title;
   sheet.getCell(4, 1).font = { bold: true, size: 18, color: { argb: BRAND.white } };
-  sheet.getCell(4, 1).alignment = { vertical: "middle" };
+  sheet.getCell(4, 1).alignment = { vertical: "middle", horizontal: "center" };
 
   const logo = workbookImageAnchor(logoId, 0, 0, 128, 94);
   sheet.addImage(logo.id, logo.range);
