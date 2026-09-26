@@ -393,10 +393,29 @@ export const wialonVideoStream = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    // La API remota de Wialon no expone la transmisión en vivo: el video se
-    // reproduce en el reproductor oficial. Generamos un authHash para abrirlo
-    // con la sesión ya iniciada.
     const host = data.host as WialonHost;
+    // Intentamos la transmisión directa (HLS) para reproducirla en la
+    // plataforma. Si la unidad/cuenta no la expone, se abre el reproductor
+    // oficial de Wialon como respaldo.
+    try {
+      const stream = await wialonCall<string | { url?: string }>(
+        host,
+        "unit/get_live_stream",
+        { itemId: data.unitId, cameraIndex: data.cameraIndex },
+        data.sid,
+      );
+      const url = typeof stream === "string" ? stream : stream?.url;
+      if (url) {
+        return {
+          url,
+          mode: data.mode,
+          resolution: data.resolution,
+          service: "hls",
+        };
+      }
+    } catch (error) {
+      console.error("[video] get_live_stream", error);
+    }
     const res = await wialonCall<{ authHash?: string }>(
       host,
       "core/create_auth_hash",
