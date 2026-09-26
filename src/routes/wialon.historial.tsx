@@ -13,7 +13,6 @@ import {
 import type { WialonSession } from "@/lib/wialon-session";
 import {
   downloadExcelWorkbook,
-  downloadPdfReport,
   renderTrackMapImage,
 } from "@/lib/excel-export";
 

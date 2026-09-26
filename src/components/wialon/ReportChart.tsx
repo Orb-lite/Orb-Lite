@@ -26,7 +26,6 @@ import type { WialonSession } from "@/lib/wialon-session";
 import {
   captureChartAsPng,
   downloadExcelWorkbook,
-  downloadPdfReport,
   type ExcelCell,
   type ExcelMapDefinition,
 } from "@/lib/excel-export";
