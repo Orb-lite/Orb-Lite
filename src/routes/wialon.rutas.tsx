@@ -274,6 +274,9 @@ function RutasView({ session }: { session: WialonSession }) {
     type: 1,
     color: ROUTE_COLOR,
     points: route.points,
+    markerPoints: route.routeStops?.length
+      ? route.routeStops
+      : undefined,
   }));
 
   const mapRoutes: MapGeofence[] = visibleRoutes.map((route) => ({
@@ -293,6 +296,7 @@ function RutasView({ session }: { session: WialonSession }) {
           type: 1,
           color: ROUTE_COLOR,
           points: plannedRoute.points.map((point) => ({ ...point, radius: 0 })),
+          markerPoints: [], // Las paradas ya se muestran mediante addressPoints.
         },
       ]
     : [];
@@ -305,6 +309,7 @@ function RutasView({ session }: { session: WialonSession }) {
       type: 1 as const,
       color: ROUTE_COLOR,
       points: route.points.map((point) => ({ ...point, radius: 0 })),
+      markerPoints: route.points,
     }));
   const addressPoints: MapAddressPoint[] =
     inputMode === "addresses"
@@ -549,6 +554,15 @@ function RutasView({ session }: { session: WialonSession }) {
           name: name.trim(),
           color: ROUTE_COLOR,
           points: routePoints,
+          routeStops: plannedRoute?.stops.map((stop) => ({
+            lat: stop.lat,
+            lon: stop.lon,
+            label: stop.label,
+          })) ?? (isMapPlan ? draft.points.map((point, index) => ({
+            lat: point.lat,
+            lon: point.lon,
+            label: index === 0 ? "Salida" : `Parada ${index}`,
+          })) : undefined),
           origin: originStr || undefined,
           addresses: stopsArr.length > 0 ? stopsArr : undefined,
           distanceMeters: plannedRoute?.distanceMeters,

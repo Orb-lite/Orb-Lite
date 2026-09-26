@@ -1241,6 +1241,11 @@ export const saveUserRoute = createServerFn({ method: "POST" })
             }),
           )
           .min(2, "Una ruta necesita al menos dos puntos."),
+        routeStops: z.array(z.object({
+          lat: z.number().finite(),
+          lon: z.number().finite(),
+          label: z.string(),
+        })).optional(),
         origin: z.string().optional(),
         addresses: z.array(z.string()).optional(),
         distanceMeters: z.number().optional(),
@@ -1260,6 +1265,7 @@ export const saveUserRoute = createServerFn({ method: "POST" })
       name: data.name,
       color: data.color,
       points: data.points,
+      ...(data.routeStops !== undefined && { routeStops: data.routeStops }),
       ...(data.userName !== undefined && { userName: data.userName }),
       ...(data.origin !== undefined && { origin: data.origin }),
       ...(data.addresses !== undefined && { addresses: data.addresses }),

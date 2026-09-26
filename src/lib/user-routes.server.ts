@@ -16,6 +16,7 @@ export type StoredUserRoute = {
   name: string;
   color: string;
   points: Array<{ lat: number; lon: number; radius: number }>;
+  routeStops?: Array<{ lat: number; lon: number; label: string }>;
   origin?: string;
   addresses?: string[];
   distanceMeters?: number;
