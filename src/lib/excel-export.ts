@@ -133,42 +133,6 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   sheet.properties.tabColor = { argb: BRAND.lime };
 }
 
-/**
- * Rellena la primera hoja de la plantilla real (logotipo, banda azul y
- * encabezados ya vienen en el archivo) con los datos del reporte.
- */
-function fillTemplateSheet(sheet: Worksheet, rows: ExcelCell[][], title: string) {
-  const columnCount = Math.max(...rows.map((row) => row.length), 1);
-
-  if (sheet.rowCount > 5) sheet.spliceRows(6, sheet.rowCount - 5);
-
-  sheet.getCell(4, 4).value = title;
-
-  const headerRow = sheet.getRow(5);
-  const header = rows[0] ?? [];
-  for (let col = 1; col <= header.length; col += 1) {
-    const cell = headerRow.getCell(col);
-    cell.value = header[col - 1] ?? null;
-    if (col > 5) headerStyle(cell);
-  }
-
-  for (const row of rows.slice(1)) sheet.addRow(row);
-  stripeDataRows(sheet, columnCount, rows.length - 1);
-
-  for (let col = 1; col <= columnCount; col += 1) {
-    const column = sheet.getColumn(col);
-    if (!column.width) {
-      column.width = Math.min(
-        34,
-        Math.max(14, ...rows.map((row) => String(row[col - 1] ?? "").length + 2)),
-      );
-    }
-  }
-
-  sheet.views = [{ state: "frozen", ySplit: 5 }];
-  sheet.properties.tabColor = { argb: BRAND.lime };
-}
-
 function workbookImageAnchor(
   id: number,
   column: number,
