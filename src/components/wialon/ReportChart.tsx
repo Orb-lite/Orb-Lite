@@ -24,10 +24,9 @@ import {
 } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
 import {
-  captureChartAsPng,
   downloadExcelWorkbook,
   type ExcelCell,
-  type ExcelMapDefinition,
+  type ExcelChartDefinition,
 } from "@/lib/excel-export";
 
 const SERIES_COLORS = [
