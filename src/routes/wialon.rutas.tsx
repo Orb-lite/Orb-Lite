@@ -226,6 +226,29 @@ function RutasView({ session }: { session: WialonSession }) {
   const allRoutes = (query.data?.zones ?? []).filter((zone) => zone.type === 1);
   const resources = query.data?.resources ?? [];
 
+  // Rutas creadas en Wialon Logistics (solo ORB-FULL)
+  const logisticsQuery = useQuery({
+    queryKey: ["wialon-logistics-routes", session.sid],
+    queryFn: () =>
+      wialonLogisticsRoutes({ data: { host: session.host, sid: session.sid } }),
+    enabled: session.host === "full",
+    refetchInterval: 60000,
+    retry: false,
+  });
+  const logisticsRoutes = logisticsQuery.data?.routes ?? [];
+  const [shownLogisticsIds, setShownLogisticsIds] = React.useState<
+    ReadonlySet<string>
+  >(new Set());
+
+  function toggleLogisticsRoute(id: string) {
+    setShownLogisticsIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   const visibleRoutes =
     filterResourceId === "all"
       ? allRoutes
