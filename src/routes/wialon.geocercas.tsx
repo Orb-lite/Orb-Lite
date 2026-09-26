@@ -293,6 +293,13 @@ function GeocercasView({ session }: { session: WialonSession }) {
               );
             })}
           </select>
+          {query.isError ? (
+            <p className="text-xs text-destructive">
+              {(query.error as Error)?.message ?? "No se pudieron cargar las geocercas."}
+            </p>
+          ) : query.isFetching && allZones.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Cargando…</p>
+          ) : null}
 
           <button
             type="button"
