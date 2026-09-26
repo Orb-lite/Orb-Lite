@@ -26,6 +26,7 @@ import type { WialonSession } from "@/lib/wialon-session";
 import {
   captureChartAsPng,
   downloadExcelWorkbook,
+  downloadPdfReport,
   type ExcelCell,
   type ExcelMapDefinition,
 } from "@/lib/excel-export";
@@ -150,7 +151,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
     setRange({ from: start, to: end });
   }
 
-  async function onExport() {
+  async function onExport(format: "xlsx" | "pdf") {
     if (!unit || !range) return;
     setExporting(true);
     setExportError(null);
