@@ -57,6 +57,10 @@ export const Route = createFileRoute("/wialon/rutas")({
         content:
           "Crea rutas lineales en Wialon con puntos del mapa o direcciones escritas.",
       },
+      { property: "og:title", content: "Rutas | Plataforma ORB-LITE" },
+      { property: "og:description", content: "Planifica y consulta rutas de ORB-LITE y ORB-FULL." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
