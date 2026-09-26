@@ -1,6 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+export type SharedRouteStop = {
+  label: string;
+  lat: number;
+  lon: number;
+  visitedAt?: string;
+};
+
 export type StoredUserRoute = {
   id: string;
   userId: number;
@@ -13,6 +20,10 @@ export type StoredUserRoute = {
   distanceMeters?: number;
   durationSeconds?: number;
   createdAt: string;
+  /** Token del enlace público para operadores (sin iniciar sesión). */
+  shareToken?: string;
+  /** Paradas del enlace público con su check de visita. */
+  stops?: SharedRouteStop[];
 };
 
 const DATA_FILE = path.resolve(process.cwd(), "data/user_routes.json");
