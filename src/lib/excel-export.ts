@@ -24,11 +24,13 @@ function safeSheetName(name: string, index: number) {
 
 const BRAND = {
   navy: "FF17233D",
+  navyAlt: "FF22304E",
   slate: "FF1E293B",
   lime: "FFA3E635",
   paleLime: "FFE5F7B8",
   border: "FFE2E8F0",
-  stripe: "FFF4F7FB",
+  stripe: "FF22304E",
+  silver: "FFD7DEE8",
   white: "FFFFFFFF",
 };
 
@@ -64,16 +66,21 @@ function headerStyle(cell: import("exceljs").Cell) {
   };
 }
 
+/**
+ * Fondo azul marino en toda la hoja y letras plateadas en los datos;
+ * las filas alternas llevan un azul un poco más claro para distinguirse.
+ */
 function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number) {
   for (let index = 0; index < rowCount; index += 1) {
-    if (index % 2 !== 1) continue;
     const row = sheet.getRow(6 + index);
     for (let col = 1; col <= columnCount; col += 1) {
-      row.getCell(col).fill = {
+      const cell = row.getCell(col);
+      cell.fill = {
         type: "pattern",
         pattern: "solid",
-        fgColor: { argb: BRAND.stripe },
+        fgColor: { argb: index % 2 === 1 ? BRAND.navyAlt : BRAND.navy },
       };
+      cell.font = { color: { argb: BRAND.silver } };
     }
   }
 }
