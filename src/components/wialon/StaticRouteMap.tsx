@@ -72,13 +72,17 @@ export function StaticRouteMap({
         scrollWheelZoom
         className="h-full w-full"
       >
-        <TileLayer
-          attribution={MAP_PROVIDERS.cartoDark.attribution}
-          url={MAP_PROVIDERS.cartoDark.url}
-          subdomains={MAP_PROVIDERS.cartoDark.subdomains}
-          maxZoom={MAP_PROVIDERS.cartoDark.maxZoom}
-          className={DARK_TILE_CLASS}
-        />
+          <TileLayer
+            attribution={DARK_BASE_CONFIG.attribution}
+            url={DARK_BASE_CONFIG.url}
+            maxZoom={DARK_BASE_CONFIG.maxZoom}
+            maxNativeZoom={DARK_BASE_CONFIG.maxNativeZoom}
+          />
+          <TileLayer
+            url={DARK_LABELS_CONFIG.url}
+            maxZoom={DARK_LABELS_CONFIG.maxZoom}
+            maxNativeZoom={DARK_LABELS_CONFIG.maxNativeZoom}
+          />
         <FollowLastPosition position={position} />
         <Marker position={position} icon={icon}>
           <Popup>
