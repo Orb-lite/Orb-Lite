@@ -1271,7 +1271,7 @@ function RutasView({ session }: { session: WialonSession }) {
         </div>
       ) : null}
 
-      {/* Sección 1: Mis Rutas Guardadas (En tu cuenta de servidor fuera de Wialon) */}
+      {/* Rutas guardadas (servidor + Wialon) */}
       <div className="rounded-xl border border-border/70 bg-card/60 p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
           <div className="flex items-center gap-3">
@@ -1280,20 +1280,21 @@ function RutasView({ session }: { session: WialonSession }) {
             </div>
             <div>
               <h2 className="font-display text-base font-bold uppercase tracking-wide text-foreground">
-                Mis Rutas Guardadas
+                Rutas guardadas
               </h2>
             </div>
           </div>
           <span className="rounded-full bg-primary/10 px-3 py-1 font-mono text-xs font-semibold text-primary">
-            {userRoutes.length} ruta{userRoutes.length !== 1 ? "s" : ""}
+            {userRoutes.length + visibleRoutes.length} ruta
+            {userRoutes.length + visibleRoutes.length !== 1 ? "s" : ""}
           </span>
         </div>
 
-        {userRoutes.length === 0 ? (
+        {userRoutes.length === 0 && visibleRoutes.length === 0 ? (
           <div className="py-10 text-center text-sm text-muted-foreground">
-            {userRoutesQuery.isLoading
-              ? "Cargando tus rutas privadas…"
-              : "Aún no tienes rutas guardadas en tu cuenta. Traza o genera una arriba y haz clic en 'Guardar en mi cuenta'."}
+            {userRoutesQuery.isLoading || query.isLoading
+              ? "Cargando rutas…"
+              : "Aún no hay rutas guardadas. Traza o genera una arriba."}
           </div>
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1468,38 +1469,6 @@ function RutasView({ session }: { session: WialonSession }) {
                 </div>
               );
             })}
-          </div>
-        )}
-      </div>
-
-      {/* Sección 2: Rutas guardadas en Wialon */}
-      <div className="rounded-xl border border-border/60 bg-card/50 p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
-          <div>
-            <h2 className="font-display text-base font-bold uppercase tracking-wide text-foreground">
-              Rutas guardadas en Wialon
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              {filterResourceId === "all"
-                ? `Mostrando todas las rutas (${visibleRoutes.length})`
-                : `Rutas de ${resources.find((r) => r.id === filterResourceId)?.name ?? "cliente"} (${visibleRoutes.length})`}
-            </p>
-          </div>
-          <span className="rounded-full bg-primary/10 px-3 py-1 font-mono text-xs font-semibold text-primary">
-            {visibleRoutes.length} guardadas
-          </span>
-        </div>
-
-        {visibleRoutes.length === 0 ? (
-          <div className="py-12 text-center text-sm text-muted-foreground">
-            {query.isLoading
-              ? "Cargando rutas de Wialon…"
-              : filterResourceId === "all"
-                ? "No se encontraron rutas lineales en los recursos de Wialon."
-                : "Este cliente no tiene rutas guardadas en Wialon todavía. Traza o genera una arriba."}
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visibleRoutes.map((route) => {
               const isDeleting = deletingId === route.id;
               const isFocused = focusedRouteId === route.id;
