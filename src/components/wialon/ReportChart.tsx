@@ -203,24 +203,31 @@ export function ReportChart({ session }: { session: WialonSession }) {
         );
       }
 
-      const chartImages: ExcelMapDefinition[] = [];
-      if (speedChartRef.current) {
-        chartImages.push({
+      const charts: ExcelChartDefinition[] = [];
+      const speedColumn = positionHeader.indexOf("Velocidad (km/h)") + 1;
+      if (speedColumn > 0) {
+        charts.push({
           sheetName: "Posiciones",
           title: "Velocidad por hora",
-          dataUrl: await captureChartAsPng(speedChartRef.current),
-          width: 720,
-          height: 360,
+          series: [{ name: "Velocidad (km/h)", column: speedColumn }],
+          dataRows: positionRows.length,
         });
       }
-      if (isFull && sensorNames.length > 0 && sensorChartRef.current) {
-        chartImages.push({
-          sheetName: "Posiciones",
-          title: "Sensores en tiempo de medición",
-          dataUrl: await captureChartAsPng(sensorChartRef.current),
-          width: 720,
-          height: 400,
-        });
+      if (isFull && sensorNames.length > 0) {
+        const sensorSeries = sensorNames
+          .map((name) => ({
+            name,
+            column: positionHeader.indexOf(name) + 1,
+          }))
+          .filter((serie) => serie.column > 0);
+        if (sensorSeries.length > 0) {
+          charts.push({
+            sheetName: "Posiciones",
+            title: "Sensores en tiempo de medición",
+            series: sensorSeries,
+            dataRows: positionRows.length,
+          });
+        }
       }
 
       const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
@@ -228,7 +235,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
       await downloadExcelWorkbook({
         filename: `${baseName}.xlsx`,
         sheets,
-        ...(chartImages.length > 0 ? { images: chartImages } : {}),
+        ...(charts.length > 0 ? { charts } : {}),
       });
     } catch (error) {
       setExportError(
