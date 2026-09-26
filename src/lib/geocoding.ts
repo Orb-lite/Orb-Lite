@@ -98,6 +98,49 @@ export async function reverseGeocodeCoordinates(
   return null;
 }
 
+/** Palabras que no ayudan a distinguir un lugar de otro */
+const STOP_WORDS = new Set([
+  "de", "del", "la", "el", "los", "las", "y", "en", "a", "al",
+  "calle", "av", "av.", "avenida", "blvd", "blvd.", "col", "col.",
+  "colonia", "fracc", "fracc.", "num", "num.", "no", "no.", "cp",
+  "mexico", "méxico", "jalisco", "guadalajara", "zapopan", "mx",
+]);
+
+/** Normaliza texto para comparar: minúsculas, sin acentos */
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Tokens significativos de la búsqueda (sin palabras genéricas) */
+function queryTokens(query: string): string[] {
+  return normalizeText(query)
+    .split(" ")
+    .filter((token) => token.length >= 3 && !STOP_WORDS.has(token));
+}
+
+/**
+ * Puntúa qué tan bien un resultado corresponde a la búsqueda.
+ * Cuenta cuántos tokens significativos aparecen en el texto del resultado.
+ */
+function relevanceScore(query: string, candidateText: string): number {
+  const tokens = queryTokens(query);
+  if (tokens.length === 0) return 1;
+  const haystack = ` ${normalizeText(candidateText)} `;
+  let hits = 0;
+  for (const token of tokens) {
+    if (haystack.includes(` ${token}`) || haystack.includes(` ${token} `) || haystack.includes(token)) {
+      hits += 1;
+    }
+  }
+  return hits / tokens.length;
+}
+
 /** Geocodifica una dirección o enlace de Google Maps con múltiples motores libres */
 export async function smartGeocode(
   addressInput: string,
