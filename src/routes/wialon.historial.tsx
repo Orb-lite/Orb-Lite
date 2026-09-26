@@ -13,7 +13,6 @@ import {
 import type { WialonSession } from "@/lib/wialon-session";
 import {
   downloadExcelWorkbook,
-  downloadPdfReport,
   renderTrackMapImage,
 } from "@/lib/excel-export";
 
@@ -137,40 +136,28 @@ function HistorialView({ session }: { session: WialonSession }) {
     return { mapDataUrl, historyRows, summaryRows, baseName, selectedUnit };
   }
 
-  async function onExport(format: "xlsx" | "pdf") {
+  async function onExport() {
     setExporting(true);
     setError(null);
     try {
       const data = await buildExport();
       if (!data) return;
-      const sheets = [
-        { name: "Recorrido", rows: data.historyRows },
-        { name: "Resumen", rows: data.summaryRows },
-      ];
-      if (format === "xlsx") {
-        await downloadExcelWorkbook({
-          filename: `${data.baseName}.xlsx`,
-          sheets,
-          ...(data.mapDataUrl
-            ? {
-                map: {
-                  sheetName: "Recorrido",
-                  title: "Mapa del recorrido",
-                  dataUrl: data.mapDataUrl,
-                },
-              }
-            : {}),
-        });
-      } else {
-        await downloadPdfReport({
-          filename: `${data.baseName}.pdf`,
-          title: `Historial · ${data.selectedUnit?.name ?? "Unidad"}`,
-          sheets,
-          ...(data.mapDataUrl
-            ? { images: [{ title: "Mapa del recorrido", dataUrl: data.mapDataUrl }] }
-            : {}),
-        });
-      }
+      await downloadExcelWorkbook({
+        filename: `${data.baseName}.xlsx`,
+        sheets: [
+          { name: "Recorrido", rows: data.historyRows },
+          { name: "Resumen", rows: data.summaryRows },
+        ],
+        ...(data.mapDataUrl
+          ? {
+              map: {
+                sheetName: "Recorrido",
+                title: "Mapa del recorrido",
+                dataUrl: data.mapDataUrl,
+              },
+            }
+          : {}),
+      });
     } catch (cause) {
       setError(
         cause instanceof Error
@@ -289,7 +276,7 @@ function HistorialView({ session }: { session: WialonSession }) {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => void onExport("xlsx")}
+                onClick={() => void onExport()}
                 disabled={exporting}
                 className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:cursor-wait disabled:opacity-60"
               >
@@ -299,15 +286,6 @@ function HistorialView({ session }: { session: WialonSession }) {
                   <Download className="size-4" />
                 )}
                 {exporting ? "Generando…" : "Excel"}
-              </button>
-              <button
-                type="button"
-                onClick={() => void onExport("pdf")}
-                disabled={exporting}
-                className="inline-flex items-center gap-2 rounded-md border border-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary disabled:cursor-wait disabled:opacity-60"
-              >
-                <Download className="size-4" />
-                PDF
               </button>
             </div>
           </div>
