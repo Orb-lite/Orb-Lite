@@ -55,11 +55,14 @@ export const shareUserRoute = createServerFn({ method: "POST" })
 
     await rememberReportEmail(data.userId, data.reportEmail);
 
+    const hasCorrectStops = Boolean(route.stops?.length) &&
+      (!route.routeStops?.length || route.stops?.length === route.routeStops.length) &&
+      (!route.addresses?.length || route.routeStops?.length || route.stops?.length === route.addresses.length + 1);
     const token =
-      route.shareToken && route.stops?.length
+      route.shareToken && hasCorrectStops
         ? route.shareToken
         : crypto.randomUUID().replaceAll("-", "");
-    if (route.shareToken && route.stops?.length) {
+    if (route.shareToken && hasCorrectStops && route.stops) {
       const saved = await setRouteShare(data.userId, data.routeId, token, route.stops, data.reportEmail);
       if (!saved) throw new Error("No se pudo generar el enlace.");
       return { token };
