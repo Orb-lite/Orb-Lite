@@ -1,6 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+export type SharedRouteStop = {
+  label: string;
+  lat: number;
+  lon: number;
+  visitedAt?: string;
+};
+
 export type StoredUserRoute = {
   id: string;
   userId: number;
@@ -13,6 +20,10 @@ export type StoredUserRoute = {
   distanceMeters?: number;
   durationSeconds?: number;
   createdAt: string;
+  /** Token del enlace público para operadores (sin iniciar sesión). */
+  shareToken?: string;
+  /** Paradas del enlace público con su check de visita. */
+  stops?: SharedRouteStop[];
 };
 
 const DATA_FILE = path.resolve(process.cwd(), "data/user_routes.json");
@@ -63,4 +74,40 @@ export async function deleteUserRouteFromStorage(
   const next = all.filter((r) => !(r.id === routeId && r.userId === userId));
   await fs.writeFile(DATA_FILE, JSON.stringify(next, null, 2), "utf-8");
   return true;
+}
+
+export async function getRouteByShareToken(
+  token: string,
+): Promise<StoredUserRoute | null> {
+  const all = await ensureFile();
+  return all.find((r) => r.shareToken === token) ?? null;
+}
+
+export async function setRouteShare(
+  userId: number,
+  routeId: string,
+  shareToken: string,
+  stops: SharedRouteStop[],
+): Promise<StoredUserRoute | null> {
+  const all = await ensureFile();
+  const route = all.find((r) => r.id === routeId && r.userId === userId);
+  if (!route) return null;
+  route.shareToken = shareToken;
+  route.stops = stops;
+  await fs.writeFile(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
+  return route;
+}
+
+export async function markSharedStop(
+  token: string,
+  stopIndex: number,
+  visited: boolean,
+): Promise<StoredUserRoute | null> {
+  const all = await ensureFile();
+  const route = all.find((r) => r.shareToken === token);
+  if (!route || !route.stops || !route.stops[stopIndex]) return null;
+  if (visited) route.stops[stopIndex].visitedAt = new Date().toISOString();
+  else delete route.stops[stopIndex].visitedAt;
+  await fs.writeFile(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
+  return route;
 }

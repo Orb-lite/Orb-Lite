@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   wialonCall,
   isSessionExpired,
+  WialonError,
   WIALON_HOSTS,
   type WialonHost,
 } from "@/lib/wialon.server";
@@ -1881,4 +1882,134 @@ export const wialonExecReport = createServerFn({ method: "POST" })
     }
 
     return { tables };
+  });
+
+// ================= Wialon Logistics (solo ORB-FULL) =================
+
+const LOGISTICS_BASE = "https://kit-api.wialon.com";
+
+export type WialonLogisticsRoutePoint = {
+  lat: number;
+  lon: number;
+  label: string | null;
+};
+
+export type WialonLogisticsRoute = {
+  id: string;
+  name: string;
+  status: string | null;
+  ordersCount: number;
+  points: WialonLogisticsRoutePoint[];
+};
+
+async function logisticsCall<T = unknown>(
+  svc: string,
+  params: unknown,
+  eid: string,
+): Promise<T> {
+  const url = new URL(LOGISTICS_BASE);
+  url.searchParams.set("svc", svc);
+  url.searchParams.set("sid", eid);
+  const res = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ params: JSON.stringify(params ?? {}) }).toString(),
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!res.ok) throw new Error("Wialon Logistics no responde en este momento.");
+  const json = (await res.json()) as unknown;
+  if (json && typeof json === "object" && "error" in json) {
+    const code = Number((json as { error: unknown }).error);
+    if (Number.isFinite(code) && code !== 0) {
+      throw new WialonError(code, (json as { reason?: string }).reason);
+    }
+  }
+  return json as T;
+}
+
+type RawLogisticsPoint = {
+  y?: number;
+  x?: number;
+  lat?: number;
+  lon?: number;
+  lt?: number;
+  ln?: number;
+  n?: string;
+  a?: string;
+};
+
+function mapLogisticsPoint(raw: RawLogisticsPoint): WialonLogisticsRoutePoint | null {
+  const lat = raw.y ?? raw.lat ?? raw.lt;
+  const lon = raw.x ?? raw.lon ?? raw.ln;
+  if (typeof lat !== "number" || typeof lon !== "number") return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return { lat, lon, label: raw.n ?? raw.a ?? null };
+}
+
+/** Lee las rutas creadas en Wialon Logistics (solo disponible en ORB-FULL). */
+export const wialonLogisticsRoutes = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    if (data.host !== "full") return { routes: [] as WialonLogisticsRoute[] };
+
+    // Duplicamos la sesión actual para obtener un eid válido en Logistics.
+    const duplicate = await wialonCall<{ eid?: string }>(
+      "full",
+      "core/duplicate",
+      { operateAs: "", continueCurrentSession: true },
+      data.sid,
+    );
+    const eid = duplicate.eid;
+    if (!eid) return { routes: [] as WialonLogisticsRoute[] };
+
+    let raw: unknown;
+    try {
+      raw = await logisticsCall("route/get", { uid: 0, f: 0 }, eid);
+    } catch (error) {
+      // Cuenta sin acceso a Logistics o sin rutas: no rompemos la pestaña.
+      if (error instanceof WialonError && (error.code === 7 || error.code === 3)) {
+        return { routes: [] as WialonLogisticsRoute[] };
+      }
+      throw error;
+    }
+
+    const list = Array.isArray(raw)
+      ? raw
+      : raw && typeof raw === "object" && Array.isArray((raw as { routes?: unknown }).routes)
+        ? ((raw as { routes: unknown[] }).routes as unknown[])
+        : [];
+
+    const routes: WialonLogisticsRoute[] = [];
+    for (const item of list) {
+      if (!item || typeof item !== "object") continue;
+      const route = item as {
+        uid?: number | string;
+        id?: number | string;
+        n?: string;
+        nm?: string;
+        st?: string | number;
+        state?: string | number;
+        orders?: unknown[];
+        p?: RawLogisticsPoint[];
+        points?: RawLogisticsPoint[];
+      };
+      const rawPoints = route.p ?? route.points ?? [];
+      const points = rawPoints
+        .map(mapLogisticsPoint)
+        .filter((point): point is WialonLogisticsRoutePoint => point !== null);
+      routes.push({
+        id: String(route.uid ?? route.id ?? routes.length + 1),
+        name: route.n ?? route.nm ?? "Ruta de Logistics",
+        status:
+          route.st != null
+            ? String(route.st)
+            : route.state != null
+              ? String(route.state)
+              : null,
+        ordersCount: Array.isArray(route.orders) ? route.orders.length : 0,
+        points,
+      });
+    }
+
+    return { routes };
   });

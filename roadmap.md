@@ -4,3 +4,5 @@
 - [x] Marca propia (logos ORB-LITE / ORB-FULL) en toda la plataforma /wialon.
 - [x] URLs de CMS confirmadas: https://cms-lite.wialon.us y https://cms.wialon.com.
 - [x] Unidades y Mapa: buscador por nombre, IMEI o usuario; check por unidad y check general (todas / ninguna / algunas) para mostrar u ocultar en el mapa.
+- [x] Rutas: leer rutas de Wialon Logistics en ORB-FULL y verlas en el mapa.
+- [x] Enlace único público por ruta: check de visita por parada sin iniciar sesión y botón "siguiente en Waze".

@@ -14,9 +14,12 @@ import {
   Building2,
   RefreshCw,
   Eye,
+  EyeOff,
   Lock,
+  Link2,
   ShieldCheck,
   Layers,
+  Route as RouteIcon,
 } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { PlatformHeader } from "@/components/wialon/PlatformHeader";
@@ -27,6 +30,7 @@ import type {
 } from "@/components/wialon-map";
 
 const WialonMap = React.lazy(() => import("@/components/wialon-map"));
+import { shareUserRoute } from "@/lib/route-share.functions";
 import {
   getUserRoutes,
   saveUserRoute,
@@ -36,6 +40,8 @@ import {
   wialonGeocodeAddresses,
   wialonGeofences,
   wialonPlanRoute,
+  wialonLogisticsRoutes,
+  type WialonLogisticsRoute,
   type WialonGeocodedAddress,
   type WialonPlannedRoutePoint,
   type WialonPlannedRouteStop,
@@ -195,6 +201,12 @@ function RutasView({ session }: { session: WialonSession }) {
   const [deletingUserRouteId, setDeletingUserRouteId] = React.useState<
     string | null
   >(null);
+  const [sharingUserRouteId, setSharingUserRouteId] = React.useState<
+    string | null
+  >(null);
+  const [copiedUserRouteId, setCopiedUserRouteId] = React.useState<
+    string | null
+  >(null);
   const [confirmDeleteUserRouteId, setConfirmDeleteUserRouteId] =
     React.useState<string | null>(null);
   const [confirmDeleteWialonRouteId, setConfirmDeleteWialonRouteId] =
@@ -221,6 +233,29 @@ function RutasView({ session }: { session: WialonSession }) {
   });
   const allRoutes = (query.data?.zones ?? []).filter((zone) => zone.type === 1);
   const resources = query.data?.resources ?? [];
+
+  // Rutas creadas en Wialon Logistics (solo ORB-FULL)
+  const logisticsQuery = useQuery({
+    queryKey: ["wialon-logistics-routes", session.sid],
+    queryFn: () =>
+      wialonLogisticsRoutes({ data: { host: session.host, sid: session.sid } }),
+    enabled: session.host === "full",
+    refetchInterval: 60000,
+    retry: false,
+  });
+  const logisticsRoutes = logisticsQuery.data?.routes ?? [];
+  const [shownLogisticsIds, setShownLogisticsIds] = React.useState<
+    ReadonlySet<string>
+  >(new Set());
+
+  function toggleLogisticsRoute(id: string) {
+    setShownLogisticsIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   const visibleRoutes =
     filterResourceId === "all"
@@ -262,6 +297,16 @@ function RutasView({ session }: { session: WialonSession }) {
         },
       ]
     : [];
+  const logisticsMapRoutes: MapGeofence[] = logisticsRoutes
+    .filter((route) => shownLogisticsIds.has(route.id) && route.points.length > 0)
+    .map((route, index) => ({
+      id: -(index + 10),
+      name: route.name,
+      resource: "Wialon Logistics",
+      type: 1 as const,
+      color: ROUTE_COLOR,
+      points: route.points.map((point) => ({ ...point, radius: 0 })),
+    }));
   const addressPoints: MapAddressPoint[] =
     inputMode === "addresses"
       ? geocodedAddresses.map((point, index) => ({
@@ -537,6 +582,36 @@ function RutasView({ session }: { session: WialonSession }) {
     setTimeout(() => setMessage(null), 3000);
   }
 
+  async function handleShareUserRoute(route: StoredUserRoute) {
+    setSharingUserRouteId(route.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await shareUserRoute({
+        data: { userId: session.userId, routeId: route.id },
+      });
+      const url = `${window.location.origin}/ruta/${result.token}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        setMessage(
+          `Enlace de "${route.name}" copiado. Los operadores no necesitan iniciar sesión.`,
+        );
+      } catch {
+        window.prompt("Copia el enlace de la ruta:", url);
+      }
+      setCopiedUserRouteId(route.id);
+      window.setTimeout(() => setCopiedUserRouteId(null), 4000);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "No se pudo generar el enlace de la ruta.",
+      );
+    } finally {
+      setSharingUserRouteId(null);
+    }
+  }
+
   async function handleDeleteUserRoute(route: StoredUserRoute) {
     if (confirmDeleteUserRouteId !== route.id) {
       setConfirmDeleteUserRouteId(route.id);
@@ -710,7 +785,7 @@ function RutasView({ session }: { session: WialonSession }) {
             >
               <WialonMap
                 units={[]}
-                geofences={[...userMapRoutes, ...mapRoutes, ...plannedMapRoute]}
+                geofences={[...userMapRoutes, ...mapRoutes, ...plannedMapRoute, ...logisticsMapRoutes]}
                 focusGeofenceId={focusedUserRouteId ?? focusedRouteId}
                 addressPoints={addressPoints}
                 drawMode={drawing ? "line" : null}
@@ -1092,6 +1167,116 @@ function RutasView({ session }: { session: WialonSession }) {
         </form>
       </div>
 
+      {/* Rutas de Wialon Logistics (solo ORB-FULL) */}
+      {session.host === "full" ? (
+        <div className="rounded-xl border border-border/70 bg-card/60 p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <RouteIcon className="size-5" />
+              </div>
+              <div>
+                <h2 className="font-display text-base font-bold uppercase tracking-wide text-foreground">
+                  Rutas de Wialon Logistics
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Rutas creadas en la aplicación Logistics de tu cuenta ORB-FULL.
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full bg-primary/10 px-3 py-1 font-mono text-xs font-semibold text-primary">
+              {logisticsRoutes.length} ruta{logisticsRoutes.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {logisticsQuery.isLoading ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              Cargando rutas de Logistics…
+            </div>
+          ) : logisticsQuery.isError ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              No se pudieron leer las rutas de Logistics. Verifica que tu
+              cuenta tenga acceso a la aplicación Logistics.
+            </div>
+          ) : logisticsRoutes.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              No hay rutas creadas en Wialon Logistics para esta cuenta.
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {logisticsRoutes.map((route) => {
+                const isShown = shownLogisticsIds.has(route.id);
+                return (
+                  <div
+                    key={route.id}
+                    className={`flex flex-col justify-between rounded-lg border bg-background/60 p-3.5 transition-colors ${
+                      isShown
+                        ? "border-primary ring-1 ring-primary/40 shadow-sm"
+                        : "border-border/70 hover:border-primary/50"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="flex size-3.5 shrink-0 items-center justify-center">
+                          <span className="size-2.5 rounded-full border border-white bg-[#92d700] shadow-[0_0_6px_rgba(146,215,0,0.6)]" />
+                        </span>
+                        <h3
+                          className="truncate font-semibold text-sm text-foreground"
+                          title={route.name}
+                        >
+                          {route.name}
+                        </h3>
+                      </div>
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="rounded bg-muted/50 px-1.5 py-0.5 font-mono">
+                          {route.points.length} punto{route.points.length !== 1 ? "s" : ""}
+                        </span>
+                        {route.ordersCount > 0 ? (
+                          <span className="rounded bg-muted/50 px-1.5 py-0.5 font-mono">
+                            {route.ordersCount} pedido{route.ordersCount !== 1 ? "s" : ""}
+                          </span>
+                        ) : null}
+                        {route.status ? (
+                          <span className="rounded bg-muted/50 px-1.5 py-0.5">
+                            {route.status}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-end border-t border-border/40 pt-2.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleLogisticsRoute(route.id)}
+                        disabled={route.points.length === 0}
+                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                          isShown
+                            ? "bg-primary text-primary-foreground font-semibold"
+                            : "text-primary hover:bg-primary/10"
+                        }`}
+                        title={
+                          route.points.length === 0
+                            ? "Esta ruta no tiene puntos para dibujar"
+                            : isShown
+                              ? "Quitar del mapa"
+                              : "Ver en el mapa"
+                        }
+                      >
+                        {isShown ? (
+                          <EyeOff className="size-3.5" />
+                        ) : (
+                          <Eye className="size-3.5" />
+                        )}
+                        <span>{isShown ? "En el mapa" : "Ver en mapa"}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {/* Sección 1: Mis Rutas Guardadas (En tu cuenta de servidor fuera de Wialon) */}
       <div className="rounded-xl border border-border/70 bg-card/60 p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
@@ -1219,6 +1404,27 @@ function RutasView({ session }: { session: WialonSession }) {
                           <ExternalLink className="size-3" />
                         </a>
                       ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => handleShareUserRoute(route)}
+                        disabled={sharingUserRouteId === route.id}
+                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors disabled:opacity-50 ${
+                          copiedUserRouteId === route.id
+                            ? "bg-primary/15 text-primary font-semibold"
+                            : "text-primary hover:bg-primary/10"
+                        }`}
+                        title="Generar enlace para operadores (sin iniciar sesión, con check de visitas y Waze)"
+                      >
+                        <Link2 className="size-3.5" />
+                        <span>
+                          {sharingUserRouteId === route.id
+                            ? "…"
+                            : copiedUserRouteId === route.id
+                              ? "¡Copiado!"
+                              : "Enlace"}
+                        </span>
+                      </button>
                     </div>
 
                     <button

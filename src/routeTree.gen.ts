@@ -23,6 +23,7 @@ import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedRenovacionesRouteImport } from './routes/_authenticated/renovaciones'
 import { Route as PanelTokenRouteImport } from './routes/panel.$token'
+import { Route as RutaTokenRouteImport } from './routes/ruta.$token'
 import { Route as WialonIndexRouteImport } from './routes/wialon.index'
 import { Route as WialonCallbackRouteImport } from './routes/wialon.callback'
 import { Route as WialonCmsRouteImport } from './routes/wialon.cms'
@@ -105,6 +106,11 @@ const AuthenticatedRenovacionesRoute =
 const PanelTokenRoute = PanelTokenRouteImport.update({
   id: '/panel/$token',
   path: '/panel/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RutaTokenRoute = RutaTokenRouteImport.update({
+  id: '/ruta/$token',
+  path: '/ruta/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WialonIndexRoute = WialonIndexRouteImport.update({
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/ruta/$token': typeof RutaTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
   '/wialon/geocercas': typeof WialonGeocercasRoute
@@ -217,6 +224,7 @@ export interface FileRoutesByTo {
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/ruta/$token': typeof RutaTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
   '/wialon/geocercas': typeof WialonGeocercasRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/ruta/$token': typeof RutaTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
   '/wialon/geocercas': typeof WialonGeocercasRoute
@@ -277,6 +286,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/renovaciones'
     | '/panel/$token'
+    | '/ruta/$token'
     | '/wialon/callback'
     | '/wialon/cms'
     | '/wialon/geocercas'
@@ -304,6 +314,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/renovaciones'
     | '/panel/$token'
+    | '/ruta/$token'
     | '/wialon/callback'
     | '/wialon/cms'
     | '/wialon/geocercas'
@@ -333,6 +344,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crm'
     | '/_authenticated/renovaciones'
     | '/panel/$token'
+    | '/ruta/$token'
     | '/wialon/callback'
     | '/wialon/cms'
     | '/wialon/geocercas'
@@ -360,6 +372,7 @@ export interface RootRouteChildren {
   TiendaRoute: typeof TiendaRoute
   WialonRoute: typeof WialonRouteWithChildren
   PanelTokenRoute: typeof PanelTokenRoute
+  RutaTokenRoute: typeof RutaTokenRoute
   ApiPublicCronAvisosRenovacionRoute: typeof ApiPublicCronAvisosRenovacionRoute
   ApiPublicCronResumenPendientesRoute: typeof ApiPublicCronResumenPendientesRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
@@ -463,6 +476,13 @@ declare module '@tanstack/react-router' {
       path: '/panel/$token'
       fullPath: '/panel/$token'
       preLoaderRoute: typeof PanelTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ruta/$token': {
+      id: '/ruta/$token'
+      path: '/ruta/$token'
+      fullPath: '/ruta/$token'
+      preLoaderRoute: typeof RutaTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/wialon/': {
@@ -615,6 +635,7 @@ const rootRouteChildren: RootRouteChildren = {
   TiendaRoute: TiendaRoute,
   WialonRoute: WialonRouteWithChildren,
   PanelTokenRoute: PanelTokenRoute,
+  RutaTokenRoute: RutaTokenRoute,
   ApiPublicCronAvisosRenovacionRoute: ApiPublicCronAvisosRenovacionRoute,
   ApiPublicCronResumenPendientesRoute: ApiPublicCronResumenPendientesRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
