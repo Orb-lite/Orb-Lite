@@ -11,7 +11,7 @@ import {
   type WialonMessage,
 } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
-import { captureElementAsPng, downloadExcelWorkbook } from "@/lib/excel-export";
+import { downloadExcelWorkbook, renderTrackMapImage } from "@/lib/excel-export";
 
 const WialonMap = React.lazy(() => import("@/components/wialon-map"));
 
@@ -65,7 +65,6 @@ function HistorialView({ session }: { session: WialonSession }) {
   const [busy, setBusy] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const mapExportRef = React.useRef<HTMLDivElement>(null);
   const [result, setResult] = React.useState<{
     messages: WialonMessage[];
     total: number;
@@ -107,11 +106,11 @@ function HistorialView({ session }: { session: WialonSession }) {
     .map((m) => ({ lat: m.lat as number, lon: m.lon as number }));
 
   async function onExport() {
-    if (!result || !mapExportRef.current) return;
+    if (!result) return;
     setExporting(true);
     setError(null);
     try {
-      const mapDataUrl = await captureElementAsPng(mapExportRef.current);
+      const mapDataUrl = track.length > 0 ? await renderTrackMapImage(track) : null;
       const selectedUnit = units.find((unit) => unit.id === selected);
       const historyRows: Array<Array<string | number | null>> = [
         ["Fecha", "Latitud", "Longitud", "Velocidad (km/h)", "Rumbo (°)"],
@@ -245,21 +244,19 @@ function HistorialView({ session }: { session: WialonSession }) {
             ))}
           </div>
 
-          <div ref={mapExportRef}>
-            <ClientOnly
+          <ClientOnly
+            fallback={
+              <div className="h-[480px] rounded-lg border border-border/60 bg-card/40" />
+            }
+          >
+            <React.Suspense
               fallback={
                 <div className="h-[480px] rounded-lg border border-border/60 bg-card/40" />
               }
             >
-              <React.Suspense
-                fallback={
-                  <div className="h-[480px] rounded-lg border border-border/60 bg-card/40" />
-                }
-              >
-                <WialonMap units={[]} track={track} />
-              </React.Suspense>
-            </ClientOnly>
-          </div>
+              <WialonMap units={[]} track={track} />
+            </React.Suspense>
+          </ClientOnly>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">

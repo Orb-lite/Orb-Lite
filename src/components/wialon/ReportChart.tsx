@@ -23,7 +23,12 @@ import {
   type WialonUnit,
 } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
-import { downloadExcelWorkbook, type ExcelCell } from "@/lib/excel-export";
+import {
+  captureChartAsPng,
+  downloadExcelWorkbook,
+  type ExcelCell,
+  type ExcelMapDefinition,
+} from "@/lib/excel-export";
 
 const SERIES_COLORS = [
   "#92d700", // Lima distintivo ORB-LITE
@@ -82,6 +87,8 @@ export function ReportChart({ session }: { session: WialonSession }) {
   );
   const [exporting, setExporting] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | null>(null);
+  const speedChartRef = React.useRef<HTMLDivElement>(null);
+  const sensorChartRef = React.useRef<HTMLDivElement>(null);
 
   const templatesQuery = useQuery({
     queryKey: ["wialon-report-templates", session.host, session.sid],
@@ -196,10 +203,31 @@ export function ReportChart({ session }: { session: WialonSession }) {
         );
       }
 
+      const chartImages: ExcelMapDefinition[] = [];
+      if (speedChartRef.current) {
+        chartImages.push({
+          sheetName: "Posiciones",
+          title: "Velocidad por hora",
+          dataUrl: await captureChartAsPng(speedChartRef.current),
+          width: 720,
+          height: 360,
+        });
+      }
+      if (isFull && sensorNames.length > 0 && sensorChartRef.current) {
+        chartImages.push({
+          sheetName: "Posiciones",
+          title: "Sensores en tiempo de medición",
+          dataUrl: await captureChartAsPng(sensorChartRef.current),
+          width: 720,
+          height: 400,
+        });
+      }
+
       const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
       await downloadExcelWorkbook({
         filename: `reporte-${unit.name.replace(/\s+/g, "-")}-${stamp}.xlsx`,
         sheets,
+        ...(chartImages.length > 0 ? { images: chartImages } : {}),
       });
     } catch (error) {
       setExportError(
@@ -318,7 +346,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
             <h2 className="font-display text-lg font-bold uppercase tracking-wide">
               Velocidad por hora
             </h2>
-            <div className="mt-4 h-72">
+            <div ref={speedChartRef} className="mt-4 h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <defs>
@@ -400,7 +428,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
               <h2 className="font-display text-lg font-bold uppercase tracking-wide">
                 Sensores en tiempo de medición
               </h2>
-              <div className="mt-4 h-80">
+              <div ref={sensorChartRef} className="mt-4 h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid
