@@ -176,20 +176,13 @@ export function VideoPlayer({
           <div className="flex size-full items-center justify-center text-center text-xs text-muted-foreground">
             {request.isPending
               ? "Solicitando transmisión en vivo…"
-              : request.isSuccess
-                ? "Esta cámara no entregó una transmisión compatible dentro de la plataforma."
+              : streamError
+                ? streamError
                 : "Presiona “Empezar a grabar” para ver el video aquí."}
           </div>
         )}
       </div>
 
-      {request.isError ? (
-        <p className="mt-2 text-sm text-destructive">
-          {request.error instanceof Error
-            ? request.error.message
-            : "No se pudo iniciar la transmisión."}
-        </p>
-      ) : null}
 
       <p className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
         <Info className="mt-0.5 size-3.5 shrink-0" />
