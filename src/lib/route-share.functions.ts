@@ -181,7 +181,7 @@ export const commentSharedStop = createServerFn({ method: "POST" })
 /** Correos usados antes por la cuenta para recibir reportes. */
 export const getReportEmails = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({ userId: z.number().int().positive() }).parse(input),
+    z.object({ userId: z.number().int().nonnegative() }).parse(input),
   )
   .handler(async ({ data }) => {
     const { getSavedReportEmails } = await import("./user-routes.server");
