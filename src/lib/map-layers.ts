@@ -1,7 +1,6 @@
 import L from "leaflet";
 
-export type MapTileProviderKey =
-  "googleStreets" | "googleHybrid" | "googleSatellite" | "osm" | "cartoDark";
+export type MapTileProviderKey = "osm" | "cartoDark";
 
 export interface MapTileProviderConfig {
   id: MapTileProviderKey;
@@ -14,30 +13,6 @@ export interface MapTileProviderConfig {
 
 export const MAP_PROVIDERS: Record<MapTileProviderKey, MapTileProviderConfig> =
   {
-    googleStreets: {
-      id: "googleStreets",
-      name: "Google Calles (Gratis)",
-      url: "https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
-      subdomains: ["0", "1", "2", "3"],
-      maxZoom: 20,
-      attribution: "&copy; Google Maps &bull; Capa Libre",
-    },
-    googleHybrid: {
-      id: "googleHybrid",
-      name: "Google Híbrido",
-      url: "https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
-      subdomains: ["0", "1", "2", "3"],
-      maxZoom: 20,
-      attribution: "&copy; Google Maps &bull; Satélite con calles",
-    },
-    googleSatellite: {
-      id: "googleSatellite",
-      name: "Google Satélite",
-      url: "https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-      subdomains: ["0", "1", "2", "3"],
-      maxZoom: 20,
-      attribution: "&copy; Google Maps",
-    },
     osm: {
       id: "osm",
       name: "OpenStreetMap",
