@@ -11,7 +11,7 @@ import {
   type WialonMessage,
 } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
-import { captureElementAsPng, downloadExcelWorkbook } from "@/lib/excel-export";
+import { downloadExcelWorkbook, renderTrackMapImage } from "@/lib/excel-export";
 
 const WialonMap = React.lazy(() => import("@/components/wialon-map"));
 
@@ -107,11 +107,11 @@ function HistorialView({ session }: { session: WialonSession }) {
     .map((m) => ({ lat: m.lat as number, lon: m.lon as number }));
 
   async function onExport() {
-    if (!result || !mapExportRef.current) return;
+    if (!result) return;
     setExporting(true);
     setError(null);
     try {
-      const mapDataUrl = await captureElementAsPng(mapExportRef.current);
+      const mapDataUrl = track.length > 0 ? await renderTrackMapImage(track) : null;
       const selectedUnit = units.find((unit) => unit.id === selected);
       const historyRows: Array<Array<string | number | null>> = [
         ["Fecha", "Latitud", "Longitud", "Velocidad (km/h)", "Rumbo (°)"],
