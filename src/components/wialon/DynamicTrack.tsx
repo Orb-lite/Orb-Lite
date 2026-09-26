@@ -14,7 +14,7 @@ import type { LatLngExpression } from "leaflet";
 import { Button } from "@/components/ui/button";
 import { wialonHistory, type WialonMessage } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
-import { MAP_PROVIDERS } from "@/lib/map-layers";
+import { DARK_TILE_CLASS, MAP_PROVIDERS } from "@/lib/map-layers";
 
 type DynamicTrackProps = {
   session: WialonSession;
@@ -229,6 +229,7 @@ export function DynamicTrack({
             url={MAP_PROVIDERS.cartoDark.url}
             subdomains={MAP_PROVIDERS.cartoDark.subdomains}
             maxZoom={MAP_PROVIDERS.cartoDark.maxZoom}
+            className={DARK_TILE_CLASS}
           />
           <FitTrack points={positions} />
           {positions.length > 1 && (
