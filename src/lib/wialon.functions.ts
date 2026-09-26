@@ -1360,6 +1360,14 @@ type GeocodeMatch = { lat?: string; lon?: string; display_name?: string };
 let geocodeQueue: Promise<unknown> = Promise.resolve();
 async function geocodeAddress(address: string): Promise<WialonGeocodedAddress> {
   const run = geocodeQueue.then(async () => {
+    // Preferir Google Maps (Places New): mejor correspondencia entre lugar y domicilio.
+    try {
+      const { googleGeocodePlace } = await import("@/lib/google-maps.server");
+      const google = await googleGeocodePlace(address);
+      if (google) return google;
+    } catch {
+      // Si Google no está disponible, continuar con los buscadores gratuitos.
+    }
     try {
       return await smartGeocode(address);
     } catch {
