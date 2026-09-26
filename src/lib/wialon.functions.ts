@@ -957,10 +957,11 @@ export const wialonGeofences = createServerFn({ method: "POST" })
         { id: number; n?: string; t?: number; c?: number; b?: { cen_x?: number; cen_y?: number; min_x?: number; max_x?: number } }
       >;
     };
-    // Búsqueda en cascada: solo los recursos creados por el usuario y sus
-    // subordinados (árbol de creadores y de cuentas). Las geocercas de
-    // cuentas ajenas no se muestran aunque la sesión tenga acceso a ellas.
+    // Búsqueda en cascada: recursos con acceso directo + todos los creados
+    // por usuarios/cuentas subordinados (árbol de creadores y de cuentas).
+    // Si en Wialon la cuenta tiene acceso a otra, sus geocercas sí se ven.
     const specs = [
+      { itemsType: "avl_resource", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
       { itemsType: "avl_resource", propName: "rel_user_creator_name", propValueMask: "*", sortType: "sys_name", propType: "creatortree" },
       { itemsType: "avl_resource", propName: "rel_account_name", propValueMask: "*", sortType: "sys_name", propType: "accounttree" },
     ];
