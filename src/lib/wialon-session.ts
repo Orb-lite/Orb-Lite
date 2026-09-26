@@ -22,7 +22,7 @@ export const PLATFORM_URLS: Record<WialonSession['host'], { app: string; cms: st
 export function readSession(): WialonSession | null {
   if (typeof window === 'undefined') return null
   try {
-    const raw = window.sessionStorage.getItem(KEY)
+    const raw = window.sessionStorage.getItem(KEY) || window.localStorage.getItem(KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as WialonSession
     return parsed?.sid && parsed?.host ? parsed : null
@@ -33,10 +33,18 @@ export function readSession(): WialonSession | null {
 
 export function writeSession(session: WialonSession | null) {
   if (typeof window === 'undefined') return
-  if (session) window.sessionStorage.setItem(KEY, JSON.stringify(session))
-  else window.sessionStorage.removeItem(KEY)
+  if (session) {
+    window.sessionStorage.setItem(KEY, JSON.stringify(session))
+    window.localStorage.setItem(KEY, JSON.stringify(session))
+  } else {
+    window.sessionStorage.removeItem(KEY)
+    window.localStorage.removeItem(KEY)
+  }
   window.dispatchEvent(new Event('wialon-session-change'))
 }
+
+export const getStoredWialonSession = readSession
+export const setStoredWialonSession = writeSession
 
 /** Devuelve la sesión activa; `undefined` mientras hidrata. */
 export function useWialonSession(): WialonSession | null | undefined {
@@ -64,7 +72,6 @@ export function useWialonKeepAlive(
   React.useEffect(() => {
     if (!session) return
     let cancelled = false
-
     async function check() {
       try {
         const result = await ping({ data: { host: session!.host, sid: session!.sid } })
@@ -73,7 +80,6 @@ export function useWialonKeepAlive(
         // error temporal de red: se reintenta en el siguiente ciclo
       }
     }
-
     const timer = window.setInterval(check, 4 * 60 * 1000)
     void check()
     return () => {

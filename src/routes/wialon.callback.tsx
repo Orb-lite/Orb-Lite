@@ -28,7 +28,13 @@ export const Route = createFileRoute('/wialon/callback')({
 function readParams(): { token: string | null; host: 'lite' | 'full' } {
   const search = new URLSearchParams(window.location.search)
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
-  const token = search.get('access_token') ?? hash.get('access_token')
+  const token =
+    search.get('access_token') ??
+    hash.get('access_token') ??
+    search.get('token') ??
+    hash.get('token') ??
+    search.get('eid') ??
+    hash.get('eid')
   const stored = window.sessionStorage.getItem('orblite.wialon.oauth-host')
   const host = stored === 'full' ? 'full' : 'lite'
   return { token, host }

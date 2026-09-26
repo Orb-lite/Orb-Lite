@@ -2,16 +2,20 @@ export type WialonHost = 'lite' | 'full'
 
 // Los dominios de la interfaz (lite.wialon.us / hosting.wialon.com) no aceptan
 // llamadas de API: para eso existen los servidores hst-api.
-const BASES: Record<WialonHost, string> = {
+export const BASES: Record<WialonHost, string> = {
   lite: 'https://hst-api.wialon.us',
   full: 'https://hst-api.wialon.com',
+}
+
+export const WIALON_HOSTS: Record<WialonHost, string> = {
+  lite: 'hst-api.wialon.us',
+  full: 'hst-api.wialon.com',
 }
 
 export const APP_URLS: Record<WialonHost, string> = {
   lite: 'https://lite.wialon.us/',
   full: 'https://hosting.wialon.com/',
 }
-
 
 export const CMS_URLS: Record<WialonHost, string> = {
   lite: 'https://cms-lite.wialon.us/',
@@ -109,5 +113,6 @@ export async function wialonCall<T = unknown>(
       throw new WialonError(code, (json as { reason?: string }).reason)
     }
   }
+
   return json as T
 }

@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Download, LoaderCircle } from "lucide-react";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
   Legend,
   Line,
@@ -24,14 +26,14 @@ import type { WialonSession } from "@/lib/wialon-session";
 import { downloadExcelWorkbook, type ExcelCell } from "@/lib/excel-export";
 
 const SERIES_COLORS = [
-  "hsl(var(--primary))",
-  "#38bdf8",
-  "#f97316",
-  "#a3e635",
-  "#e879f9",
-  "#facc15",
-  "#34d399",
-  "#fb7185",
+  "#92d700", // Lima distintivo ORB-LITE
+  "#38bdf8", // Azul celeste
+  "#f97316", // Naranja
+  "#22c55e", // Verde esmeralda
+  "#e879f9", // Magenta brillante
+  "#facc15", // Amarillo
+  "#34d399", // Turquesa
+  "#fb7185", // Coral
 ];
 
 function toLocalInput(date: Date) {
@@ -75,19 +77,29 @@ export function ReportChart({ session }: { session: WialonSession }) {
   );
   const [to, setTo] = React.useState(() => toLocalInput(new Date()));
   const [templateKey, setTemplateKey] = React.useState("");
-  const [range, setRange] = React.useState<{ from: number; to: number } | null>(null);
+  const [range, setRange] = React.useState<{ from: number; to: number } | null>(
+    null,
+  );
   const [exporting, setExporting] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | null>(null);
 
   const templatesQuery = useQuery({
     queryKey: ["wialon-report-templates", session.host, session.sid],
-    queryFn: () => fetchTemplates({ data: { host: session.host, sid: session.sid } }),
+    queryFn: () =>
+      fetchTemplates({ data: { host: session.host, sid: session.sid } }),
     staleTime: 5 * 60 * 1000,
   });
   const templates = templatesQuery.data?.templates ?? [];
 
   const reportQuery = useQuery({
-    queryKey: ["wialon-report", session.sid, unit?.id, range?.from, range?.to, isFull],
+    queryKey: [
+      "wialon-report",
+      session.sid,
+      unit?.id,
+      range?.from,
+      range?.to,
+      isFull,
+    ],
     queryFn: () =>
       fetchReport({
         data: {
@@ -147,11 +159,15 @@ export function ReportChart({ session }: { session: WialonSession }) {
         for (const name of sensorNames) base[name] = row.sensors[name] ?? null;
         return base;
       });
-      const positionHeader = positionRows.length ? Object.keys(positionRows[0]!) : ["Hora"];
+      const positionHeader = positionRows.length
+        ? Object.keys(positionRows[0]!)
+        : ["Hora"];
       const positionData: ExcelCell[][] = [
         positionHeader,
         ...(positionRows.length
-          ? positionRows.map((row) => positionHeader.map((header) => row[header] ?? null))
+          ? positionRows.map((row) =>
+              positionHeader.map((header) => row[header] ?? null),
+            )
           : [["Sin datos"]]),
       ];
       const sheets = [{ name: "Posiciones", rows: positionData }];
@@ -187,7 +203,9 @@ export function ReportChart({ session }: { session: WialonSession }) {
       });
     } catch (error) {
       setExportError(
-        error instanceof Error ? error.message : "No se pudo generar el archivo de Excel.",
+        error instanceof Error
+          ? error.message
+          : "No se pudo generar el archivo de Excel.",
       );
     } finally {
       setExporting(false);
@@ -260,7 +278,12 @@ export function ReportChart({ session }: { session: WialonSession }) {
             onClick={onExport}
             disabled={!unit || !range || reportQuery.isLoading || exporting}
           >
-            {exporting ? <LoaderCircle className="animate-spin" /> : <Download />} Exportar XLSX
+            {exporting ? (
+              <LoaderCircle className="animate-spin" />
+            ) : (
+              <Download />
+            )}{" "}
+            Exportar XLSX
           </Button>
         </div>
       </form>
@@ -271,7 +294,9 @@ export function ReportChart({ session }: { session: WialonSession }) {
           : "ORB-LITE: reportes de posición con ubicación, velocidad y hora."}
       </p>
 
-      {exportError ? <p className="text-sm text-destructive">{exportError}</p> : null}
+      {exportError ? (
+        <p className="text-sm text-destructive">{exportError}</p>
+      ) : null}
       {reportQuery.isError ? (
         <p className="text-sm text-destructive">
           {reportQuery.error instanceof Error
@@ -282,7 +307,8 @@ export function ReportChart({ session }: { session: WialonSession }) {
 
       {reportQuery.isLoading ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <LoaderCircle className="size-4 animate-spin" /> Consultando la plataforma…
+          <LoaderCircle className="size-4 animate-spin" /> Consultando la
+          plataforma…
         </p>
       ) : null}
 
@@ -294,21 +320,77 @@ export function ReportChart({ session }: { session: WialonSession }) {
             </h2>
             <div className="mt-4 h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={24} />
-                  <YAxis tick={{ fontSize: 11 }} unit=" km/h" />
-                  <Tooltip />
-                  <Line
+                <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient
+                      id="orbSpeedGrad"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop
+                        offset="5%"
+                        stopColor="#92d700"
+                        stopOpacity={0.45}
+                      />
+                      <stop
+                        offset="95%"
+                        stopColor="#92d700"
+                        stopOpacity={0.02}
+                      />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#2c3e57"
+                    opacity={0.6}
+                  />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: "#a8b2be" }}
+                    stroke="#2c3e57"
+                    minTickGap={24}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#a8b2be" }}
+                    stroke="#2c3e57"
+                    unit=" km/h"
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#0e1f39",
+                      borderColor: "#2c3e57",
+                      borderRadius: "0.5rem",
+                      color: "#f6f9fc",
+                      fontSize: "12px",
+                      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                    }}
+                    itemStyle={{ color: "#92d700", fontWeight: "bold" }}
+                    labelStyle={{
+                      color: "#a8b2be",
+                      fontWeight: 600,
+                      marginBottom: "4px",
+                    }}
+                  />
+                  <Area
                     type="monotone"
                     dataKey="velocidad"
                     name="Velocidad"
-                    stroke={SERIES_COLORS[0]}
-                    dot={false}
-                    strokeWidth={2}
+                    stroke="#92d700"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#orbSpeedGrad)"
+                    dot={{ r: 2.5, fill: "#92d700", strokeWidth: 0 }}
+                    activeDot={{
+                      r: 5,
+                      fill: "#ffffff",
+                      stroke: "#92d700",
+                      strokeWidth: 2,
+                    }}
                     connectNulls
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -321,19 +403,53 @@ export function ReportChart({ session }: { session: WialonSession }) {
               <div className="mt-4 h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={24} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip />
-                    <Legend />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="#2c3e57"
+                      opacity={0.6}
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: "#a8b2be" }}
+                      stroke="#2c3e57"
+                      minTickGap={24}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: "#a8b2be" }}
+                      stroke="#2c3e57"
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "#0e1f39",
+                        borderColor: "#2c3e57",
+                        borderRadius: "0.5rem",
+                        color: "#f6f9fc",
+                        fontSize: "12px",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                      }}
+                      labelStyle={{
+                        color: "#a8b2be",
+                        fontWeight: 600,
+                        marginBottom: "4px",
+                      }}
+                    />
+                    <Legend wrapperStyle={{ paddingTop: "8px" }} />
                     {sensorNames.map((name, index) => (
                       <Line
                         key={name}
                         type="monotone"
                         dataKey={name}
                         name={name}
-                        stroke={SERIES_COLORS[(index + 1) % SERIES_COLORS.length]}
-                        dot={false}
+                        stroke={
+                          SERIES_COLORS[(index + 1) % SERIES_COLORS.length]
+                        }
+                        dot={{
+                          r: 2,
+                          fill: SERIES_COLORS[
+                            (index + 1) % SERIES_COLORS.length
+                          ],
+                          strokeWidth: 0,
+                        }}
                         strokeWidth={2}
                         connectNulls
                       />
@@ -361,11 +477,16 @@ export function ReportChart({ session }: { session: WialonSession }) {
               </thead>
               <tbody>
                 {rows.slice(0, 200).map((row, index) => (
-                  <tr key={`${row.time}-${index}`} className="border-t border-border/40">
+                  <tr
+                    key={`${row.time}-${index}`}
+                    className="border-t border-border/40"
+                  >
                     <td className="px-3 py-2">{formatTime(row.time)}</td>
                     <td className="px-3 py-2">{row.lat?.toFixed(5) ?? "—"}</td>
                     <td className="px-3 py-2">{row.lon?.toFixed(5) ?? "—"}</td>
-                    <td className="px-3 py-2">{row.speed != null ? `${row.speed} km/h` : "—"}</td>
+                    <td className="px-3 py-2">
+                      {row.speed != null ? `${row.speed} km/h` : "—"}
+                    </td>
                     {sensorNames.map((name) => (
                       <td key={name} className="px-3 py-2">
                         {row.sensors[name] ?? "—"}
@@ -377,7 +498,8 @@ export function ReportChart({ session }: { session: WialonSession }) {
             </table>
             {rows.length > 200 ? (
               <p className="px-3 py-2 text-xs text-muted-foreground">
-                Se muestran 200 de {rows.length} registros. El archivo de Excel incluye todos.
+                Se muestran 200 de {rows.length} registros. El archivo de Excel
+                incluye todos.
               </p>
             ) : null}
           </div>
@@ -385,7 +507,9 @@ export function ReportChart({ session }: { session: WialonSession }) {
       ) : null}
 
       {!reportQuery.isLoading && range && chartData.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No hay mensajes en el periodo seleccionado.</p>
+        <p className="text-sm text-muted-foreground">
+          No hay mensajes en el periodo seleccionado.
+        </p>
       ) : null}
     </section>
   );

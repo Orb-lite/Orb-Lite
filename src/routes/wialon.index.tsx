@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { KeyRound, MapPin, ShieldCheck } from 'lucide-react'
+import { KeyRound, MapPin, ShieldCheck, Video } from 'lucide-react'
 import { PLATFORM_URLS, useWialonSession } from '@/lib/wialon-session'
 
 export const Route = createFileRoute('/wialon/')({
@@ -28,10 +28,19 @@ export const Route = createFileRoute('/wialon/')({
 function WialonLoginPage() {
   const navigate = useNavigate()
   const session = useWialonSession()
-
   const [host, setHost] = React.useState<'lite' | 'full'>('lite')
 
   React.useEffect(() => {
+    // Si viene con un access_token directamente en el hash o query, enviar a callback
+    if (typeof window !== 'undefined') {
+      const search = new URLSearchParams(window.location.search)
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+      const token = search.get('access_token') ?? hash.get('access_token')
+      if (token) {
+        void navigate({ to: '/wialon/callback' })
+        return
+      }
+    }
     if (session) void navigate({ to: '/wialon/mapa' })
   }, [session, navigate])
 
@@ -94,7 +103,7 @@ function WialonLoginPage() {
         </section>
       </div>
 
-      <div className="mt-12 grid w-full max-w-4xl gap-4 sm:grid-cols-3">
+      <div className="mt-12 grid w-full max-w-4xl gap-4 sm:grid-cols-4">
         {[
           {
             icon: MapPin,
@@ -105,6 +114,11 @@ function WialonLoginPage() {
             icon: ShieldCheck,
             title: 'Historial y recorridos',
             text: 'Consulta los recorridos por fecha y la velocidad máxima registrada.',
+          },
+          {
+            icon: Video,
+            title: 'Cámaras y Video',
+            text: 'Visualización de video en vivo y grabaciones de cámaras MDVR.',
           },
           {
             icon: KeyRound,
@@ -126,11 +140,11 @@ function WialonLoginPage() {
 
       <p className="mt-8 max-w-md text-center text-xs text-muted-foreground">
         También puedes entrar al gestor oficial:{' '}
-        <a className="text-primary" href={PLATFORM_URLS[host].app} target="_blank" rel="noreferrer">
+        <a className="text-primary hover:underline" href={PLATFORM_URLS[host].app} target="_blank" rel="noreferrer">
           {PLATFORM_URLS[host].app}
         </a>{' '}
         ·{' '}
-        <a className="text-primary" href={PLATFORM_URLS[host].cms} target="_blank" rel="noreferrer">
+        <a className="text-primary hover:underline" href={PLATFORM_URLS[host].cms} target="_blank" rel="noreferrer">
           {PLATFORM_URLS[host].cms}
         </a>
       </p>

@@ -4,7 +4,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { Download, LoaderCircle } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
-import { wialonHistory, wialonUnits, type WialonMessage } from "@/lib/wialon.functions";
+import { PlatformHeader } from "@/components/wialon/PlatformHeader";
+import {
+  wialonHistory,
+  wialonUnits,
+  type WialonMessage,
+} from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
 import { captureElementAsPng, downloadExcelWorkbook } from "@/lib/excel-export";
 
@@ -14,13 +19,26 @@ export const Route = createFileRoute("/wialon/historial")({
   head: () => ({
     meta: [
       { title: "Historial y recorridos | Plataforma ORB-LITE" },
-      { name: "description", content: "Consulta recorridos y mensajes por fecha de cada unidad." },
-      { property: "og:title", content: "Historial y recorridos | Plataforma ORB-LITE" },
-      { property: "og:description", content: "Consulta recorridos y mensajes por fecha." },
+      {
+        name: "description",
+        content: "Consulta recorridos y mensajes por fecha de cada unidad.",
+      },
+      {
+        property: "og:title",
+        content: "Historial y recorridos | Plataforma ORB-LITE",
+      },
+      {
+        property: "og:description",
+        content: "Consulta recorridos y mensajes por fecha.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: () => <WialonGuard>{(session) => <HistorialView session={session} />}</WialonGuard>,
+  component: () => (
+    <WialonGuard>
+      {(session) => <HistorialView session={session} />}
+    </WialonGuard>
+  ),
 });
 
 function toLocalInput(date: Date) {
@@ -34,12 +52,15 @@ function HistorialView({ session }: { session: WialonSession }) {
 
   const unitsQuery = useQuery({
     queryKey: ["wialon-units", session.sid],
-    queryFn: () => fetchUnits({ data: { host: session.host, sid: session.sid } }),
+    queryFn: () =>
+      fetchUnits({ data: { host: session.host, sid: session.sid } }),
   });
   const units = unitsQuery.data?.units ?? [];
 
   const [unitId, setUnitId] = React.useState<number | null>(null);
-  const [from, setFrom] = React.useState(() => toLocalInput(new Date(Date.now() - 86400000)));
+  const [from, setFrom] = React.useState(() =>
+    toLocalInput(new Date(Date.now() - 86400000)),
+  );
   const [to, setTo] = React.useState(() => toLocalInput(new Date()));
   const [busy, setBusy] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
@@ -71,7 +92,11 @@ function HistorialView({ session }: { session: WialonSession }) {
       });
       setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo consultar el historial.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo consultar el historial.",
+      );
     } finally {
       setBusy(false);
     }
@@ -114,14 +139,20 @@ function HistorialView({ session }: { session: WialonSession }) {
           { name: "Recorrido", rows: historyRows },
           { name: "Resumen", rows: summaryRows },
         ],
-        map: {
-          sheetName: "Recorrido",
-          title: "Mapa del recorrido",
-          dataUrl: mapDataUrl,
-        },
+        map: mapDataUrl
+          ? {
+              sheetName: "Recorrido",
+              title: "Mapa del recorrido",
+              dataUrl: mapDataUrl,
+            }
+          : undefined,
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo generar el archivo de Excel.");
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "No se pudo generar el archivo de Excel.",
+      );
     } finally {
       setExporting(false);
     }
@@ -132,6 +163,8 @@ function HistorialView({ session }: { session: WialonSession }) {
 
   return (
     <div className="space-y-6">
+      <PlatformHeader session={session} />
+
       <form
         onSubmit={onSearch}
         className="grid gap-4 rounded-lg border border-border/60 p-5 sm:grid-cols-4"
@@ -183,22 +216,38 @@ function HistorialView({ session }: { session: WialonSession }) {
         <>
           <div className="grid gap-3 sm:grid-cols-3">
             {[
-              { label: "Mensajes", value: result.total.toLocaleString("es-MX") },
-              { label: "Puntos con ubicación", value: result.points.toLocaleString("es-MX") },
-              { label: "Velocidad máxima", value: `${Math.round(result.maxSpeed)} km/h` },
+              {
+                label: "Mensajes",
+                value: result.total.toLocaleString("es-MX"),
+              },
+              {
+                label: "Puntos con ubicación",
+                value: result.points.toLocaleString("es-MX"),
+              },
+              {
+                label: "Velocidad máxima",
+                value: `${Math.round(result.maxSpeed)} km/h`,
+              },
             ].map((stat) => (
-              <div key={stat.label} className="rounded-lg border border-border/60 p-4">
+              <div
+                key={stat.label}
+                className="rounded-lg border border-border/60 p-4"
+              >
                 <p className="text-xs uppercase tracking-widest text-muted-foreground">
                   {stat.label}
                 </p>
-                <p className="mt-1 font-display text-2xl font-bold">{stat.value}</p>
+                <p className="mt-1 font-display text-2xl font-bold">
+                  {stat.value}
+                </p>
               </div>
             ))}
           </div>
 
           <div ref={mapExportRef}>
             <ClientOnly
-              fallback={<div className="h-[480px] rounded-lg border border-border/60 bg-card/40" />}
+              fallback={
+                <div className="h-[480px] rounded-lg border border-border/60 bg-card/40" />
+              }
             >
               <React.Suspense
                 fallback={
@@ -212,7 +261,8 @@ function HistorialView({ session }: { session: WialonSession }) {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              Se muestran los primeros 200 registros. El Excel incluye todos los mensajes y el mapa.
+              Se muestran los primeros 200 registros. El Excel incluye todos los
+              mensajes y el mapa.
             </p>
             <button
               type="button"
@@ -240,8 +290,13 @@ function HistorialView({ session }: { session: WialonSession }) {
               </thead>
               <tbody>
                 {result.messages.slice(0, 200).map((m, i) => (
-                  <tr key={`${m.time}-${i}`} className="border-t border-border/50">
-                    <td className="px-4 py-2">{new Date(m.time * 1000).toLocaleString("es-MX")}</td>
+                  <tr
+                    key={`${m.time}-${i}`}
+                    className="border-t border-border/50"
+                  >
+                    <td className="px-4 py-2">
+                      {new Date(m.time * 1000).toLocaleString("es-MX")}
+                    </td>
                     <td className="px-4 py-2 text-muted-foreground">
                       {m.lat != null && m.lon != null
                         ? `${m.lat.toFixed(5)}, ${m.lon.toFixed(5)}`

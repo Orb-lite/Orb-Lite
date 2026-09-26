@@ -3,9 +3,13 @@ import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import type { WialonUnit } from "@/lib/wialon.functions";
+import { MAP_PROVIDERS } from "@/lib/map-layers";
 
 type StaticRouteMapProps = {
-  unit: Pick<WialonUnit, "id" | "name" | "lat" | "lon" | "course" | "speed" | "online">;
+  unit: Pick<
+    WialonUnit,
+    "id" | "name" | "lat" | "lon" | "course" | "speed" | "online"
+  >;
   zoom?: number;
   className?: string;
 };
@@ -21,19 +25,30 @@ function FollowLastPosition({ position }: { position: L.LatLngExpression }) {
 }
 
 function vehicleIcon(course: number | null, online: boolean) {
-  const color = online ? "#a3e635" : "#94a3b8";
-  const rotation = Number.isFinite(course) ? course! : 0;
+  const color = online ? "#92d700" : "#04122e";
+  const aura = online ? "rgba(146, 215, 0, 0.45)" : "rgba(4, 18, 46, 0.45)";
+  const hasCourse = Number.isFinite(course);
+  const headingHtml = hasCourse
+    ? `<span style="position:absolute;top:50%;left:50%;width:0;height:0;margin-left:-4px;margin-top:-14px;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:7px solid ${color};transform-origin:4px 14px;transform:rotate(${course}deg);pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5))"></span>`
+    : "";
 
   return L.divIcon({
     className: "",
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
-    html: `<span style="display:grid;place-items:center;width:36px;height:36px;border:3px solid #0f172a;border-radius:999px;background:${color};box-shadow:0 0 0 3px rgba(15,23,42,.9),0 2px 7px rgba(15,23,42,.45)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true" style="transform:rotate(${rotation}deg)"><path d="M5 11l1.3-4.1A2 2 0 0 1 8.2 5.5h7.6a2 2 0 0 1 1.9 1.4L19 11v6.5a1 1 0 0 1-1 1h-1.2a1 1 0 0 1-1-1v-1H8.2v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V11Z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M5 11h14M8 13.5h.01M16 13.5h.01" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></span>`,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+    html: `<div style="position:relative;display:grid;place-items:center;transform:translate(-50%,-50%);width:1px;height:1px;cursor:pointer">
+      ${headingHtml}
+      <span style="position:relative;display:block;width:14px;height:14px;border-radius:50%;background:${color};border:2px solid #ffffff;box-shadow:0 0 0 3px ${aura}, 0 2px 4px rgba(0,0,0,0.45)"></span>
+    </div>`,
   });
 }
 
 /** Mapa de última posición para una unidad; el marcador gira según su rumbo (`course`). */
-export function StaticRouteMap({ unit, zoom = 16, className }: StaticRouteMapProps) {
+export function StaticRouteMap({
+  unit,
+  zoom = 16,
+  className,
+}: StaticRouteMapProps) {
   if (unit.lat == null || unit.lon == null) {
     return (
       <div
@@ -49,12 +64,19 @@ export function StaticRouteMap({ unit, zoom = 16, className }: StaticRouteMapPro
 
   return (
     <div
-      className={`relative isolate z-0 h-72 overflow-hidden rounded-xl border border-border/60 sm:h-96 ${className ?? ""}`}
+      className={`relative isolate z-0 h-72 overflow-hidden rounded-xl border border-border/60 bg-[#090d16] sm:h-96 ${className ?? ""}`}
     >
-      <MapContainer center={position} zoom={zoom} scrollWheelZoom className="h-full w-full">
+      <MapContainer
+        center={position}
+        zoom={zoom}
+        scrollWheelZoom
+        className="h-full w-full"
+      >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={MAP_PROVIDERS.cartoDark.attribution}
+          url={MAP_PROVIDERS.cartoDark.url}
+          subdomains={MAP_PROVIDERS.cartoDark.subdomains}
+          maxZoom={MAP_PROVIDERS.cartoDark.maxZoom}
         />
         <FollowLastPosition position={position} />
         <Marker position={position} icon={icon}>

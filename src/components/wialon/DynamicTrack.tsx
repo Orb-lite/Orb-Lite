@@ -1,13 +1,20 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { MapContainer, Polyline, TileLayer, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  useMap,
+} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { LatLngExpression } from "leaflet";
 import { Button } from "@/components/ui/button";
 import { wialonHistory, type WialonMessage } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
+import { MAP_PROVIDERS } from "@/lib/map-layers";
 
 type DynamicTrackProps = {
   session: WialonSession;
@@ -25,7 +32,10 @@ function toDateTimeLocal(timestamp: number): string {
 
 function defaultRange(): Range {
   const now = Date.now();
-  return { from: toDateTimeLocal(now - 60 * 60 * 1000), to: toDateTimeLocal(now) };
+  return {
+    from: toDateTimeLocal(now - 60 * 60 * 1000),
+    to: toDateTimeLocal(now),
+  };
 }
 
 function toUnix(value: string): number | null {
@@ -33,19 +43,39 @@ function toUnix(value: string): number | null {
   return Number.isFinite(timestamp) ? Math.floor(timestamp / 1000) : null;
 }
 
-function trackPoints(messages: WialonMessage[]): Array<{ point: LatLngExpression; speed: number }> {
+function trackPoints(
+  messages: WialonMessage[],
+): Array<{ point: LatLngExpression; speed: number }> {
   return messages.flatMap((message) =>
     message.lat != null && message.lon != null
-      ? [{ point: [message.lat, message.lon] as LatLngExpression, speed: message.speed ?? 0 }]
+      ? [
+          {
+            point: [message.lat, message.lon] as LatLngExpression,
+            speed: message.speed ?? 0,
+          },
+        ]
       : [],
   );
 }
 
-function speedColor(speed: number): string {
-  if (speed < 5) return "#94a3b8";
-  if (speed < 50) return "#a3e635";
-  if (speed < 90) return "#facc15";
-  return "#f97316";
+function dynamicDotIcon(badge?: string, isSmaller = true) {
+  const badgeHtml = badge
+    ? `<span style="position:absolute;bottom:${isSmaller ? 12 : 14}px;left:50%;transform:translateX(-50%);width:max-content;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid #92d700;border-radius:999px;background:#04122e;padding:1px 6px;color:#f8fafc;font:600 10px/1.2 system-ui,sans-serif;box-shadow:0 2px 4px rgba(0,0,0,0.5);pointer-events:none">${badge}</span>`
+    : "";
+
+  const size = isSmaller ? 9 : 11;
+  const borderWidth = isSmaller ? 1.5 : 2;
+  const auraSpread = isSmaller ? 2 : 2.5;
+
+  return L.divIcon({
+    className: "",
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+    html: `<div style="position:relative;display:grid;place-items:center;transform:translate(-50%,-50%);width:1px;height:1px;cursor:pointer">
+      ${badgeHtml}
+      <span style="position:relative;display:block;width:${size}px;height:${size}px;border-radius:50%;background:#92d700;border:${borderWidth}px solid #ffffff;box-shadow:0 0 0 ${auraSpread}px rgba(146,215,0,0.45), 0 2px 4px rgba(0,0,0,0.45)"></span>
+    </div>`,
+  });
 }
 
 function FitTrack({ points }: { points: LatLngExpression[] }) {
@@ -65,7 +95,11 @@ function FitTrack({ points }: { points: LatLngExpression[] }) {
 }
 
 /** Análisis de trayecto Wialon Hosting: consulta mensajes y colorea cada segmento según velocidad. */
-export function DynamicTrack({ session, unitId, className }: DynamicTrackProps) {
+export function DynamicTrack({
+  session,
+  unitId,
+  className,
+}: DynamicTrackProps) {
   const history = useServerFn(wialonHistory);
   const initialRange = React.useMemo(defaultRange, []);
   const [draftRange, setDraftRange] = React.useState<Range>(initialRange);
@@ -95,7 +129,10 @@ export function DynamicTrack({ session, unitId, className }: DynamicTrackProps) 
     () => trackPoints(trackQuery.data?.messages ?? []),
     [trackQuery.data?.messages],
   );
-  const positions = React.useMemo(() => points.map(({ point }) => point), [points]);
+  const positions = React.useMemo(
+    () => points.map(({ point }) => point),
+    [points],
+  );
 
   function applyRange() {
     const from = toUnix(draftRange.from);
@@ -111,7 +148,8 @@ export function DynamicTrack({ session, unitId, className }: DynamicTrackProps) 
   if (session.host !== "full") {
     return (
       <div className="rounded-xl border border-border/60 p-5 text-sm text-muted-foreground">
-        El análisis dinámico de trayectos está disponible únicamente en ORB-FULL.
+        El análisis dinámico de trayectos está disponible únicamente en
+        ORB-FULL.
       </div>
     );
   }
@@ -136,7 +174,10 @@ export function DynamicTrack({ session, unitId, className }: DynamicTrackProps) 
             value={draftRange.from}
             max={draftRange.to}
             onChange={(event) =>
-              setDraftRange((current) => ({ ...current, from: event.target.value }))
+              setDraftRange((current) => ({
+                ...current,
+                from: event.target.value,
+              }))
             }
             className="rounded-md border border-input bg-background px-3 py-2"
           />
@@ -148,36 +189,26 @@ export function DynamicTrack({ session, unitId, className }: DynamicTrackProps) 
             value={draftRange.to}
             min={draftRange.from}
             onChange={(event) =>
-              setDraftRange((current) => ({ ...current, to: event.target.value }))
+              setDraftRange((current) => ({
+                ...current,
+                to: event.target.value,
+              }))
             }
             className="rounded-md border border-input bg-background px-3 py-2"
           />
         </label>
-        <Button type="button" onClick={applyRange} disabled={trackQuery.isFetching}>
+        <Button
+          type="button"
+          onClick={applyRange}
+          disabled={trackQuery.isFetching}
+        >
           {trackQuery.isFetching ? "Consultando…" : "Ver trayecto"}
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-        <span>
-          <i className="mr-1 inline-block size-2 rounded-full bg-slate-400" />
-          Detenido
-        </span>
-        <span>
-          <i className="mr-1 inline-block size-2 rounded-full bg-lime-400" />
-          0–49 km/h
-        </span>
-        <span>
-          <i className="mr-1 inline-block size-2 rounded-full bg-yellow-400" />
-          50–89 km/h
-        </span>
-        <span>
-          <i className="mr-1 inline-block size-2 rounded-full bg-orange-500" />
-          90+ km/h
-        </span>
-      </div>
-
-      {rangeError ? <p className="text-sm text-destructive">{rangeError}</p> : null}
+      {rangeError ? (
+        <p className="text-sm text-destructive">{rangeError}</p>
+      ) : null}
       {trackQuery.isError ? (
         <p className="text-sm text-destructive">
           {trackQuery.error instanceof Error
@@ -186,7 +217,7 @@ export function DynamicTrack({ session, unitId, className }: DynamicTrackProps) 
         </p>
       ) : null}
 
-      <div className="h-80 overflow-hidden rounded-lg border border-border/60 sm:h-[460px]">
+      <div className="h-80 overflow-hidden rounded-lg border border-border/60 bg-[#090d16] sm:h-[460px]">
         <MapContainer
           center={[20.6736, -103.344]}
           zoom={11}
@@ -194,21 +225,34 @@ export function DynamicTrack({ session, unitId, className }: DynamicTrackProps) 
           className="h-full w-full"
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution={MAP_PROVIDERS.cartoDark.attribution}
+            url={MAP_PROVIDERS.cartoDark.url}
+            subdomains={MAP_PROVIDERS.cartoDark.subdomains}
+            maxZoom={MAP_PROVIDERS.cartoDark.maxZoom}
           />
           <FitTrack points={positions} />
-          {points.slice(1).map((current, index) => {
-            const previous = points[index];
-            if (!previous) return null;
-            return (
-              <Polyline
-                key={`${index}-${current.speed}`}
-                positions={[previous.point, current.point]}
-                pathOptions={{ color: speedColor(current.speed), weight: 4, opacity: 0.9 }}
-              />
-            );
-          })}
+          {positions.length > 1 && (
+            <Polyline
+              positions={positions}
+              pathOptions={{
+                color: "#92d700",
+                weight: 3.5,
+                opacity: 0.95,
+              }}
+            />
+          )}
+          {positions.length > 0 && (
+            <Marker
+              position={positions[0]!}
+              icon={dynamicDotIcon("Salida", false)}
+            />
+          )}
+          {positions.length > 1 && (
+            <Marker
+              position={positions[positions.length - 1]!}
+              icon={dynamicDotIcon("Llegada", true)}
+            />
+          )}
         </MapContainer>
       </div>
 

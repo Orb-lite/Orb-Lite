@@ -54,10 +54,17 @@ export function SensorCard({
   const timestamp = telemetry?.pos?.t ?? telemetry?.lmsg?.t ?? null;
 
   return (
-    <section className={cn("rounded-xl border border-border/60 bg-card p-4 shadow-sm", className)}>
+    <section
+      className={cn(
+        "rounded-xl border border-border/60 bg-card p-4 shadow-sm",
+        className,
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-sm font-bold uppercase tracking-wide">{title}</h3>
+          <h3 className="font-display text-sm font-bold uppercase tracking-wide">
+            {title}
+          </h3>
           <p className="mt-1 text-xs text-muted-foreground">
             {timestamp
               ? `Actualizado ${new Date(timestamp * 1000).toLocaleString("es-MX")}`
@@ -102,7 +109,9 @@ export function SensorCard({
                       ) : null}
                     </p>
                     {sensor.t ? (
-                      <p className="mt-1 truncate text-xs text-muted-foreground">{sensor.t}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {sensor.t}
+                      </p>
                     ) : null}
                   </div>
                 </div>

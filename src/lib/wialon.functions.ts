@@ -1,6 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { wialonCall, isSessionExpired, type WialonHost } from "@/lib/wialon.server";
+import {
+  wialonCall,
+  isSessionExpired,
+  WIALON_HOSTS,
+  type WialonHost,
+} from "@/lib/wialon.server";
+import { smartGeocode } from "@/lib/geocoding";
 
 const hostSchema = z.enum(["lite", "full"]);
 const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1) });
@@ -74,7 +80,8 @@ function normalizeUnit(
   const pos = item.pos ?? null;
   const last = pos?.t ?? item.lmsg?.t ?? null;
   const now = Math.floor(Date.now() / 1000);
-  const creatorId = typeof item.crt === "number" && item.crt > 0 ? item.crt : null;
+  const creatorId =
+    typeof item.crt === "number" && item.crt > 0 ? item.crt : null;
   return {
     id: item.id,
     name: item.nm ?? `Unidad ${item.id}`,
@@ -102,20 +109,80 @@ export const wialonLogin = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
-    const result = await wialonCall<{ eid?: string; user?: { id?: number; nm?: string } }>(
-      host,
-      "token/login",
-      { token: data.token, fl: 1 },
-    );
+    try {
+      const result = await wialonCall<{
+        eid?: string;
+        user?: { id?: number; nm?: string };
+      }>(host, "token/login", { token: data.token, fl: 1 });
 
-    if (!result?.eid) throw new Error("No se pudo iniciar sesión en la plataforma.");
+      if (result?.eid) {
+        return {
+          sid: result.eid,
+          host: data.host,
+          userId: result.user?.id ?? 0,
+          userName: result.user?.nm ?? "Usuario",
+        };
+      }
+    } catch (primaryErr) {
+      // Reintentar con el host alternativo por si el token pertenece al otro datacenter
+      const altHost: WialonHost = host === "lite" ? "full" : "lite";
+      try {
+        const altResult = await wialonCall<{
+          eid?: string;
+          user?: { id?: number; nm?: string };
+        }>(altHost, "token/login", { token: data.token, fl: 1 });
 
-    return {
-      sid: result.eid,
-      host: data.host,
-      userId: result.user?.id ?? 0,
-      userName: result.user?.nm ?? "Usuario",
-    };
+        if (altResult?.eid) {
+          return {
+            sid: altResult.eid,
+            host: altHost,
+            userId: altResult.user?.id ?? 0,
+            userName: altResult.user?.nm ?? "Usuario",
+          };
+        }
+      } catch {
+        // Ignorar error del alternativo y lanzar el error primario
+      }
+      throw primaryErr;
+    }
+
+    throw new Error("No se pudo iniciar sesión en la plataforma.");
+  });
+
+export const wialonLoginWithSid = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        host: hostSchema,
+        sid: z.string().trim().min(1),
+        userName: z.string().optional(),
+        userId: z.number().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost;
+    try {
+      const res = await wialonCall<{ user?: { id?: number; nm?: string } }>(
+        host,
+        "core/get_account_data",
+        {},
+        data.sid,
+      );
+      return {
+        sid: data.sid,
+        host: data.host,
+        userId: res?.user?.id ?? data.userId ?? 0,
+        userName: res?.user?.nm ?? data.userName ?? "Usuario",
+      };
+    } catch {
+      return {
+        sid: data.sid,
+        host: data.host,
+        userId: data.userId ?? 0,
+        userName: data.userName ?? "Usuario",
+      };
+    }
   });
 
 export const wialonLogout = createServerFn({ method: "POST" })
@@ -146,7 +213,13 @@ export const wialonUnits = createServerFn({ method: "POST" })
       wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
         host,
         "core/search_items",
-        { spec: searchSpec("avl_unit"), force: 1, flags: 1 + 4 + 256 + 1024, from: 0, to: 0 },
+        {
+          spec: searchSpec("avl_unit"),
+          force: 1,
+          flags: 1 + 4 + 256 + 1024,
+          from: 0,
+          to: 0,
+        },
         data.sid,
       ),
       // Si la cuenta no puede listar usuarios, solo se omite el nombre del creador.
@@ -166,44 +239,76 @@ export const wialonUnits = createServerFn({ method: "POST" })
       if (user.nm) userNames.set(user.id, user.nm);
     }
 
-    return { units: (unitsRes.items ?? []).map((item) => normalizeUnit(item, userNames)) };
+    return {
+      units: (unitsRes.items ?? []).map((item) =>
+        normalizeUnit(item, userNames),
+      ),
+    };
   });
 
-/** Configuración de las cámaras de una unidad en Wialon Hosting (ORB-FULL). */
+/** Configuración de las cámaras de una unidad en Wialon Hosting (ORB-LITE y ORB-FULL). */
 export const wialonVideoSettings = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input))
+  .inputValidator((input: unknown) =>
+    sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input),
+  )
   .handler(async ({ data }) => {
-    if (data.host !== "full") {
-      throw new Error("La consulta de video solo está disponible en ORB-FULL.");
+    const host = data.host as WialonHost;
+    let cameras: Array<{
+      index: number;
+      name: string;
+      active: boolean;
+      recording: boolean;
+    }> = [];
+
+    try {
+      const result = await wialonCall<{
+        settings?: Array<{ flags?: number; name?: string }>;
+      }>(host, "unit/get_video_settings", { itemId: data.unitId }, data.sid);
+
+      cameras = (result.settings ?? []).map((camera, index) => {
+        const flags = camera.flags ?? 0;
+        return {
+          index: index + 1,
+          name: camera.name?.trim() || `Cámara ${index + 1}`,
+          active: true,
+          recording: (flags & 2) !== 0,
+        };
+      });
+    } catch {
+      // Si la unidad no tiene get_video_settings registrado o responde error
     }
 
-    const result = await wialonCall<{
-      settings?: Array<{ flags?: number; name?: string }>;
-    }>("full", "unit/get_video_settings", { itemId: data.unitId }, data.sid);
-
-    const cameras = (result.settings ?? []).map((camera, index) => {
-      const flags = camera.flags ?? 0;
-      return {
-        index: index + 1,
-        name: camera.name?.trim() || `Cámara ${index + 1}`,
-        active: (flags & 1) !== 0,
-        recording: (flags & 2) !== 0,
-      };
-    });
+    // Si la unidad no tiene cámaras detectadas en settings, proveer canales 1 y 2 para permitir visualización
+    if (cameras.length === 0) {
+      cameras = [
+        {
+          index: 1,
+          name: "Cámara 1 (Principal)",
+          active: true,
+          recording: false,
+        },
+        {
+          index: 2,
+          name: "Cámara 2 (Secundaria)",
+          active: true,
+          recording: false,
+        },
+      ];
+    }
 
     return { cameras };
   });
 
-/** Unidades ORB-FULL que tienen al menos una cámara configurada. */
+/** Unidades con soporte de cámaras y video. */
 export const wialonVideoUnits = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
-    if (data.host !== "full") {
-      throw new Error("La consulta de video solo está disponible en ORB-FULL.");
-    }
+    const host = data.host as WialonHost;
 
-    const res = await wialonCall<{ items?: Array<{ id?: number; nm?: string }> }>(
-      "full",
+    const res = await wialonCall<{
+      items?: Array<{ id?: number; nm?: string }>;
+    }>(
+      host,
       "core/search_items",
       {
         spec: {
@@ -213,7 +318,7 @@ export const wialonVideoUnits = createServerFn({ method: "POST" })
           sortType: "sys_name",
         },
         force: 1,
-        flags: 1,
+        flags: 1 + 256 + 1024,
         from: 0,
         to: 0,
       },
@@ -226,27 +331,38 @@ export const wialonVideoUnits = createServerFn({ method: "POST" })
         if (item.id == null) return null;
         try {
           const result = await wialonCall<{ settings?: unknown[] }>(
-            "full",
+            host,
             "unit/get_video_settings",
             { itemId: item.id },
             data.sid,
           );
           const cameraCount = result.settings?.length ?? 0;
-          if (cameraCount === 0) return null;
-          return { id: item.id, name: item.nm ?? `Unidad ${item.id}`, cameraCount };
+          return {
+            id: item.id,
+            name: item.nm ?? `Unidad ${item.id}`,
+            cameraCount: cameraCount > 0 ? cameraCount : 2, // Permite consultar cámaras en cualquier unidad
+          };
         } catch {
-          // Sin permiso de video sobre esta unidad: se omite de la lista.
-          return null;
+          return {
+            id: item.id,
+            name: item.nm ?? `Unidad ${item.id}`,
+            cameraCount: 2,
+          };
         }
       }),
     );
 
-    return { units: checks.filter((unit): unit is { id: number; name: string; cameraCount: number } => unit != null) };
+    return {
+      units: checks.filter(
+        (unit): unit is { id: number; name: string; cameraCount: number } =>
+          unit != null,
+      ),
+    };
   });
 
 /**
  * Solicita a Wialon el inicio de la transmisión/grabación de una cámara y
- * devuelve la URL del reproductor (HLS) que expone el propio Wialon.
+ * devuelve la URL del reproductor (HLS o WebStream) que expone el propio Wialon.
  */
 export const wialonVideoStream = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
@@ -262,10 +378,7 @@ export const wialonVideoStream = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    if (data.host !== "full") {
-      throw new Error("El reproductor de video solo está disponible en ORB-FULL.");
-    }
-
+    const host = data.host as WialonHost;
     const height = Number(data.resolution.replace("p", ""));
     const params: Record<string, unknown> = {
       itemId: data.unitId,
@@ -278,25 +391,38 @@ export const wialonVideoStream = createServerFn({ method: "POST" })
         : {}),
     };
 
-    // Wialon expone la petición de video con distintos nombres según la versión
-    // del servicio; se intenta en orden y se usa la primera que responda.
-    const svcNames = ["unit/request_video", "unit/get_video_url", "unit/request_video_stream"];
+    const svcNames = [
+      "unit/request_video",
+      "unit/request_video_stream",
+      "unit/get_video_url",
+      "unit/create_video_stream",
+      "unit/get_camera_image",
+    ];
     let lastError: unknown = null;
+    const apiDomain =
+      WIALON_HOSTS[host] ||
+      (host === "lite" ? "hst-api.wialon.com" : "hst-api.wialon.us");
 
     for (const svc of svcNames) {
       try {
-        const res = await wialonCall<{ url?: string; playlist?: string; path?: string }>(
-          "full",
-          svc,
-          params,
-          data.sid,
-        );
-        const raw = res.url ?? res.playlist ?? res.path;
+        const res = await wialonCall<{
+          url?: string;
+          playlist?: string;
+          path?: string;
+          stream?: string;
+        }>(host, svc, params, data.sid);
+
+        const raw = res.url ?? res.playlist ?? res.path ?? res.stream;
         if (!raw) continue;
         const url = raw.startsWith("http")
           ? raw
-          : `https://hst-api.wialon.com${raw.startsWith("/") ? "" : "/"}${raw}`;
-        return { url, mode: data.mode, resolution: data.resolution, service: svc };
+          : `https://${apiDomain}${raw.startsWith("/") ? "" : "/"}${raw}`;
+        return {
+          url,
+          mode: data.mode,
+          resolution: data.resolution,
+          service: svc,
+        };
       } catch (error) {
         if (isSessionExpired(error)) throw error;
         lastError = error;
@@ -305,8 +431,8 @@ export const wialonVideoStream = createServerFn({ method: "POST" })
 
     throw new Error(
       lastError instanceof Error
-        ? `Wialon no entregó la transmisión: ${lastError.message}`
-        : "Wialon no entregó una URL de transmisión para esta cámara.",
+        ? `Wialon: ${lastError.message}`
+        : "Wialon no entregó una transmisión activa para esta cámara en este momento.",
     );
   });
 /** Historial de mensajes/recorrido de una unidad en un intervalo. */
@@ -323,7 +449,12 @@ export const wialonHistory = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
-    await wialonCall(host, "core/search_item", { id: data.unitId, flags: 1 + 1024 }, data.sid);
+    await wialonCall(
+      host,
+      "core/search_item",
+      { id: data.unitId, flags: 1 + 1024 },
+      data.sid,
+    );
 
     const interval = await wialonCall<{ count?: number }>(
       host,
@@ -349,8 +480,16 @@ export const wialonHistory = createServerFn({ method: "POST" })
 
     if (count > 0) {
       const res = await wialonCall<
-        Array<{ t?: number; pos?: { y?: number; x?: number; s?: number; c?: number } | null }>
-      >(host, "messages/get_messages", { indexFrom: 0, indexTo: count - 1 }, data.sid);
+        Array<{
+          t?: number;
+          pos?: { y?: number; x?: number; s?: number; c?: number } | null;
+        }>
+      >(
+        host,
+        "messages/get_messages",
+        { indexFrom: 0, indexTo: count - 1 },
+        data.sid,
+      );
 
       messages = (Array.isArray(res) ? res : []).map((m) => ({
         time: m.t ?? 0,
@@ -370,7 +509,12 @@ export const wialonHistory = createServerFn({ method: "POST" })
     const withPos = messages.filter((m) => m.lat != null && m.lon != null);
     const maxSpeed = withPos.reduce((acc, m) => Math.max(acc, m.speed ?? 0), 0);
 
-    return { total: interval.count ?? 0, messages, maxSpeed, points: withPos.length };
+    return {
+      total: interval.count ?? 0,
+      messages,
+      maxSpeed,
+      points: withPos.length,
+    };
   });
 
 /** Datos base del CMS: cuentas/recursos, usuarios y unidades. */
@@ -380,11 +524,18 @@ export const wialonCmsOverview = createServerFn({ method: "POST" })
     const host = data.host as WialonHost;
 
     async function search(itemsType: string, flags: number) {
-      const res = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
+      const res = await wialonCall<{
+        items?: Array<{ id: number; nm?: string }>;
+      }>(
         host,
         "core/search_items",
         {
-          spec: { itemsType, propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
+          spec: {
+            itemsType,
+            propName: "sys_name",
+            propValueMask: "*",
+            sortType: "sys_name",
+          },
           force: 1,
           flags,
           from: 0,
@@ -392,7 +543,10 @@ export const wialonCmsOverview = createServerFn({ method: "POST" })
         },
         data.sid,
       );
-      return (res.items ?? []).map((i) => ({ id: i.id, name: i.nm ?? `#${i.id}` }));
+      return (res.items ?? []).map((i) => ({
+        id: i.id,
+        name: i.nm ?? `#${i.id}`,
+      }));
     }
 
     const [resources, users, units] = await Promise.all([
@@ -406,7 +560,9 @@ export const wialonCmsOverview = createServerFn({ method: "POST" })
 
 /** Tipos de equipo disponibles para dar de alta unidades. */
 export const wialonHwTypes = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.extend({ search: z.string().trim().optional() }).parse(input))
+  .inputValidator((input: unknown) =>
+    sessionSchema.extend({ search: z.string().trim().optional() }).parse(input),
+  )
   .handler(async ({ data }) => {
     const res = await wialonCall<Array<{ id: number; name: string }>>(
       data.host as WialonHost,
@@ -419,7 +575,10 @@ export const wialonHwTypes = createServerFn({ method: "POST" })
       },
       data.sid,
     );
-    const list = (Array.isArray(res) ? res : []).map((h) => ({ id: h.id, name: h.name }));
+    const list = (Array.isArray(res) ? res : []).map((h) => ({
+      id: h.id,
+      name: h.name,
+    }));
     return { types: list.slice(0, 400) };
   });
 
@@ -441,7 +600,12 @@ export const wialonCreateUnit = createServerFn({ method: "POST" })
     const created = await wialonCall<{ item?: { id?: number; nm?: string } }>(
       host,
       "core/create_unit",
-      { creatorId: data.creatorId, name: data.name, hwTypeId: data.hwTypeId, dataFlags: 1 },
+      {
+        creatorId: data.creatorId,
+        name: data.name,
+        hwTypeId: data.hwTypeId,
+        dataFlags: 1,
+      },
       data.sid,
     );
     const id = created.item?.id;
@@ -456,7 +620,12 @@ export const wialonCreateUnit = createServerFn({ method: "POST" })
       );
     }
     if (data.phone) {
-      await wialonCall(host, "unit/update_phone", { itemId: id, phoneNumber: data.phone }, data.sid);
+      await wialonCall(
+        host,
+        "unit/update_phone",
+        { itemId: id, phoneNumber: data.phone },
+        data.sid,
+      );
     }
 
     return { id, name: created.item?.nm ?? data.name };
@@ -499,7 +668,9 @@ export type WialonAccessLevel = keyof typeof ACCESS_MASKS;
 
 /** Permisos reales del usuario conectado: rol, altas disponibles y límites de la cuenta. */
 export const wialonPermissions = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.extend({ userId: z.number().int() }).parse(input))
+  .inputValidator((input: unknown) =>
+    sessionSchema.extend({ userId: z.number().int() }).parse(input),
+  )
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
@@ -511,7 +682,8 @@ export const wialonPermissions = createServerFn({ method: "POST" })
       max?: number | string;
     };
     type Account = {
-      plan?: string | { name?: string; services?: Record<string, AccountService> };
+      plan?:
+        string | { name?: string; services?: Record<string, AccountService> };
       enabled?: number;
       services?: Record<string, AccountService>;
     };
@@ -543,14 +715,21 @@ export const wialonPermissions = createServerFn({ method: "POST" })
     } catch {
       // Algunas cuentas antiguas exponen la vista propia en core/get_account_data.
       try {
-        account = await wialonCall<Account>(host, "core/get_account_data", { type: 1 }, data.sid);
+        account = await wialonCall<Account>(
+          host,
+          "core/get_account_data",
+          { type: 1 },
+          data.sid,
+        );
       } catch {
         account = {};
       }
     }
 
     const planServices =
-      typeof account.plan === "object" && account.plan !== null ? account.plan.services : undefined;
+      typeof account.plan === "object" && account.plan !== null
+        ? account.plan.services
+        : undefined;
     const services = { ...(planServices ?? {}), ...(account.services ?? {}) };
     const findService = (...names: string[]) => {
       const service = names.map((name) => services[name]).find(Boolean);
@@ -578,7 +757,9 @@ export const wialonPermissions = createServerFn({ method: "POST" })
     const unitsSvc = serviceEnabled("create_units", "create_unit", "avl_unit");
     const usersSvc = serviceEnabled("create_users", "create_user", "users");
     const planName =
-      typeof account.plan === "string" ? account.plan : account.plan?.name ?? null;
+      typeof account.plan === "string"
+        ? account.plan
+        : (account.plan?.name ?? null);
 
     return {
       plan: planName,
@@ -629,7 +810,12 @@ export const wialonPing = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     try {
-      await wialonCall(data.host as WialonHost, "core/get_account_data", { type: 0 }, data.sid);
+      await wialonCall(
+        data.host as WialonHost,
+        "core/get_account_data",
+        { type: 0 },
+        data.sid,
+      );
       return { valid: true as const };
     } catch (error) {
       if (isSessionExpired(error)) return { valid: false as const };
@@ -641,11 +827,19 @@ export const wialonPing = createServerFn({ method: "POST" })
 /* Detalle de unidad: sensores, últimos valores y comandos disponibles */
 /* ------------------------------------------------------------------ */
 
-export type WialonSensor = { id: number; name: string; type: string; metrics: string; value: string };
+export type WialonSensor = {
+  id: number;
+  name: string;
+  type: string;
+  metrics: string;
+  value: string;
+};
 
 /** Detalle completo de una unidad: posición, sensores con su último valor y comandos. */
 export const wialonUnitDetail = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input))
+  .inputValidator((input: unknown) =>
+    sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input),
+  )
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
@@ -656,12 +850,29 @@ export const wialonUnitDetail = createServerFn({ method: "POST" })
         uid?: string;
         ph?: string;
         hw?: number;
-        pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null;
+        pos?: {
+          y?: number;
+          x?: number;
+          s?: number;
+          c?: number;
+          t?: number;
+        } | null;
         lmsg?: { t?: number; p?: Record<string, unknown> } | null;
-        sens?: Record<string, { id: number; n?: string; t?: string; m?: string; p?: string }>;
-        cmds?: Record<string, { id: number; n?: string; c?: string; l?: string; p?: string }>;
+        sens?: Record<
+          string,
+          { id: number; n?: string; t?: string; m?: string; p?: string }
+        >;
+        cmds?: Record<
+          string,
+          { id: number; n?: string; c?: string; l?: string; p?: string }
+        >;
       };
-    }>(host, "core/search_item", { id: data.unitId, flags: 1 + 256 + 512 + 1024 + 4096 }, data.sid);
+    }>(
+      host,
+      "core/search_item",
+      { id: data.unitId, flags: 1 + 256 + 512 + 1024 + 4096 },
+      data.sid,
+    );
 
     const item = res.item;
     if (!item) throw new Error("La unidad no está disponible en tu cuenta.");
@@ -692,7 +903,10 @@ export const wialonUnitDetail = createServerFn({ method: "POST" })
       hwTypeId: item.hw ?? null,
       sensors,
       commands,
-      params: Object.entries(params).map(([key, value]) => ({ key, value: String(value) })),
+      params: Object.entries(params).map(([key, value]) => ({
+        key,
+        value: String(value),
+      })),
     };
   });
 
@@ -734,7 +948,9 @@ export const wialonGeofences = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
-    const resources = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
+    const resources = await wialonCall<{
+      items?: Array<{ id: number; nm?: string }>;
+    }>(
       host,
       "core/search_items",
       {
@@ -772,13 +988,19 @@ export const wialonGeofences = createServerFn({ method: "POST" })
         );
         for (const zone of Array.isArray(res) ? res : []) {
           const points = (zone.p ?? [])
-            .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+            .filter(
+              (point) => Number.isFinite(point.x) && Number.isFinite(point.y),
+            )
             .map((point) => ({
               lat: point.y as number,
               lon: point.x as number,
               radius: point.r ?? 0,
             }));
-          if (points.length === 0 && zone.b?.cen_x != null && zone.b.cen_y != null) {
+          if (
+            points.length === 0 &&
+            zone.b?.cen_x != null &&
+            zone.b.cen_y != null
+          ) {
             points.push({ lat: zone.b.cen_y, lon: zone.b.cen_x, radius: 0 });
           }
 
@@ -812,7 +1034,11 @@ export const wialonCreateGeofence = createServerFn({ method: "POST" })
     sessionSchema
       .extend({
         resourceId: z.number().int().positive(),
-        name: z.string().trim().min(2, "Captura un nombre para la geocerca.").max(100),
+        name: z
+          .string()
+          .trim()
+          .min(2, "Captura un nombre para la geocerca.")
+          .max(100),
         type: z.enum(["circle", "polygon"]),
         color: z.number().int().min(0).max(0xffffff),
         points: z
@@ -839,7 +1065,9 @@ export const wialonCreateGeofence = createServerFn({ method: "POST" })
       throw new Error("El polígono necesita al menos tres puntos.");
     }
 
-    const result = await wialonCall<Array<number | Record<string, unknown> | null>>(
+    const result = await wialonCall<
+      Array<number | Record<string, unknown> | null>
+    >(
       data.host as WialonHost,
       "resource/update_zone",
       {
@@ -854,12 +1082,17 @@ export const wialonCreateGeofence = createServerFn({ method: "POST" })
         c: data.color,
         tc: 0xffffff,
         ts: 12,
-        p: data.points.map((point) => ({ x: point.lon, y: point.lat, r: point.radius })),
+        p: data.points.map((point) => ({
+          x: point.lon,
+          y: point.lat,
+          r: point.radius,
+        })),
       },
       data.sid,
     );
 
-    const id = Array.isArray(result) && typeof result[0] === "number" ? result[0] : null;
+    const id =
+      Array.isArray(result) && typeof result[0] === "number" ? result[0] : null;
     if (!id) throw new Error("La geocerca no se pudo crear.");
     return { id, name: data.name };
   });
@@ -869,7 +1102,11 @@ export const wialonCreateRoute = createServerFn({ method: "POST" })
     sessionSchema
       .extend({
         resourceId: z.number().int().positive(),
-        name: z.string().trim().min(2, "Captura un nombre para la ruta.").max(100),
+        name: z
+          .string()
+          .trim()
+          .min(2, "Captura un nombre para la ruta.")
+          .max(100),
         color: z.number().int().min(0).max(0xffffff),
         points: z
           .array(
@@ -885,7 +1122,9 @@ export const wialonCreateRoute = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const result = await wialonCall<Array<number | Record<string, unknown> | null>>(
+    const result = await wialonCall<
+      Array<number | Record<string, unknown> | null>
+    >(
       data.host as WialonHost,
       "resource/update_zone",
       {
@@ -905,9 +1144,151 @@ export const wialonCreateRoute = createServerFn({ method: "POST" })
       data.sid,
     );
 
-    const id = Array.isArray(result) && typeof result[0] === "number" ? result[0] : null;
+    const id =
+      Array.isArray(result) && typeof result[0] === "number" ? result[0] : null;
     if (!id) throw new Error("La ruta no se pudo crear.");
     return { id, name: data.name };
+  });
+
+export const wialonDeleteGeofence = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        resourceId: z.number().int().positive(),
+        zoneId: z.number().int().positive(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    await wialonCall(
+      data.host as WialonHost,
+      "resource/update_zone",
+      {
+        itemId: data.resourceId,
+        id: data.zoneId,
+        callMode: "delete",
+      },
+      data.sid,
+    );
+    return { ok: true, zoneId: data.zoneId };
+  });
+
+/* ------------------------------------------------------------------ */
+/* Rutas privadas por cuenta de usuario (guardadas en nuestro server) */
+/* ------------------------------------------------------------------ */
+
+export type { StoredUserRoute } from "./user-routes.server";
+
+export const getUserRoutes = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        userId: z.number().int(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { getUserRoutesFromStorage } = await import("./user-routes.server");
+    const routes = await getUserRoutesFromStorage(data.userId);
+    return { routes };
+  });
+
+export const saveUserRoute = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        userId: z.number().int(),
+        userName: z.string().optional(),
+        name: z
+          .string()
+          .trim()
+          .min(2, "Captura un nombre para la ruta.")
+          .max(100),
+        color: z.string().default("#f59e0b"),
+        points: z
+          .array(
+            z.object({
+              lat: z.number().finite(),
+              lon: z.number().finite(),
+              radius: z.number().finite().nonnegative().default(0),
+            }),
+          )
+          .min(2, "Una ruta necesita al menos dos puntos."),
+        origin: z.string().optional(),
+        addresses: z.array(z.string()).optional(),
+        distanceMeters: z.number().optional(),
+        durationSeconds: z.number().optional(),
+        syncToWialon: z.boolean().default(false),
+        host: z.string().optional(),
+        sid: z.string().optional(),
+        resourceId: z.number().int().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { saveUserRouteToStorage } = await import("./user-routes.server");
+    // Guardar en el servidor por cuenta de usuario (privado)
+    const stored = await saveUserRouteToStorage({
+      userId: data.userId,
+      userName: data.userName,
+      name: data.name,
+      color: data.color,
+      points: data.points,
+      origin: data.origin,
+      addresses: data.addresses,
+      distanceMeters: data.distanceMeters,
+      durationSeconds: data.durationSeconds,
+    });
+
+    let wialonId: number | null = null;
+    if (data.syncToWialon && data.host && data.sid && data.resourceId) {
+      try {
+        const hexColor =
+          Number.parseInt(data.color.replace("#", ""), 16) || 0xf59e0b;
+        const res = await wialonCall<
+          Array<number | Record<string, unknown> | null>
+        >(
+          data.host as WialonHost,
+          "resource/update_zone",
+          {
+            itemId: data.resourceId,
+            id: 0,
+            callMode: "create",
+            n: data.name,
+            d: `Ruta de usuario ${data.userName ?? data.userId}`,
+            t: 1,
+            w: 4,
+            f: 0x20,
+            c: hexColor,
+            tc: 0xffffff,
+            ts: 12,
+            p: data.points.map((p) => ({ x: p.lon, y: p.lat, r: 0 })),
+          },
+          data.sid,
+        );
+        wialonId =
+          Array.isArray(res) && typeof res[0] === "number" ? res[0] : null;
+      } catch (err) {
+        console.warn("No se pudo reflejar en Wialon:", err);
+      }
+    }
+
+    return { route: stored, wialonId };
+  });
+
+export const deleteUserRoute = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        userId: z.number().int(),
+        routeId: z.string(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { deleteUserRouteFromStorage } = await import("./user-routes.server");
+    const ok = await deleteUserRouteFromStorage(data.userId, data.routeId);
+    return { ok };
   });
 
 export type WialonPlannedRoutePoint = {
@@ -939,33 +1320,12 @@ const plannedLocationSchema = z.object({
 type GeocodeMatch = { lat?: string; lon?: string; display_name?: string };
 
 async function geocodeAddress(address: string): Promise<WialonGeocodedAddress> {
-  const url = new URL("https://nominatim.openstreetmap.org/search");
-  url.searchParams.set("format", "jsonv2");
-  url.searchParams.set("limit", "1");
-  url.searchParams.set("q", address);
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "ORB-LITE route planner",
-    },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) {
-    throw new Error("El servicio de direcciones no está disponible.");
-  }
-
-  const matches = (await response.json()) as GeocodeMatch[];
-  const match = matches[0];
-  const lat = Number(match?.lat);
-  const lon = Number(match?.lon);
-  if (!match || !Number.isFinite(lat) || !Number.isFinite(lon)) {
-    throw new Error(`No se encontró la dirección: ${address}`);
-  }
+  const result = await smartGeocode(address);
   return {
     query: address,
-    label: match.display_name?.trim() || address,
-    lat,
-    lon,
+    label: result.label,
+    lat: result.lat,
+    lon: result.lon,
   };
 }
 
@@ -982,7 +1342,9 @@ export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => ({
-    locations: await Promise.all(data.addresses.map((address) => geocodeAddress(address))),
+    locations: await Promise.all(
+      data.addresses.map((address) => geocodeAddress(address)),
+    ),
   }));
 
 export const wialonPlanRoute = createServerFn({ method: "POST" })
@@ -991,7 +1353,9 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
       .object({
         origin: z.string().trim().min(3, "Captura el punto de salida."),
         addresses: z
-          .array(z.string().trim().min(3, "Cada parada necesita una dirección."))
+          .array(
+            z.string().trim().min(3, "Cada parada necesita una dirección."),
+          )
           .min(1, "Captura al menos una dirección.")
           .max(30, "Puedes planificar hasta 30 paradas por ruta."),
         returnToOrigin: z.boolean(),
@@ -1017,15 +1381,20 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
     const locationsMatchRequest =
       data.locations?.length === requestedLocations.length &&
       data.locations.every(
-        (location, index) => location.query === requestedLocations[index]?.query,
+        (location, index) =>
+          location.query === requestedLocations[index]?.query,
       );
     const locations = locationsMatchRequest
       ? data.locations!
       : [
           await geocodeAddress(data.origin),
-          ...(await Promise.all(data.addresses.map((address) => geocodeAddress(address)))),
+          ...(await Promise.all(
+            data.addresses.map((address) => geocodeAddress(address)),
+          )),
         ];
-    const coordinates = locations.map((location) => `${location.lon},${location.lat}`).join(";");
+    const coordinates = locations
+      .map((location) => `${location.lon},${location.lat}`)
+      .join(";");
     const routeServices = [
       "https://router.project-osrm.org/trip/v1/driving/",
       "https://routing.openstreetmap.de/routed-car/trip/v1/driving/",
@@ -1038,8 +1407,12 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
       routeUrl.searchParams.set("overview", "full");
       routeUrl.searchParams.set("geometries", "geojson");
       routeUrl.searchParams.set("source", "first");
-      routeUrl.searchParams.set("roundtrip", data.returnToOrigin ? "true" : "false");
-      if (!data.returnToOrigin) routeUrl.searchParams.set("destination", "last");
+      routeUrl.searchParams.set(
+        "roundtrip",
+        data.returnToOrigin ? "true" : "false",
+      );
+      if (!data.returnToOrigin)
+        routeUrl.searchParams.set("destination", "last");
 
       try {
         const routeResponse = await fetch(routeUrl, {
@@ -1071,11 +1444,14 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
     const selectedTrip = trip.trips?.[0];
     const coordinatesForMap = selectedTrip?.geometry?.coordinates ?? [];
     if (trip.code !== "Ok" || !selectedTrip || coordinatesForMap.length < 2) {
-      throw new Error("No se pudo encontrar una ruta entre las direcciones indicadas.");
+      throw new Error(
+        "No se pudo encontrar una ruta entre las direcciones indicadas.",
+      );
     }
     const samplingStep = Math.max(1, Math.ceil(coordinatesForMap.length / 900));
     const sampledCoordinates = coordinatesForMap.filter(
-      (_, index) => index % samplingStep === 0 || index === coordinatesForMap.length - 1,
+      (_, index) =>
+        index % samplingStep === 0 || index === coordinatesForMap.length - 1,
     );
 
     const orderedIndexes = (trip.waypoints ?? [])
@@ -1111,7 +1487,10 @@ export const wialonDrivers = createServerFn({ method: "POST" })
       items?: Array<{
         id: number;
         nm?: string;
-        drvrs?: Record<string, { id: number; n?: string; ds?: string; p?: string }>;
+        drvrs?: Record<
+          string,
+          { id: number; n?: string; ds?: string; p?: string }
+        >;
       }>;
     }>(
       host,
@@ -1131,7 +1510,12 @@ export const wialonDrivers = createServerFn({ method: "POST" })
       data.sid,
     );
 
-    const drivers: Array<{ id: number; name: string; phone: string | null; resource: string }> = [];
+    const drivers: Array<{
+      id: number;
+      name: string;
+      phone: string | null;
+      resource: string;
+    }> = [];
     for (const resource of resources.items ?? []) {
       for (const driver of Object.values(resource.drvrs ?? {})) {
         drivers.push({
@@ -1171,10 +1555,20 @@ export const wialonAccount = createServerFn({ method: "POST" })
 /** Renombra una unidad existente. */
 export const wialonRenameUnit = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    sessionSchema.extend({ unitId: z.number().int().positive(), name: z.string().trim().min(4).max(60) }).parse(input),
+    sessionSchema
+      .extend({
+        unitId: z.number().int().positive(),
+        name: z.string().trim().min(4).max(60),
+      })
+      .parse(input),
   )
   .handler(async ({ data }) => {
-    await wialonCall(data.host as WialonHost, "item/update_name", { itemId: data.unitId, name: data.name }, data.sid);
+    await wialonCall(
+      data.host as WialonHost,
+      "item/update_name",
+      { itemId: data.unitId, name: data.name },
+      data.sid,
+    );
     return { ok: true as const };
   });
 
@@ -1222,9 +1616,16 @@ export const wialonReportData = createServerFn({ method: "POST" })
 
     const unit = await wialonCall<{
       item?: { nm?: string; sens?: Record<string, RawSensor> };
-    }>(host, "core/search_item", { id: data.unitId, flags: 1 + 1024 + (withSensors ? 4096 : 0) }, data.sid);
+    }>(
+      host,
+      "core/search_item",
+      { id: data.unitId, flags: 1 + 1024 + (withSensors ? 4096 : 0) },
+      data.sid,
+    );
 
-    const sensors = Object.values(unit.item?.sens ?? {}).filter((s) => s && s.n && s.p);
+    const sensors = Object.values(unit.item?.sens ?? {}).filter(
+      (s) => s && s.n && s.p,
+    );
 
     const interval = await wialonCall<{ count?: number }>(
       host,
@@ -1257,31 +1658,31 @@ export const wialonReportData = createServerFn({ method: "POST" })
         .filter((m) => m && m.pos && m.pos.y != null && m.pos.x != null)
         .sort((a, b) => (a.t ?? 0) - (b.t ?? 0))
         .map((m) => {
-        const params = m.p ?? {};
-        const values: Record<string, number> = {};
+          const params = m.p ?? {};
+          const values: Record<string, number> = {};
 
-        if (withSensors) {
-          for (const sensor of sensors) {
-            const raw = numeric(params[sensor.p as string]);
-            if (raw != null) values[sensor.n as string] = raw;
-          }
-          if (sensors.length === 0) {
-            for (const [key, value] of Object.entries(params)) {
-              const raw = numeric(value);
-              if (raw != null) values[key] = raw;
+          if (withSensors) {
+            for (const sensor of sensors) {
+              const raw = numeric(params[sensor.p as string]);
+              if (raw != null) values[sensor.n as string] = raw;
+            }
+            if (sensors.length === 0) {
+              for (const [key, value] of Object.entries(params)) {
+                const raw = numeric(value);
+                if (raw != null) values[key] = raw;
+              }
             }
           }
-        }
 
-        return {
-          time: m.t ?? 0,
-          lat: m.pos?.y ?? null,
-          lon: m.pos?.x ?? null,
-          speed: m.pos?.s ?? null,
-          course: m.pos?.c ?? null,
-          sensors: values,
-        };
-      });
+          return {
+            time: m.t ?? 0,
+            lat: m.pos?.y ?? null,
+            lon: m.pos?.x ?? null,
+            speed: m.pos?.s ?? null,
+            course: m.pos?.c ?? null,
+            sensors: values,
+          };
+        });
     }
 
     try {
@@ -1291,7 +1692,9 @@ export const wialonReportData = createServerFn({ method: "POST" })
     }
 
     const sensorNames = withSensors
-      ? Array.from(new Set(rows.flatMap((row) => Object.keys(row.sensors)))).slice(0, 8)
+      ? Array.from(
+          new Set(rows.flatMap((row) => Object.keys(row.sensors))),
+        ).slice(0, 8)
       : [];
 
     return {
@@ -1310,12 +1713,21 @@ export const wialonReportTemplates = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const res = await wialonCall<{
-      items?: Array<{ id: number; nm?: string; rep?: Record<string, { id: number; n?: string; ct?: string }> }>;
+      items?: Array<{
+        id: number;
+        nm?: string;
+        rep?: Record<string, { id: number; n?: string; ct?: string }>;
+      }>;
     }>(
       data.host as WialonHost,
       "core/search_items",
       {
-        spec: { itemsType: "avl_resource", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
+        spec: {
+          itemsType: "avl_resource",
+          propName: "sys_name",
+          propValueMask: "*",
+          sortType: "sys_name",
+        },
         force: 1,
         flags: 1 + 8192,
         from: 0,
@@ -1334,10 +1746,16 @@ export const wialonReportTemplates = createServerFn({ method: "POST" })
       })),
     );
 
-    return { templates: templates.filter((tpl) => tpl.objectType === "avl_unit") };
+    return {
+      templates: templates.filter((tpl) => tpl.objectType === "avl_unit"),
+    };
   });
 
-export type WialonReportTable = { label: string; header: string[]; rows: string[][] };
+export type WialonReportTable = {
+  label: string;
+  header: string[];
+  rows: string[][];
+};
 
 /** Ejecuta report/exec_report y devuelve las tablas tabulares para exportar. */
 export const wialonExecReport = createServerFn({ method: "POST" })
@@ -1363,7 +1781,12 @@ export const wialonExecReport = createServerFn({ method: "POST" })
 
     const exec = await wialonCall<{
       reportResult?: {
-        tables?: Array<{ name?: string; label?: string; rows?: number; header?: string[] }>;
+        tables?: Array<{
+          name?: string;
+          label?: string;
+          rows?: number;
+          header?: string[];
+        }>;
       };
     }>(
       host,
@@ -1390,14 +1813,23 @@ export const wialonExecReport = createServerFn({ method: "POST" })
         const result = await wialonCall<Array<{ c?: unknown[] }>>(
           host,
           "report/select_result_rows",
-          { tableIndex: index, config: { type: "range", data: { from: 0, to: rowCount - 1, level: 0 } } },
+          {
+            tableIndex: index,
+            config: {
+              type: "range",
+              data: { from: 0, to: rowCount - 1, level: 0 },
+            },
+          },
           data.sid,
         );
 
         rows = (Array.isArray(result) ? result : []).map((row) =>
           (row.c ?? []).map((cell) => {
             if (cell == null) return "";
-            if (typeof cell === "object" && "t" in (cell as Record<string, unknown>)) {
+            if (
+              typeof cell === "object" &&
+              "t" in (cell as Record<string, unknown>)
+            ) {
               return String((cell as { t?: unknown }).t ?? "");
             }
             return String(cell);

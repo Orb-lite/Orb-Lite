@@ -20,14 +20,6 @@ export const Route = createFileRoute('/wialon/video')({
 })
 
 function VideoView({ session }: { session: WialonSession }) {
-  if (session.host !== 'full') {
-    return (
-      <div className="rounded-lg border border-border/60 p-6 text-sm text-muted-foreground">
-        El video está disponible únicamente para cuentas ORB-FULL.
-      </div>
-    )
-  }
-
   return <FullVideoView session={session} />
 }
 

@@ -11,7 +11,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { wialonUnits, type WialonUnit } from "@/lib/wialon.functions";
 import { useWialonSession, type WialonSession } from "@/lib/wialon-session";
@@ -45,7 +49,8 @@ export function UnitSelector({
   // el objeto completo que consume la plataforma para cada vehículo.
   const unitsQuery = useQuery({
     queryKey: ["wialon-units", session?.host, session?.sid],
-    queryFn: () => fetchUnits({ data: { host: session!.host, sid: session!.sid } }),
+    queryFn: () =>
+      fetchUnits({ data: { host: session!.host, sid: session!.sid } }),
     enabled: session != null,
     staleTime: 15_000,
   });
@@ -93,7 +98,10 @@ export function UnitSelector({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
+        <PopoverContent
+          className="w-(--radix-popover-trigger-width) p-0"
+          align="start"
+        >
           <Command shouldFilter={false}>
             <CommandInput
               value={search}
@@ -103,7 +111,8 @@ export function UnitSelector({
             <CommandList>
               {unitsQuery.isLoading ? (
                 <p className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-                  <LoaderCircle className="size-4 animate-spin" /> Cargando unidades…
+                  <LoaderCircle className="size-4 animate-spin" /> Cargando
+                  unidades…
                 </p>
               ) : null}
               {unitsQuery.isError ? (
@@ -125,10 +134,15 @@ export function UnitSelector({
                         className="justify-between"
                       >
                         <span className="min-w-0">
-                          <span className="block truncate font-medium">{unit.name}</span>
+                          <span className="block truncate font-medium">
+                            {unit.name}
+                          </span>
                           <span className="block text-xs text-muted-foreground">
-                            #{unit.id} · {unit.online ? "En línea" : "Sin señal"}
-                            {unit.speed != null ? ` · ${Math.round(unit.speed)} km/h` : ""}
+                            #{unit.id} ·{" "}
+                            {unit.online ? "En línea" : "Sin señal"}
+                            {unit.speed != null
+                              ? ` · ${Math.round(unit.speed)} km/h`
+                              : ""}
                           </span>
                         </span>
                         <Check
