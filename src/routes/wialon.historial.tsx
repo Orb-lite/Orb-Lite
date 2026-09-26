@@ -286,19 +286,30 @@ function HistorialView({ session }: { session: WialonSession }) {
               Se muestran los primeros 200 registros. El Excel incluye todos los
               mensajes y el mapa.
             </p>
-            <button
-              type="button"
-              onClick={() => void onExport()}
-              disabled={exporting}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:cursor-wait disabled:opacity-60"
-            >
-              {exporting ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => void onExport("xlsx")}
+                disabled={exporting}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:cursor-wait disabled:opacity-60"
+              >
+                {exporting ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  <Download className="size-4" />
+                )}
+                {exporting ? "Generando…" : "Excel"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void onExport("pdf")}
+                disabled={exporting}
+                className="inline-flex items-center gap-2 rounded-md border border-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary disabled:cursor-wait disabled:opacity-60"
+              >
                 <Download className="size-4" />
-              )}
-              {exporting ? "Generando…" : "Exportar Excel"}
-            </button>
+                PDF
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-border/60">
