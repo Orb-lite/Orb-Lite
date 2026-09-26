@@ -529,13 +529,26 @@ function RutasView({ session }: { session: WialonSession }) {
         ? []
         : addresses.map((a) => a.trim()).filter(Boolean);
 
+      // La geometría por calles puede traer cientos de puntos; se reduce
+      // conservando la forma del recorrido (máx. 250 puntos).
+      const MAX_ROUTE_POINTS = 250;
+      let routePoints = draft.points;
+      if (routePoints.length > MAX_ROUTE_POINTS) {
+        const step = (routePoints.length - 1) / (MAX_ROUTE_POINTS - 1);
+        const sampled: DrawingPoint[] = [];
+        for (let i = 0; i < MAX_ROUTE_POINTS; i++) {
+          sampled.push(routePoints[Math.round(i * step)]!);
+        }
+        routePoints = sampled;
+      }
+
       const res = await saveUserRouteFn({
         data: {
           userId: session.userId,
           userName: session.userName,
           name: name.trim(),
           color: ROUTE_COLOR,
-          points: draft.points,
+          points: routePoints,
           origin: originStr || undefined,
           addresses: stopsArr.length > 0 ? stopsArr : undefined,
           distanceMeters: plannedRoute?.distanceMeters,
@@ -1346,7 +1359,9 @@ function RutasView({ session }: { session: WialonSession }) {
 
                     <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                       <span className="rounded bg-muted/50 px-1.5 py-0.5 font-mono">
-                        {route.points.length} puntos
+                        {route.addresses && route.addresses.length > 0
+                          ? `${route.addresses.length} parada${route.addresses.length === 1 ? "" : "s"}`
+                          : `${route.points.length} puntos`}
                       </span>
                       {route.origin ? (
                         <span
