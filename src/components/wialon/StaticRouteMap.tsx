@@ -3,7 +3,7 @@ import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import type { WialonUnit } from "@/lib/wialon.functions";
-import { DARK_TILE_CLASS, MAP_PROVIDERS } from "@/lib/map-layers";
+import { DARK_BASE_CONFIG, DARK_LABELS_CONFIG } from "@/lib/map-layers";
 
 type StaticRouteMapProps = {
   unit: Pick<

@@ -49,32 +49,51 @@ export const MAP_PROVIDERS: Record<MapTileProviderKey, MapTileProviderConfig> =
     cartoDark: {
       id: "cartoDark",
       name: "Modo Oscuro",
-      // OpenStreetMap gratuito (sin clave) con filtro CSS oscuro
-      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      subdomains: ["a", "b", "c"],
+      // Esri Dark Gray Canvas: capa oscura real, gratuita y sin clave.
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
       maxZoom: 19,
-      attribution: "&copy; OpenStreetMap contributors",
+      attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ",
     },
   };
 
-/** Clase CSS que oscurece las losetas (ver styles.css) */
-export const DARK_TILE_CLASS = "map-dark-tiles";
+/**
+ * Capa oscura gratuita (Esri Dark Gray Canvas).
+ * Las losetas nativas llegan a zoom 16; Leaflet las escala más allá.
+ */
+export const DARK_BASE_CONFIG = {
+  url: MAP_PROVIDERS.cartoDark.url,
+  attribution: MAP_PROVIDERS.cartoDark.attribution,
+  maxZoom: 19,
+  maxNativeZoom: 16,
+};
 
-/** Crea la capa Leaflet con layout oscuro exclusivo */
-export function createDarkLeafletTileLayer(): L.TileLayer {
-  return L.tileLayer(MAP_PROVIDERS.cartoDark.url, {
-    subdomains: MAP_PROVIDERS.cartoDark.subdomains,
-    maxZoom: MAP_PROVIDERS.cartoDark.maxZoom,
-    attribution: MAP_PROVIDERS.cartoDark.attribution,
+/** Rótulos (nombres de calles y lugares) de la misma capa oscura de Esri. */
+export const DARK_LABELS_CONFIG = {
+  url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+  maxZoom: 19,
+  maxNativeZoom: 16,
+};
+
+/** Crea la capa Leaflet oscura (base + rótulos) */
+export function createDarkLeafletTileLayer(): L.LayerGroup {
+  const base = L.tileLayer(DARK_BASE_CONFIG.url, {
+    maxZoom: DARK_BASE_CONFIG.maxZoom,
+    maxNativeZoom: DARK_BASE_CONFIG.maxNativeZoom,
+    attribution: DARK_BASE_CONFIG.attribution,
     crossOrigin: true,
-    className: DARK_TILE_CLASS,
   });
+  const labels = L.tileLayer(DARK_LABELS_CONFIG.url, {
+    maxZoom: DARK_LABELS_CONFIG.maxZoom,
+    maxNativeZoom: DARK_LABELS_CONFIG.maxNativeZoom,
+    crossOrigin: true,
+  });
+  return L.layerGroup([base, labels]);
 }
 
 /** Crea capas Leaflet estándar (solo layout oscuro) */
 export function createLeafletTileLayers(): {
-  defaultLayer: L.TileLayer;
-  baseLayers: Record<string, L.TileLayer>;
+  defaultLayer: L.LayerGroup;
+  baseLayers: Record<string, L.LayerGroup>;
 } {
   const dark = createDarkLeafletTileLayer();
 
