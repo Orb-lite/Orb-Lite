@@ -1080,7 +1080,7 @@ export const wialonGeofences = createServerFn({ method: "POST" })
         answers = [];
       }
       for (let j = 0; j < chunk.length; j++) {
-        await loadResource(chunk[j], answers[j]);
+        await loadResource(chunk[j]!, answers[j]);
       }
     }
 
