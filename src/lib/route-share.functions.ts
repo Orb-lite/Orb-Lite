@@ -66,7 +66,23 @@ export const shareUserRoute = createServerFn({ method: "POST" })
     }
 
     const labels = route.addresses ?? [];
-    const visitPoints = route.routeStops?.length ? route.routeStops : route.points;
+    let visitPoints: Array<{ lat: number; lon: number; label?: string }> =
+      route.routeStops?.length ? route.routeStops : route.points;
+    // Rutas anteriores guardaban cientos de vértices sin separar las visitas.
+    // Recuperar las direcciones para no crear un check por cada vértice.
+    if (!route.routeStops?.length && labels.length > 0) {
+      const { smartGeocode } = await import("./geocoding");
+      const places = [route.origin ?? "", ...labels];
+      visitPoints = [];
+      for (const place of places) {
+        try {
+          const location = await smartGeocode(place);
+          visitPoints.push({ lat: location.lat, lon: location.lon, label: place });
+        } catch {
+          throw new Error(`No se pudo ubicar "${place}". Actualiza la ruta antes de compartirla.`);
+        }
+      }
+    }
     const stops: SharedRouteStop[] = visitPoints.map((point, index) => ({
       label:
         index === 0
