@@ -1060,7 +1060,15 @@ export const wialonGeofences = createServerFn({ method: "POST" })
       }
     };
     const list = resources.items;
+    const conZonas = list.filter((r) => Object.keys(r.zl ?? {}).length > 0);
+    console.log(
+      "[geocercas] recursos con zonas en lista:",
+      conZonas.length,
+      "de",
+      list.length,
+    );
     // Una sola petición por lote (core/batch) para no saturar la sesión.
+    // get_zone_data exige la lista de IDs en "col": se toman de resource.zl.
     for (let i = 0; i < list.length; i += 40) {
       const chunk = list.slice(i, i + 40);
       let answers: unknown[] = [];
@@ -1071,20 +1079,34 @@ export const wialonGeofences = createServerFn({ method: "POST" })
           {
             params: chunk.map((resource) => ({
               svc: "resource/get_zone_data",
-              params: { itemId: resource.id, col: [], flags: 0x04 | 0x08 | 0x10 },
+              params: {
+                itemId: resource.id,
+                col: Object.keys(resource.zl ?? {}).map(Number),
+                flags: 0x04 | 0x08 | 0x10,
+              },
             })),
             flags: 0,
           },
           data.sid,
         );
         answers = Array.isArray(r) ? r : [];
-      } catch {
+      } catch (reason) {
+        console.error("[geocercas] batch get_zone_data", reason);
         answers = [];
       }
       for (let j = 0; j < chunk.length; j++) {
-        await loadResource(chunk[j]!, answers[j]);
+        const answer = answers[j];
+        if (answer != null && !Array.isArray(answer)) {
+          console.error(
+            "[geocercas] get_zone_data recurso",
+            chunk[j]!.id,
+            JSON.stringify(answer).slice(0, 200),
+          );
+        }
+        await loadResource(chunk[j]!, answer);
       }
     }
+    console.log("[geocercas] zonas cargadas:", zones.length);
 
     return {
       zones,
