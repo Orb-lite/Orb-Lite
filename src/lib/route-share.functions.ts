@@ -42,7 +42,7 @@ export const shareUserRoute = createServerFn({ method: "POST" })
       .object({
         userId: z.number().int().positive(),
         routeId: z.string().min(1),
-        reportEmail: z.string().trim().email().max(255).optional(),
+        reportEmail: z.string().trim().email().max(255),
       })
       .parse(input),
   )
@@ -53,7 +53,7 @@ export const shareUserRoute = createServerFn({ method: "POST" })
     const route = routes.find((r) => r.id === data.routeId);
     if (!route) throw new Error("Ruta no encontrada.");
 
-    if (data.reportEmail) await rememberReportEmail(data.userId, data.reportEmail);
+    await rememberReportEmail(data.userId, data.reportEmail);
 
     const token =
       route.shareToken && route.stops?.length
@@ -66,11 +66,12 @@ export const shareUserRoute = createServerFn({ method: "POST" })
     }
 
     const labels = route.addresses ?? [];
-    const stops: SharedRouteStop[] = route.points.map((point, index) => ({
+    const visitPoints = route.routeStops?.length ? route.routeStops : route.points;
+    const stops: SharedRouteStop[] = visitPoints.map((point, index) => ({
       label:
         index === 0
           ? (route.origin ?? labels[0] ?? "Salida")
-          : (labels[index] ?? `Parada ${index}`),
+          : (route.routeStops?.[index]?.label ?? labels[index - 1] ?? `Parada ${index}`),
       lat: point.lat,
       lon: point.lon,
     }));
@@ -112,8 +113,25 @@ export const markSharedStopVisited = createServerFn({ method: "POST" })
       data.visited,
     );
     if (!route) throw new Error("No se pudo actualizar la parada.");
-    const finished = await maybeSendReport(data.token);
-    return toView(finished ?? route);
+    return toView(route);
+  });
+
+/** El operador envía el resumen después de completar y anotar las visitas. */
+export const finishSharedRoute = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ token: z.string().min(16) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { getRouteByShareToken } = await import("./user-routes.server");
+    const route = await getRouteByShareToken(data.token);
+    if (!route?.stops?.length || !route.stops.every((stop) => stop.visitedAt)) {
+      throw new Error("Completa todas las visitas antes de enviar el resumen.");
+    }
+    if (!route.reportEmail) throw new Error("La ruta no tiene un correo de destino.");
+    if (route.reportSentAt) return toView(route);
+    const sent = await maybeSendReport(data.token);
+    if (!sent?.reportSentAt) throw new Error("No se pudo enviar el resumen. Intenta de nuevo.");
+    return toView(sent);
   });
 
 /** Guarda el comentario del operador para una parada. */
@@ -160,7 +178,7 @@ async function maybeSendReport(token: string) {
   if (!route.stops.every((s) => s.visitedAt)) return null;
   try {
     const { sendTemplateEmail } = await import("./email-templates/send-email");
-    await sendTemplateEmail("reporte-visitas", route.reportEmail, {
+    const result = await sendTemplateEmail("reporte-visitas", route.reportEmail, {
       templateData: {
         routeName: route.name,
         stops: route.stops.map((s) => ({
@@ -171,6 +189,7 @@ async function maybeSendReport(token: string) {
       },
       idempotencyKey: `reporte-visitas-${token}-${route.stops.map((s) => s.visitedAt).join("|").length}-${route.stops[route.stops.length - 1]?.visitedAt ?? ""}`,
     });
+    if (!result.sent) return null;
     return await updateSharedRoute(token, (r) => {
       r.reportSentAt = new Date().toISOString();
       return true;

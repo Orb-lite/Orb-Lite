@@ -624,8 +624,8 @@ function RutasView({ session }: { session: WialonSession }) {
 
   async function handleShareUserRoute(route: StoredUserRoute) {
     const email = shareEmail.trim();
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Correo no válido.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Escribe el correo que recibirá el resumen del viaje.");
       return;
     }
     setSharingUserRouteId(route.id);
@@ -636,7 +636,7 @@ function RutasView({ session }: { session: WialonSession }) {
         data: {
           userId: session.userId,
           routeId: route.id,
-          ...(email ? { reportEmail: email } : {}),
+          reportEmail: email,
         },
       });
       setShareFormRouteId(null);
@@ -1475,10 +1475,12 @@ function RutasView({ session }: { session: WialonSession }) {
                     >
                       <input
                         type="email"
+                        required
+                        aria-label="Correo para el resumen del viaje y notas"
                         list={`report-emails-${route.id}`}
                         value={shareEmail}
                         onChange={(e) => setShareEmail(e.target.value)}
-                        placeholder="Correo para el reporte (opcional)"
+                        placeholder="Correo para resumen y notas"
                         className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
                       />
                       <datalist id={`report-emails-${route.id}`}>

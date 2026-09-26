@@ -7,6 +7,7 @@ import {
   getSharedRoute,
   markSharedStopVisited,
   commentSharedStop,
+  finishSharedRoute,
 } from "@/lib/route-share.functions";
 import { downloadExcelWorkbook } from "@/lib/excel-export";
 
@@ -67,7 +68,9 @@ function SharedRoutePage() {
   const { token } = Route.useParams();
   const queryClient = useQueryClient();
   const markVisited = useServerFn(markSharedStopVisited);
+  const finishRoute = useServerFn(finishSharedRoute);
   const [busyIndex, setBusyIndex] = React.useState<number | null>(null);
+  const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const query = useQuery({
@@ -92,6 +95,19 @@ function SharedRoutePage() {
       setError("No se pudo actualizar la parada. Intenta de nuevo.");
     } finally {
       setBusyIndex(null);
+    }
+  }
+
+  async function sendSummary() {
+    setSending(true);
+    setError(null);
+    try {
+      await finishRoute({ data: { token } });
+      await queryClient.invalidateQueries({ queryKey: ["shared-route", token] });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo enviar el resumen.");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -141,9 +157,15 @@ function SharedRoutePage() {
         ) : null}
 
         {route && nextIndex === -1 && stops.length > 0 ? (
-          <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-4 font-display text-sm font-bold uppercase tracking-widest text-primary">
-            <Flag className="size-5" /> Ruta completada
-          </div>
+          route.reportSent ? (
+            <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-4 font-display text-sm font-bold uppercase tracking-widest text-primary">
+              <Flag className="size-5" /> Resumen enviado
+            </div>
+          ) : (
+            <button type="button" onClick={() => void sendSummary()} disabled={sending} className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-4 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:opacity-50">
+              <Flag className="size-5" /> {sending ? "Enviando…" : "Terminar y enviar resumen"}
+            </button>
+          )
         ) : null}
 
         {error ? (
