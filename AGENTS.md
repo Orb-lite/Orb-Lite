@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+Las rutas planificadas guardan el trazo por calles y las paradas reales por separado (`routeStops`); los marcadores y enlaces de operadores usan solo paradas porque los vértices del trazo no son visitas.
