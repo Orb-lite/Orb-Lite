@@ -134,7 +134,8 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   sheet.getRow(2).height = 30;
   sheet.getRow(4).height = 24;
 
-  for (let col = 1; col <= bandEnd; col += 1) {
+  const fillEndCol = Math.max(bandEnd, 16);
+  for (let col = 1; col <= fillEndCol; col += 1) {
     sheet.getCell(1, col).fill = navyFill();
     sheet.getCell(2, col).fill = navyFill();
     sheet.getCell(3, col).fill = navyFill();
