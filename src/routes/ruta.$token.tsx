@@ -222,7 +222,7 @@ function SharedRoutePage() {
             return (
               <li
                 key={index}
-                className={`flex items-center gap-3 rounded-xl border p-4 transition-colors ${
+                className={`flex items-start gap-3 rounded-xl border p-4 transition-colors ${
                   visited
                     ? "border-primary/30 bg-primary/5"
                     : isNext
