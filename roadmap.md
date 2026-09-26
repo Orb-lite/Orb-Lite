@@ -10,3 +10,4 @@
 - [x] Extender diseño azul/lima/plateado a celdas vacías del Excel
 - [x] Dibujar solo paradas reales como puntos en las rutas; conservar el trazo por calles.
 - [x] Pedir correo obligatorio en el generador de enlace para operadores y enviar ahí el resumen del viaje y notas al terminar.
+- [ ] Usar datos de Google Maps (Places/Routes) para geocodificar y trazar rutas, server-side vía gateway
