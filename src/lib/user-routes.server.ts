@@ -1,5 +1,4 @@
-import fs from "node:fs/promises";
-import path from "node:path";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type SharedRouteStop = {
   label: string;
@@ -31,43 +30,93 @@ export type StoredUserRoute = {
   reportSentAt?: string;
 };
 
-const DATA_FILE = path.resolve(process.cwd(), "data/user_routes.json");
+type RouteRow = {
+  id: string;
+  user_id: number;
+  user_name: string | null;
+  name: string;
+  color: string;
+  points: StoredUserRoute["points"];
+  route_stops: StoredUserRoute["routeStops"] | null;
+  origin: string | null;
+  addresses: string[] | null;
+  distance_meters: number | null;
+  duration_seconds: number | null;
+  share_token: string | null;
+  stops: SharedRouteStop[] | null;
+  report_email: string | null;
+  report_sent_at: string | null;
+  created_at: string;
+};
 
-async function ensureFile(): Promise<StoredUserRoute[]> {
-  try {
-    const raw = await fs.readFile(DATA_FILE, "utf-8");
-    return JSON.parse(raw) as StoredUserRoute[];
-  } catch {
-    await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
-    await fs.writeFile(DATA_FILE, "[]", "utf-8");
-    return [];
-  }
+function rowToRoute(row: RouteRow): StoredUserRoute {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    ...(row.user_name != null && { userName: row.user_name }),
+    name: row.name,
+    color: row.color,
+    points: row.points ?? [],
+    ...(row.route_stops != null && { routeStops: row.route_stops }),
+    ...(row.origin != null && { origin: row.origin }),
+    ...(row.addresses != null && { addresses: row.addresses }),
+    ...(row.distance_meters != null && { distanceMeters: row.distance_meters }),
+    ...(row.duration_seconds != null && {
+      durationSeconds: row.duration_seconds,
+    }),
+    createdAt: row.created_at,
+    ...(row.share_token != null && { shareToken: row.share_token }),
+    ...(row.stops != null && { stops: row.stops }),
+    ...(row.report_email != null && { reportEmail: row.report_email }),
+    ...(row.report_sent_at != null && { reportSentAt: row.report_sent_at }),
+  };
+}
+
+function routeToRow(route: StoredUserRoute) {
+  return {
+    id: route.id,
+    user_id: route.userId,
+    user_name: route.userName ?? null,
+    name: route.name,
+    color: route.color,
+    points: route.points,
+    route_stops: route.routeStops ?? null,
+    origin: route.origin ?? null,
+    addresses: route.addresses ?? null,
+    distance_meters: route.distanceMeters ?? null,
+    duration_seconds: route.durationSeconds ?? null,
+    share_token: route.shareToken ?? null,
+    stops: route.stops ?? null,
+    report_email: route.reportEmail ?? null,
+    report_sent_at: route.reportSentAt ?? null,
+    created_at: route.createdAt,
+  };
 }
 
 export async function getUserRoutesFromStorage(
   userId: number,
 ): Promise<StoredUserRoute[]> {
-  const all = await ensureFile();
-  // Solo la cuenta de usuario conectada puede ver las rutas que creó
-  return all
-    .filter((r) => r.userId === userId)
-    .sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
+  const { data, error } = await supabaseAdmin
+    .from("user_routes")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data as RouteRow[]).map(rowToRoute);
 }
 
 export async function saveUserRouteToStorage(
   route: Omit<StoredUserRoute, "id" | "createdAt">,
 ): Promise<StoredUserRoute> {
-  const all = await ensureFile();
   const newRoute: StoredUserRoute = {
     ...route,
     id: `route_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     createdAt: new Date().toISOString(),
   };
-  all.push(newRoute);
-  await fs.writeFile(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
+  const { error } = await supabaseAdmin
+    .from("user_routes")
+    .insert(routeToRow(newRoute));
+  if (error) throw new Error(error.message);
   return newRoute;
 }
 
@@ -75,17 +124,25 @@ export async function deleteUserRouteFromStorage(
   userId: number,
   routeId: string,
 ): Promise<boolean> {
-  const all = await ensureFile();
-  const next = all.filter((r) => !(r.id === routeId && r.userId === userId));
-  await fs.writeFile(DATA_FILE, JSON.stringify(next, null, 2), "utf-8");
+  const { error } = await supabaseAdmin
+    .from("user_routes")
+    .delete()
+    .eq("id", routeId)
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
   return true;
 }
 
 export async function getRouteByShareToken(
   token: string,
 ): Promise<StoredUserRoute | null> {
-  const all = await ensureFile();
-  return all.find((r) => r.shareToken === token) ?? null;
+  const { data, error } = await supabaseAdmin
+    .from("user_routes")
+    .select("*")
+    .eq("share_token", token)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? rowToRoute(data as RouteRow) : null;
 }
 
 export async function setRouteShare(
@@ -95,16 +152,26 @@ export async function setRouteShare(
   stops: SharedRouteStop[],
   reportEmail?: string,
 ): Promise<StoredUserRoute | null> {
-  const all = await ensureFile();
-  const route = all.find((r) => r.id === routeId && r.userId === userId);
-  if (!route) return null;
+  const { data, error } = await supabaseAdmin
+    .from("user_routes")
+    .select("*")
+    .eq("id", routeId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const route = rowToRoute(data as RouteRow);
   const recipientChanged = route.reportEmail !== reportEmail;
   route.shareToken = shareToken;
   route.stops = stops;
   if (reportEmail) route.reportEmail = reportEmail;
   else delete route.reportEmail;
   if (recipientChanged) delete route.reportSentAt;
-  await fs.writeFile(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
+  const { error: updateError } = await supabaseAdmin
+    .from("user_routes")
+    .update(routeToRow(route))
+    .eq("id", route.id);
+  if (updateError) throw new Error(updateError.message);
   return route;
 }
 
@@ -113,12 +180,15 @@ export async function markSharedStop(
   stopIndex: number,
   visited: boolean,
 ): Promise<StoredUserRoute | null> {
-  const all = await ensureFile();
-  const route = all.find((r) => r.shareToken === token);
+  const route = await getRouteByShareToken(token);
   if (!route || !route.stops || !route.stops[stopIndex]) return null;
   if (visited) route.stops[stopIndex].visitedAt = new Date().toISOString();
   else delete route.stops[stopIndex].visitedAt;
-  await fs.writeFile(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
+  const { error } = await supabaseAdmin
+    .from("user_routes")
+    .update({ stops: route.stops })
+    .eq("id", route.id);
+  if (error) throw new Error(error.message);
   return route;
 }
 
@@ -126,31 +196,39 @@ export async function updateSharedRoute(
   token: string,
   mutate: (route: StoredUserRoute) => boolean,
 ): Promise<StoredUserRoute | null> {
-  const all = await ensureFile();
-  const route = all.find((r) => r.shareToken === token);
+  const route = await getRouteByShareToken(token);
   if (!route || !mutate(route)) return null;
-  await fs.writeFile(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
+  const { error } = await supabaseAdmin
+    .from("user_routes")
+    .update(routeToRow(route))
+    .eq("id", route.id);
+  if (error) throw new Error(error.message);
   return route;
 }
 
-const EMAILS_FILE = path.resolve(process.cwd(), "data/route_report_emails.json");
-
-async function readEmails(): Promise<Record<string, string[]>> {
-  try {
-    return JSON.parse(await fs.readFile(EMAILS_FILE, "utf-8")) as Record<string, string[]>;
-  } catch {
-    return {};
-  }
-}
-
 export async function getSavedReportEmails(userId: number): Promise<string[]> {
-  return (await readEmails())[String(userId)] ?? [];
+  const { data, error } = await supabaseAdmin
+    .from("user_routes")
+    .select("report_email")
+    .eq("user_id", userId)
+    .not("report_email", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw new Error(error.message);
+  const seen = new Set<string>();
+  const emails: string[] = [];
+  for (const row of data as Array<{ report_email: string | null }>) {
+    const email = row.report_email;
+    if (email && !seen.has(email)) {
+      seen.add(email);
+      emails.push(email);
+      if (emails.length >= 10) break;
+    }
+  }
+  return emails;
 }
 
-export async function rememberReportEmail(userId: number, email: string) {
-  const all = await readEmails();
-  const list = (all[String(userId)] ?? []).filter((e) => e !== email);
-  all[String(userId)] = [email, ...list].slice(0, 10);
-  await fs.mkdir(path.dirname(EMAILS_FILE), { recursive: true });
-  await fs.writeFile(EMAILS_FILE, JSON.stringify(all, null, 2), "utf-8");
+export async function rememberReportEmail(_userId: number, _email: string) {
+  // Los correos se derivan de las rutas guardadas (getSavedReportEmails);
+  // no hace falta un almacenamiento aparte.
 }
