@@ -69,8 +69,16 @@ function headerStyle(cell: import("exceljs").Cell) {
 /**
  * Fondo azul marino en toda la hoja y letras plateadas en los datos;
  * las filas alternas llevan un azul un poco más claro para distinguirse.
+ * También cubre las celdas vacías (datos incompletos y un margen extra
+ * de filas y columnas) para que no queden huecos blancos.
  */
-function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number) {
+function stripeDataRows(
+  sheet: Worksheet,
+  columnCount: number,
+  rowCount: number,
+  bandEnd: number,
+) {
+  const lastRow = 5 + rowCount + 12;
   for (let index = 0; index < rowCount; index += 1) {
     const row = sheet.getRow(6 + index);
     for (let col = 1; col <= columnCount; col += 1) {
@@ -81,6 +89,26 @@ function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number)
         fgColor: { argb: index % 2 === 1 ? BRAND.navyAlt : BRAND.navy },
       };
       cell.font = { color: { argb: BRAND.silver } };
+    }
+  }
+  for (let rowNumber = 6; rowNumber <= lastRow; rowNumber += 1) {
+    const row = sheet.getRow(rowNumber);
+    for (let col = columnCount + 1; col <= bandEnd; col += 1) {
+      row.getCell(col).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: BRAND.navy },
+      };
+    }
+  }
+  for (let rowNumber = 6 + rowCount; rowNumber <= lastRow; rowNumber += 1) {
+    const row = sheet.getRow(rowNumber);
+    for (let col = 1; col <= bandEnd; col += 1) {
+      row.getCell(col).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: BRAND.navy },
+      };
     }
   }
 }
