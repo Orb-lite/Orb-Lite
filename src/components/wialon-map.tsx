@@ -162,6 +162,7 @@ export default function WialonMap({
   const draftPoints = React.useRef<DrawingPoint[]>([]);
   const [draftVersion, setDraftVersion] = React.useState(0);
   const [zoom, setZoom] = React.useState(11);
+  const lastFitKey = React.useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [isSearching, setIsSearching] = React.useState(false);
   const [searchResult, setSearchResult] = React.useState<{
@@ -526,7 +527,15 @@ export default function WialonMap({
       bounds.push(...line);
     }
 
-    if (bounds.length > 0 && geofences.length === 0) {
+    // Solo reencuadrar cuando cambia el conjunto de unidades, el recorrido o el foco,
+    // nunca al hacer zoom ni al refrescar posiciones.
+    const fitKey = [
+      units.map((u) => u.id).sort().join(","),
+      track ? `${track.length}:${track[0]?.lat},${track[0]?.lon}` : "",
+      focusId ?? "",
+    ].join("|");
+    if (bounds.length > 0 && geofences.length === 0 && lastFitKey.current !== fitKey) {
+      lastFitKey.current = fitKey;
       m.fitBounds(L.latLngBounds(bounds).pad(0.2), { maxZoom: 15 });
     }
   }, [units, track, focusId, zoom, geofences.length]);
