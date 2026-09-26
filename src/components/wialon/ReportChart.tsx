@@ -151,7 +151,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
     setRange({ from: start, to: end });
   }
 
-  async function onExport(format: "xlsx" | "pdf") {
+  async function onExport() {
     if (!unit || !range) return;
     setExporting(true);
     setExportError(null);
@@ -226,27 +226,11 @@ export function ReportChart({ session }: { session: WialonSession }) {
 
       const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
       const baseName = `reporte-${unit.name.replace(/\s+/g, "-")}-${stamp}`;
-      if (format === "xlsx") {
-        await downloadExcelWorkbook({
-          filename: `${baseName}.xlsx`,
-          sheets,
-          ...(chartImages.length > 0 ? { images: chartImages } : {}),
-        });
-      } else {
-        await downloadPdfReport({
-          filename: `${baseName}.pdf`,
-          title: `Reporte · ${unit.name}`,
-          sheets,
-          ...(chartImages.length > 0
-            ? {
-                images: chartImages.map((image) => ({
-                  title: image.title,
-                  dataUrl: image.dataUrl,
-                })),
-              }
-            : {}),
-        });
-      }
+      await downloadExcelWorkbook({
+        filename: `${baseName}.xlsx`,
+        sheets,
+        ...(chartImages.length > 0 ? { images: chartImages } : {}),
+      });
     } catch (error) {
       setExportError(
         error instanceof Error
@@ -321,7 +305,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
           <Button
             type="button"
             variant="outline"
-            onClick={() => void onExport("xlsx")}
+            onClick={() => void onExport()}
             disabled={!unit || !range || reportQuery.isLoading || exporting}
           >
             {exporting ? (
@@ -330,14 +314,6 @@ export function ReportChart({ session }: { session: WialonSession }) {
               <Download />
             )}{" "}
             Excel
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void onExport("pdf")}
-            disabled={!unit || !range || reportQuery.isLoading || exporting}
-          >
-            <Download /> PDF
           </Button>
         </div>
       </form>
