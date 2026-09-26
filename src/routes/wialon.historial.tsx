@@ -65,7 +65,6 @@ function HistorialView({ session }: { session: WialonSession }) {
   const [busy, setBusy] = React.useState(false);
   const [exporting, setExporting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const mapExportRef = React.useRef<HTMLDivElement>(null);
   const [result, setResult] = React.useState<{
     messages: WialonMessage[];
     total: number;
@@ -245,21 +244,19 @@ function HistorialView({ session }: { session: WialonSession }) {
             ))}
           </div>
 
-          <div ref={mapExportRef}>
-            <ClientOnly
+          <ClientOnly
+            fallback={
+              <div className="h-[480px] rounded-lg border border-border/60 bg-card/40" />
+            }
+          >
+            <React.Suspense
               fallback={
                 <div className="h-[480px] rounded-lg border border-border/60 bg-card/40" />
               }
             >
-              <React.Suspense
-                fallback={
-                  <div className="h-[480px] rounded-lg border border-border/60 bg-card/40" />
-                }
-              >
-                <WialonMap units={[]} track={track} />
-              </React.Suspense>
-            </ClientOnly>
-          </div>
+              <WialonMap units={[]} track={track} />
+            </React.Suspense>
+          </ClientOnly>
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
