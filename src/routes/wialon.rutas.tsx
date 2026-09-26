@@ -289,6 +289,16 @@ function RutasView({ session }: { session: WialonSession }) {
         },
       ]
     : [];
+  const logisticsMapRoutes: MapGeofence[] = logisticsRoutes
+    .filter((route) => shownLogisticsIds.has(route.id) && route.points.length > 0)
+    .map((route, index) => ({
+      id: -(index + 10),
+      name: route.name,
+      resource: "Wialon Logistics",
+      type: 1 as const,
+      color: ROUTE_COLOR,
+      points: route.points.map((point) => ({ ...point, radius: 0 })),
+    }));
   const addressPoints: MapAddressPoint[] =
     inputMode === "addresses"
       ? geocodedAddresses.map((point, index) => ({
@@ -737,7 +747,7 @@ function RutasView({ session }: { session: WialonSession }) {
             >
               <WialonMap
                 units={[]}
-                geofences={[...userMapRoutes, ...mapRoutes, ...plannedMapRoute]}
+                geofences={[...userMapRoutes, ...mapRoutes, ...plannedMapRoute, ...logisticsMapRoutes]}
                 focusGeofenceId={focusedUserRouteId ?? focusedRouteId}
                 addressPoints={addressPoints}
                 drawMode={drawing ? "line" : null}
