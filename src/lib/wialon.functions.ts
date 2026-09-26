@@ -1221,17 +1221,63 @@ export const wialonDeleteGeofence = createServerFn({ method: "POST" })
 
 export type { StoredUserRoute } from "./user-routes.server";
 
+/**
+ * Cadena de creadores hacia arriba: el usuario, el admin de su cuenta,
+ * el distribuidor que creó la cuenta padre y el super admin que creó al
+ * distribuidor. Las rutas solo las ven ellos.
+ */
+async function resolveCreatorChain(
+  host: WialonHost,
+  sid: string,
+  userId: number,
+): Promise<number[]> {
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  let current: number | null = userId;
+  while (current != null && !seen.has(current) && ids.length < 12) {
+    seen.add(current);
+    ids.push(current);
+    try {
+      const result = await wialonCall<{ item?: { crt?: number } }>(
+        host,
+        "core/search_item",
+        { id: current, flags: 0x1 },
+        sid,
+      );
+      const crt = result?.item?.crt;
+      current = typeof crt === "number" && crt > 0 ? crt : null;
+    } catch {
+      current = null;
+    }
+  }
+  return ids;
+}
+
 export const getUserRoutes = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
         userId: z.number().int(),
+        host: z.string().optional(),
+        sid: z.string().optional(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
     const { getUserRoutesFromStorage } = await import("./user-routes.server");
-    const routes = await getUserRoutesFromStorage(data.userId);
+    let visibleIds = [data.userId];
+    if (data.host && data.sid) {
+      try {
+        visibleIds = await resolveCreatorChain(
+          data.host as WialonHost,
+          data.sid,
+          data.userId,
+        );
+      } catch {
+        // Sin sesión válida: solo las rutas propias.
+      }
+    }
+    const routes = await getUserRoutesFromStorage(visibleIds);
     return { routes };
   });
 

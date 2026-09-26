@@ -223,7 +223,10 @@ function RutasView({ session }: { session: WialonSession }) {
   // Rutas privadas de la cuenta de usuario (guardadas en nuestro servidor)
   const userRoutesQuery = useQuery({
     queryKey: ["user-routes", session.userId],
-    queryFn: () => fetchUserRoutes({ data: { userId: session.userId } }),
+    queryFn: () =>
+      fetchUserRoutes({
+        data: { userId: session.userId, host: session.host, sid: session.sid },
+      }),
   });
   const userRoutes = userRoutesQuery.data?.routes ?? [];
 
