@@ -150,7 +150,15 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   sheet.getCell(4, 1).font = { bold: true, size: 18, color: { argb: BRAND.white } };
   sheet.getCell(4, 1).alignment = { vertical: "middle", horizontal: "center" };
 
-  const logo = workbookImageAnchor(logoId, 0, 0, 128, 94);
+  // Centra el logotipo sobre la banda del encabezado
+  const colPx = 64;
+  const logoWidth = 128;
+  const bandPx = bandEnd * colPx;
+  const logoLeftPx = Math.max(0, Math.round((bandPx - logoWidth) / 2));
+  const logoCol = Math.floor(logoLeftPx / colPx);
+  const logoColOff = (logoLeftPx % colPx) * 9525;
+  const logo = workbookImageAnchor(logoId, logoCol, 0, logoWidth, 94);
+  logo.range.tl.colOff = logoColOff;
   sheet.addImage(logo.id, logo.range);
 
   const header = sheet.getRow(5);
