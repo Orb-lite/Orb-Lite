@@ -949,7 +949,14 @@ export const wialonGeofences = createServerFn({ method: "POST" })
     const host = data.host as WialonHost;
 
     const resources = await wialonCall<{
-      items?: Array<{ id: number; nm?: string }>;
+      items?: Array<{
+        id: number;
+        nm?: string;
+        zl?: Record<
+          string,
+          { id: number; n?: string; t?: number; c?: number; b?: { cen_x?: number; cen_y?: number; min_x?: number; max_x?: number } }
+        >;
+      }>;
     }>(
       host,
       "core/search_items",
@@ -961,7 +968,8 @@ export const wialonGeofences = createServerFn({ method: "POST" })
           sortType: "sys_name",
         },
         force: 1,
-        flags: 1,
+        // 0x1 base + 0x1000 geocercas: incluye las de todos los usuarios/recursos con acceso
+        flags: 0x1 | 0x1000,
         from: 0,
         to: 0,
       },
@@ -1016,7 +1024,25 @@ export const wialonGeofences = createServerFn({ method: "POST" })
           });
         }
       } catch {
-        // recurso sin geocercas o sin permisos de lectura
+        // Sin permiso para leer los puntos: usar la lista básica del recurso
+        for (const zone of Object.values(resource.zl ?? {})) {
+          const rawColor = zone.c ?? 0x38bdf8;
+          const cx = zone.b?.cen_x;
+          const cy = zone.b?.cen_y;
+          const radius =
+            zone.b?.min_x != null && zone.b.max_x != null
+              ? Math.abs(zone.b.max_x - zone.b.min_x) * 55660
+              : 100;
+          zones.push({
+            id: zone.id,
+            resourceId: resource.id,
+            name: zone.n ?? `Zona ${zone.id}`,
+            resource: resource.nm ?? `#${resource.id}`,
+            type: zone.t === 1 || zone.t === 2 || zone.t === 3 ? zone.t : 3,
+            color: `#${(rawColor & 0xffffff).toString(16).padStart(6, "0")}`,
+            points: cx != null && cy != null ? [{ lat: cy, lon: cx, radius }] : [],
+          });
+        }
       }
     }
 
