@@ -30,7 +30,7 @@ import type {
 } from "@/components/wialon-map";
 
 const WialonMap = React.lazy(() => import("@/components/wialon-map"));
-import { shareUserRoute } from "@/lib/route-share.functions";
+import { shareUserRoute, getReportEmails } from "@/lib/route-share.functions";
 import {
   getUserRoutes,
   saveUserRoute,
@@ -582,14 +582,40 @@ function RutasView({ session }: { session: WialonSession }) {
     setTimeout(() => setMessage(null), 3000);
   }
 
+  const [shareFormRouteId, setShareFormRouteId] = React.useState<string | null>(null);
+  const [shareEmail, setShareEmail] = React.useState("");
+  const reportEmailsQuery = useQuery({
+    queryKey: ["route-report-emails", session.userId],
+    queryFn: () => getReportEmails({ data: { userId: session.userId } }),
+    enabled: shareFormRouteId !== null,
+  });
+  const savedReportEmails = reportEmailsQuery.data?.emails ?? [];
+
+  function openShareForm(route: StoredUserRoute) {
+    setShareFormRouteId((current) => (current === route.id ? null : route.id));
+    setShareEmail(route.reportEmail ?? "");
+  }
+
   async function handleShareUserRoute(route: StoredUserRoute) {
+    const email = shareEmail.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Correo no válido.");
+      return;
+    }
     setSharingUserRouteId(route.id);
     setError(null);
     setMessage(null);
     try {
       const result = await shareUserRoute({
-        data: { userId: session.userId, routeId: route.id },
+        data: {
+          userId: session.userId,
+          routeId: route.id,
+          ...(email ? { reportEmail: email } : {}),
+        },
       });
+      setShareFormRouteId(null);
+      void reportEmailsQuery.refetch();
+      void userRoutesQuery.refetch();
       const url = `${window.location.origin}/ruta/${result.token}`;
       try {
         await navigator.clipboard.writeText(url);
@@ -1407,14 +1433,13 @@ function RutasView({ session }: { session: WialonSession }) {
 
                       <button
                         type="button"
-                        onClick={() => handleShareUserRoute(route)}
+                        onClick={() => openShareForm(route)}
                         disabled={sharingUserRouteId === route.id}
                         className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors disabled:opacity-50 ${
                           copiedUserRouteId === route.id
                             ? "bg-primary/15 text-primary font-semibold"
                             : "text-primary hover:bg-primary/10"
                         }`}
-                        title="Generar enlace para operadores (sin iniciar sesión, con check de visitas y Waze)"
                       >
                         <Link2 className="size-3.5" />
                         <span>
@@ -1452,6 +1477,36 @@ function RutasView({ session }: { session: WialonSession }) {
                       </span>
                     </button>
                   </div>
+                  {shareFormRouteId === route.id ? (
+                    <form
+                      className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void handleShareUserRoute(route);
+                      }}
+                    >
+                      <input
+                        type="email"
+                        list={`report-emails-${route.id}`}
+                        value={shareEmail}
+                        onChange={(e) => setShareEmail(e.target.value)}
+                        placeholder="Correo para el reporte (opcional)"
+                        className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+                      />
+                      <datalist id={`report-emails-${route.id}`}>
+                        {savedReportEmails.map((email) => (
+                          <option key={email} value={email} />
+                        ))}
+                      </datalist>
+                      <button
+                        type="submit"
+                        disabled={sharingUserRouteId === route.id}
+                        className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                      >
+                        {sharingUserRouteId === route.id ? "…" : "Generar enlace"}
+                      </button>
+                    </form>
+                  ) : null}
                 </div>
               );
             })}

@@ -6,6 +6,7 @@ import * as React from "react";
 import {
   getSharedRoute,
   markSharedStopVisited,
+  commentSharedStop,
 } from "@/lib/route-share.functions";
 
 export const Route = createFileRoute("/ruta/$token")({
@@ -174,6 +175,9 @@ function SharedRoutePage() {
                       Siguiente parada
                     </p>
                   ) : null}
+                  {visited ? (
+                    <CommentBox token={token} index={index} initial={stop.comment ?? ""} />
+                  ) : null}
                 </div>
 
                 <a
@@ -190,11 +194,77 @@ function SharedRoutePage() {
           })}
         </ol>
 
-        <p className="mt-8 text-center text-xs text-muted-foreground">
-          No necesitas iniciar sesión. Marca cada visita con el círculo y abre
-          la navegación con el botón de Waze.
-        </p>
+        {route && doneCount > 0 ? (
+          <section className="mt-8 rounded-xl border border-border/70 bg-card/60 p-4">
+            <h2 className="font-display text-sm font-bold uppercase tracking-widest">
+              Reporte de visitas
+            </h2>
+            <ul className="mt-3 divide-y divide-border/60 text-sm">
+              {stops.map((stop, index) =>
+                stop.visitedAt ? (
+                  <li key={index} className="py-2">
+                    <div className="flex justify-between gap-3">
+                      <span className="truncate font-medium">{stop.label}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {new Date(stop.visitedAt).toLocaleTimeString("es-MX", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+                    {stop.comment ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{stop.comment}</p>
+                    ) : null}
+                  </li>
+                ) : null,
+              )}
+            </ul>
+            {route.reportSent ? (
+              <p className="mt-3 text-xs text-primary">Reporte enviado.</p>
+            ) : null}
+          </section>
+        ) : null}
       </div>
+    </div>
+  );
+}
+
+function CommentBox({ token, index, initial }: { token: string; index: number; initial: string }) {
+  const save = useServerFn(commentSharedStop);
+  const queryClient = useQueryClient();
+  const [value, setValue] = React.useState(initial);
+  const [state, setState] = React.useState<"idle" | "saving" | "saved">("idle");
+  React.useEffect(() => setValue(initial), [initial]);
+
+  async function commit() {
+    if (value.trim() === initial.trim()) return;
+    setState("saving");
+    try {
+      await save({ data: { token, stopIndex: index, comment: value } });
+      await queryClient.invalidateQueries({ queryKey: ["shared-route", token] });
+      setState("saved");
+      window.setTimeout(() => setState("idle"), 1500);
+    } catch {
+      setState("idle");
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={commit}
+        rows={1}
+        maxLength={1000}
+        placeholder="Comentario"
+        className="w-full resize-none rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+      />
+      {state !== "idle" ? (
+        <p className="text-[10px] text-muted-foreground">
+          {state === "saving" ? "Guardando…" : "Guardado"}
+        </p>
+      ) : null}
     </div>
   );
 }
