@@ -306,59 +306,72 @@ export const wialonVideoUnits = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
-    const res = await wialonCall<{
-      items?: Array<{ id?: number; nm?: string }>;
-    }>(
-      host,
-      "core/search_items",
-      {
-        spec: {
-          itemsType: "avl_unit",
-          propName: "sys_name",
-          propValueMask: "*",
-          sortType: "sys_name",
-        },
-        force: 1,
-        flags: 1 + 256 + 1024,
-        from: 0,
-        to: 0,
-      },
-      data.sid,
-    );
-
-    const items = res.items ?? [];
-    const checks = await Promise.all(
-      items.map(async (item) => {
-        if (item.id == null) return null;
-        try {
-          const result = await wialonCall<{ settings?: unknown[] }>(
-            host,
-            "unit/get_video_settings",
-            { itemId: item.id },
-            data.sid,
-          );
-          const cameraCount = result.settings?.length ?? 0;
-          return {
-            id: item.id,
-            name: item.nm ?? `Unidad ${item.id}`,
-            cameraCount: cameraCount > 0 ? cameraCount : 2, // Permite consultar cámaras en cualquier unidad
-          };
-        } catch {
-          return {
-            id: item.id,
-            name: item.nm ?? `Unidad ${item.id}`,
-            cameraCount: 2,
-          };
+    // Cascada igual que geocercas: acceso directo + árbol de creadores y de cuentas.
+    const specs = [
+      { itemsType: "avl_unit", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
+      { itemsType: "avl_unit", propName: "rel_user_creator_name", propValueMask: "*", sortType: "sys_name", propType: "creatortree" },
+      { itemsType: "avl_unit", propName: "rel_account_name", propValueMask: "*", sortType: "sys_name", propType: "accounttree" },
+    ];
+    const byId = new Map<number, { id: number; nm?: string }>();
+    // Wialon solo acepta una petición a la vez por sesión: ir en secuencia.
+    for (const spec of specs) {
+      try {
+        const res = await wialonCall<{ items?: Array<{ id?: number; nm?: string }> }>(
+          host,
+          "core/search_items",
+          { spec, force: 1, flags: 1, from: 0, to: 0 },
+          data.sid,
+        );
+        for (const item of res.items ?? []) {
+          if (item.id != null) byId.set(item.id, { id: item.id, nm: item.nm });
         }
-      }),
-    );
+      } catch (reason) {
+        console.error("[video] search_items", spec.propType ?? "direct", reason);
+      }
+    }
+    const items = [...byId.values()];
+    console.log("[video] unidades encontradas:", items.length);
 
-    return {
-      units: checks.filter(
-        (unit): unit is { id: number; name: string; cameraCount: number } =>
-          unit != null,
-      ),
-    };
+    // get_video_settings en lotes con core/batch (una petición por lote).
+    const units: Array<{ id: number; name: string; cameraCount: number }> = [];
+    for (let i = 0; i < items.length; i += 40) {
+      const chunk = items.slice(i, i + 40);
+      let answers: unknown[] = [];
+      try {
+        const r = await wialonCall<unknown[]>(
+          host,
+          "core/batch",
+          {
+            params: chunk.map((item) => ({
+              svc: "unit/get_video_settings",
+              params: { itemId: item.id },
+            })),
+            flags: 0,
+          },
+          data.sid,
+        );
+        answers = Array.isArray(r) ? r : [];
+      } catch (reason) {
+        console.error("[video] batch get_video_settings", reason);
+        answers = [];
+      }
+      for (let j = 0; j < chunk.length; j++) {
+        const item = chunk[j]!;
+        const answer = answers[j];
+        const settings =
+          answer != null && typeof answer === "object" && !Array.isArray(answer)
+            ? (answer as { settings?: unknown[] }).settings
+            : undefined;
+        const cameraCount = settings?.length ?? 0;
+        units.push({
+          id: item.id,
+          name: item.nm ?? `Unidad ${item.id}`,
+          cameraCount: cameraCount > 0 ? cameraCount : 2, // Permite consultar cámaras en cualquier unidad
+        });
+      }
+    }
+
+    return { units };
   });
 
 /**
