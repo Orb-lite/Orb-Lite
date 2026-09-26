@@ -1379,7 +1379,7 @@ export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
         addresses: z
           .array(z.string().trim().min(3, "Cada punto necesita una dirección."))
           .min(1, "Captura al menos una dirección.")
-          .max(31, "Puedes ubicar hasta 31 puntos a la vez."),
+          .max(101, "Puedes ubicar hasta 101 puntos a la vez."),
       })
       .parse(input),
   )
@@ -1399,9 +1399,9 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
             z.string().trim().min(3, "Cada parada necesita una dirección."),
           )
           .min(1, "Captura al menos una dirección.")
-          .max(30, "Puedes planificar hasta 30 paradas por ruta."),
+          .max(100, "Puedes planificar hasta 100 paradas por ruta."),
         returnToOrigin: z.boolean(),
-        locations: z.array(plannedLocationSchema).max(31).optional(),
+        locations: z.array(plannedLocationSchema).max(101).optional(),
       })
       .parse(input),
   )
