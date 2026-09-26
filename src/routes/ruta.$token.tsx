@@ -28,6 +28,41 @@ function wazeUrl(lat: number, lon: number) {
   return `https://waze.com/ul?ll=${lat},${lon}&navigate=yes`;
 }
 
+type SharedStop = {
+  label: string;
+  lat: number;
+  lon: number;
+  visitedAt?: string | null;
+  comment?: string | null;
+};
+
+async function exportVisitReport(routeName: string, stops: SharedStop[]) {
+  const rows = [
+    ["Parada", "Ubicación", "Latitud", "Longitud", "Hora de visita", "Comentario"],
+    ...stops.map((stop, index) => [
+      index === 0 ? "Salida" : `Parada ${index}`,
+      stop.label,
+      stop.lat,
+      stop.lon,
+      stop.visitedAt
+        ? new Date(stop.visitedAt).toLocaleString("es-MX", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "Sin visitar",
+      stop.comment ?? "",
+    ]),
+  ];
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+  await downloadExcelWorkbook({
+    filename: `reporte-visitas-${routeName.replace(/\s+/g, "-")}-${stamp}.xlsx`,
+    sheets: [{ name: "Reporte de visitas", rows }],
+  });
+}
+
 function SharedRoutePage() {
   const { token } = Route.useParams();
   const queryClient = useQueryClient();
