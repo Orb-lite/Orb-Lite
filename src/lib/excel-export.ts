@@ -536,10 +536,12 @@ export async function downloadExcelWorkbook({
     sheet.addImage(anchor.id, anchor.range);
   }
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
+  const buffer = (await workbook.xlsx.writeBuffer()) as ArrayBuffer;
+  const blob = charts?.length
+    ? await injectNativeCharts(buffer, charts)
+    : new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
   downloadBlob(blob, filename);
 }
 
