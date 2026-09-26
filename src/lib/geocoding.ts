@@ -202,7 +202,7 @@ export async function smartGeocode(
   try {
     const photonUrl = new URL("https://photon.komoot.io/api/");
     photonUrl.searchParams.set("q", cleanInput);
-    photonUrl.searchParams.set("limit", "5");
+    photonUrl.searchParams.set("limit", "10");
     // Sesgo hacia Guadalajara/México (Photon no acepta lang=es).
     photonUrl.searchParams.set("lat", "20.67");
     photonUrl.searchParams.set("lon", "-103.35");
@@ -229,20 +229,52 @@ export async function smartGeocode(
       };
 
       const features = photonData.features ?? [];
-      // Preferir resultados de México cuando existan, pero aceptar cualquier país.
-      const match =
-        features.find(
-          (f) =>
-            f.properties?.countrycode?.toUpperCase() === "MX" ||
-            f.properties?.country === "México" ||
-            f.properties?.country === "Mexico",
-        ) ?? features[0];
-      const coords = match?.geometry?.coordinates;
-      if (coords && coords.length >= 2) {
+      // Puntuar cada candidato por coincidencia real con la búsqueda.
+      const scored = features
+        .map((feature, index) => {
+          const props = feature.properties ?? {};
+          const text = [
+            props.name,
+            props.street,
+            props.housenumber,
+            props.city,
+            props.state,
+            props.country,
+          ]
+            .filter(Boolean)
+            .join(", ");
+          const isMx =
+            props.countrycode?.toUpperCase() === "MX" ||
+            props.country === "México" ||
+            props.country === "Mexico";
+          return {
+            feature,
+            index,
+            isMx,
+            score: relevanceScore(cleanInput, text),
+          };
+        })
+        .filter(
+          (entry) =>
+            entry.feature.geometry?.coordinates &&
+            entry.feature.geometry.coordinates.length >= 2,
+        );
+
+      // Elegir el de mayor coincidencia; en empate, preferir México y luego el orden original.
+      scored.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (a.isMx !== b.isMx) return a.isMx ? -1 : 1;
+        return a.index - b.index;
+      });
+
+      const best = scored[0];
+      // Exigir una coincidencia mínima para no ubicar el punto en un lugar que no corresponde.
+      if (best && best.score >= 0.5) {
+        const coords = best.feature.geometry!.coordinates!;
         const lon = Number(coords[0]);
         const lat = Number(coords[1]);
         if (Number.isFinite(lat) && Number.isFinite(lon)) {
-          const props = match.properties ?? {};
+          const props = best.feature.properties ?? {};
           const parts = [
             props.name ||
               [props.street, props.housenumber].filter(Boolean).join(" "),
