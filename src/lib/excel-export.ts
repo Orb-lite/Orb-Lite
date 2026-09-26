@@ -369,15 +369,27 @@ export async function downloadExcelWorkbook({
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "ORB-LITE";
   workbook.created = new Date();
+
+  // La primera hoja se construye sobre la plantilla real (formato_base.xlsx)
+  // para conservar logotipo, banda azul y estilos exactos.
+  const templateResponse = await fetch(formatoBaseUrl);
+  if (!templateResponse.ok) throw new Error("No se pudo cargar la plantilla de Excel.");
+  await workbook.xlsx.load(await templateResponse.arrayBuffer());
+  const templateSheet = workbook.worksheets[0];
+  if (!templateSheet) throw new Error("La plantilla de Excel está vacía.");
+  for (const extra of workbook.worksheets.slice(1)) workbook.removeWorksheet(extra.id);
+
   const logoDataUrl = await loadLogoDataUrl();
-  const logoId = workbook.addImage({
-    base64: logoDataUrl,
-    extension: "png",
-  });
+  const logoId = workbook.addImage({ base64: logoDataUrl, extension: "png" });
 
   for (const [index, definition] of sheets.entries()) {
-    const sheet = workbook.addWorksheet(safeSheetName(definition.name, index));
-    styleSheet(sheet, definition.rows, definition.name, logoId);
+    if (index === 0) {
+      templateSheet.name = safeSheetName(definition.name, index);
+      fillTemplateSheet(templateSheet, definition.rows, definition.name);
+    } else {
+      const sheet = workbook.addWorksheet(safeSheetName(definition.name, index));
+      styleSheet(sheet, definition.rows, definition.name, logoId);
+    }
   }
 
   const extraImages = [...(map ? [map] : []), ...(images ?? [])];
@@ -391,14 +403,13 @@ export async function downloadExcelWorkbook({
       base64: image.dataUrl,
       extension: "png",
     });
-    sheet.getCell(row, column + 1).value = image.title;
-    sheet.getCell(row, column + 1).font = { bold: true, size: 14, color: { argb: BRAND.navy } };
-    sheet.getCell(row, column + 1).fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: BRAND.paleLime },
-    };
-    sheet.getCell(row, column + 1).alignment = { vertical: "middle" };
+    // Marco con título en banda azul y borde lima, a juego con la plantilla.
+    const titleCell = sheet.getCell(row, column + 1);
+    titleCell.value = image.title;
+    titleCell.font = { bold: true, size: 12, color: { argb: BRAND.white } };
+    titleCell.fill = navyFill();
+    titleCell.alignment = { vertical: "middle", horizontal: "center" };
+    sheet.getRow(row).height = 22;
     const anchor = workbookImageAnchor(imageId, column, row, image.width ?? 720, image.height ?? 480);
     sheet.addImage(anchor.id, anchor.range);
   }
@@ -407,6 +418,10 @@ export async function downloadExcelWorkbook({
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
+  downloadBlob(blob, filename);
+}
+
+function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -415,4 +430,84 @@ export async function downloadExcelWorkbook({
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Genera un PDF con la misma identidad de la plantilla: encabezado azul
+ * marino con logotipo, título, tablas con encabezado lima y las imágenes
+ * (mapa / gráficas) al final.
+ */
+export async function downloadPdfReport({
+  filename,
+  title,
+  sheets,
+  images,
+}: {
+  filename: string;
+  title: string;
+  sheets: ExcelSheetDefinition[];
+  images?: Array<{ title: string; dataUrl: string }>;
+}) {
+  const { jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 40;
+
+  const logoDataUrl = await loadLogoDataUrl();
+
+  const drawHeader = () => {
+    doc.setFillColor(22, 34, 61); // azul marino de la plantilla
+    doc.rect(0, 0, pageWidth, 74, "F");
+    doc.addImage(logoDataUrl, "PNG", margin, 12, 84, 50);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(title, margin + 100, 36);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("ORB-LITE · Rastreo GPS satelital", margin + 100, 54);
+    doc.setFillColor(163, 230, 53); // lima
+    doc.rect(0, 74, pageWidth, 4, "F");
+  };
+
+  drawHeader();
+  let cursorY = 100;
+
+  for (const [index, sheet] of sheets.entries()) {
+    if (index > 0) {
+      doc.addPage();
+      drawHeader();
+      cursorY = 100;
+    }
+    const [header, ...body] = sheet.rows;
+    autoTable(doc, {
+      startY: cursorY,
+      head: [(header ?? []).map((cell) => String(cell ?? ""))],
+      body: body.map((row) => row.map((cell) => String(cell ?? ""))),
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 8, cellPadding: 4 },
+      headStyles: { fillColor: [163, 230, 53], textColor: [23, 35, 61], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [244, 247, 251] },
+      didDrawPage: () => drawHeader(),
+    });
+    cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 24;
+  }
+
+  for (const image of images ?? []) {
+    doc.addPage();
+    drawHeader();
+    doc.setTextColor(23, 35, 61);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text(image.title, margin, 110);
+    const maxWidth = pageWidth - margin * 2;
+    const probe = await loadImage(image.dataUrl);
+    const ratio = probe.height / probe.width;
+    const height = Math.min(maxWidth * ratio, 380);
+    doc.addImage(image.dataUrl, "PNG", margin, 124, maxWidth, height);
+  }
+
+  downloadBlob(doc.output("blob"), filename);
 }
