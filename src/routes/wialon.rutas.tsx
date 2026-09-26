@@ -1477,6 +1477,36 @@ function RutasView({ session }: { session: WialonSession }) {
                       </span>
                     </button>
                   </div>
+                  {shareFormRouteId === route.id ? (
+                    <form
+                      className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/50 pt-3"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void handleShareUserRoute(route);
+                      }}
+                    >
+                      <input
+                        type="email"
+                        list={`report-emails-${route.id}`}
+                        value={shareEmail}
+                        onChange={(e) => setShareEmail(e.target.value)}
+                        placeholder="Correo para el reporte (opcional)"
+                        className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+                      />
+                      <datalist id={`report-emails-${route.id}`}>
+                        {savedReportEmails.map((email) => (
+                          <option key={email} value={email} />
+                        ))}
+                      </datalist>
+                      <button
+                        type="submit"
+                        disabled={sharingUserRouteId === route.id}
+                        className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                      >
+                        {sharingUserRouteId === route.id ? "…" : "Generar enlace"}
+                      </button>
+                    </form>
+                  ) : null}
                 </div>
               );
             })}
