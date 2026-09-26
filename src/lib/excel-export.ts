@@ -322,25 +322,27 @@ export async function downloadExcelWorkbook({
     styleSheet(sheet, definition.rows, definition.name, logoId);
   }
 
-  if (map) {
-    const sheet = workbook.getWorksheet(safeSheetName(map.sheetName, 0));
-    if (!sheet) throw new Error(`No se encontró la hoja ${map.sheetName}.`);
+  const extraImages = [...(map ? [map] : []), ...(images ?? [])];
+  for (const [imageIndex, image] of extraImages.entries()) {
+    const sheet = workbook.getWorksheet(safeSheetName(image.sheetName, 0));
+    if (!sheet) throw new Error(`No se encontró la hoja ${image.sheetName}.`);
 
-    const column = map.column ?? 6;
+    const column = image.column ?? 6;
+    const row = imageIndex === 0 ? 2 : 2 + imageIndex * 26;
     const imageId = workbook.addImage({
-      base64: map.dataUrl,
+      base64: image.dataUrl,
       extension: "png",
     });
-    sheet.getCell(2, column + 1).value = map.title;
-    sheet.getCell(2, column + 1).font = { bold: true, size: 14, color: { argb: BRAND.navy } };
-    sheet.getCell(2, column + 1).fill = {
+    sheet.getCell(row, column + 1).value = image.title;
+    sheet.getCell(row, column + 1).font = { bold: true, size: 14, color: { argb: BRAND.navy } };
+    sheet.getCell(row, column + 1).fill = {
       type: "pattern",
       pattern: "solid",
       fgColor: { argb: BRAND.paleLime },
     };
-    sheet.getCell(2, column + 1).alignment = { vertical: "middle" };
-    const mapAnchor = workbookImageAnchor(imageId, column, 2, map.width ?? 720, map.height ?? 480);
-    sheet.addImage(mapAnchor.id, mapAnchor.range);
+    sheet.getCell(row, column + 1).alignment = { vertical: "middle" };
+    const anchor = workbookImageAnchor(imageId, column, row, image.width ?? 720, image.height ?? 480);
+    sheet.addImage(anchor.id, anchor.range);
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
