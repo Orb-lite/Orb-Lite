@@ -428,7 +428,7 @@ export function ReportChart({ session }: { session: WialonSession }) {
               <h2 className="font-display text-lg font-bold uppercase tracking-wide">
                 Sensores en tiempo de medición
               </h2>
-              <div className="mt-4 h-80">
+              <div ref={sensorChartRef} className="mt-4 h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartData}>
                     <CartesianGrid
