@@ -22,6 +22,8 @@ export type MapGeofence = {
   type: 1 | 2 | 3;
   color: string;
   points: Array<{ lat: number; lon: number; radius: number }>;
+  /** Paradas reales; la geometría de la línea puede contener muchos vértices. */
+  markerPoints?: Array<{ lat: number; lon: number }>;
 };
 
 export type DrawingMode = "circle" | "polygon" | "line";
@@ -343,13 +345,16 @@ export default function WialonMap({
         });
         bounds.push(...positions);
 
-        // Puntos de la ruta: Salida, paradas intermedias y Llegada (con ese dot un poco más pequeño)
-        if (fence.points.length > 0) {
-          fence.points.forEach((point, idx) => {
+        // Los vértices del trazo no son paradas. Sin lista de paradas,
+        // mostrar solo los extremos de la línea.
+        const markers = fence.markerPoints ??
+          (fence.points.length > 1
+            ? [fence.points[0]!, fence.points[fence.points.length - 1]!]
+            : fence.points);
+        if (markers.length > 0) {
+          markers.forEach((point, idx) => {
             const isFirst = idx === 0;
-            const isLast =
-              idx === fence.points.length - 1 && fence.points.length > 1;
-            const isIntermediate = !isFirst && !isLast;
+            const isLast = idx === markers.length - 1 && markers.length > 1;
             const tag = isFirst
               ? "Salida"
               : isLast

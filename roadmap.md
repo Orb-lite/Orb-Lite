@@ -7,4 +7,6 @@
 - [x] Rutas: leer rutas de Wialon Logistics en ORB-FULL y verlas en el mapa.
 - [x] Enlace único público por ruta: check de visita por parada sin iniciar sesión y botón "siguiente en Waze".
 - [x] Quitar exportación PDF de Historial y Reportes
-- [ ] Extender diseño azul/lima/plateado a celdas vacías del Excel
+- [x] Extender diseño azul/lima/plateado a celdas vacías del Excel
+- [x] Dibujar solo paradas reales como puntos en las rutas; conservar el trazo por calles.
+- [x] Pedir correo obligatorio en el generador de enlace para operadores y enviar ahí el resumen del viaje y notas al terminar.

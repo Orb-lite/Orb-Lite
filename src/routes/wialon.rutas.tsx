@@ -57,6 +57,10 @@ export const Route = createFileRoute("/wialon/rutas")({
         content:
           "Crea rutas lineales en Wialon con puntos del mapa o direcciones escritas.",
       },
+      { property: "og:title", content: "Rutas | Plataforma ORB-LITE" },
+      { property: "og:description", content: "Planifica y consulta rutas de ORB-LITE y ORB-FULL." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -274,6 +278,7 @@ function RutasView({ session }: { session: WialonSession }) {
     type: 1,
     color: ROUTE_COLOR,
     points: route.points,
+    ...(route.routeStops?.length ? { markerPoints: route.routeStops } : {}),
   }));
 
   const mapRoutes: MapGeofence[] = visibleRoutes.map((route) => ({
@@ -293,6 +298,7 @@ function RutasView({ session }: { session: WialonSession }) {
           type: 1,
           color: ROUTE_COLOR,
           points: plannedRoute.points.map((point) => ({ ...point, radius: 0 })),
+          markerPoints: [], // Las paradas ya se muestran mediante addressPoints.
         },
       ]
     : [];
@@ -305,9 +311,10 @@ function RutasView({ session }: { session: WialonSession }) {
       type: 1 as const,
       color: ROUTE_COLOR,
       points: route.points.map((point) => ({ ...point, radius: 0 })),
+      markerPoints: route.points,
     }));
   const addressPoints: MapAddressPoint[] =
-    inputMode === "addresses"
+    inputMode === "addresses" || plannedRoute
       ? geocodedAddresses.map((point, index) => ({
           lat: point.lat,
           lon: point.lon,
@@ -549,6 +556,15 @@ function RutasView({ session }: { session: WialonSession }) {
           name: name.trim(),
           color: ROUTE_COLOR,
           points: routePoints,
+          routeStops: plannedRoute?.stops.map((stop) => ({
+            lat: stop.lat,
+            lon: stop.lon,
+            label: stop.label,
+          })) ?? (isMapPlan ? draft.points.map((point, index) => ({
+            lat: point.lat,
+            lon: point.lon,
+            label: index === 0 ? "Salida" : `Parada ${index}`,
+          })) : undefined),
           origin: originStr || undefined,
           addresses: stopsArr.length > 0 ? stopsArr : undefined,
           distanceMeters: plannedRoute?.distanceMeters,
@@ -610,8 +626,8 @@ function RutasView({ session }: { session: WialonSession }) {
 
   async function handleShareUserRoute(route: StoredUserRoute) {
     const email = shareEmail.trim();
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError("Correo no válido.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Escribe el correo que recibirá el resumen del viaje.");
       return;
     }
     setSharingUserRouteId(route.id);
@@ -622,7 +638,7 @@ function RutasView({ session }: { session: WialonSession }) {
         data: {
           userId: session.userId,
           routeId: route.id,
-          ...(email ? { reportEmail: email } : {}),
+          reportEmail: email,
         },
       });
       setShareFormRouteId(null);
@@ -1315,7 +1331,7 @@ function RutasView({ session }: { session: WialonSession }) {
               const isDeleting = deletingUserRouteId === route.id;
               const isFocused = focusedUserRouteId === route.id;
               const isConfirming = confirmDeleteUserRouteId === route.id;
-              const gmapsUrl = buildGoogleMapsUrlForPoints(route.points);
+              const gmapsUrl = buildGoogleMapsUrlForPoints(route.routeStops?.length ? route.routeStops : route.points);
 
               return (
                 <div
@@ -1461,10 +1477,12 @@ function RutasView({ session }: { session: WialonSession }) {
                     >
                       <input
                         type="email"
+                        required
+                        aria-label="Correo para el resumen del viaje y notas"
                         list={`report-emails-${route.id}`}
                         value={shareEmail}
                         onChange={(e) => setShareEmail(e.target.value)}
-                        placeholder="Correo para el reporte (opcional)"
+                        placeholder="Correo para resumen y notas"
                         className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
                       />
                       <datalist id={`report-emails-${route.id}`}>

@@ -45,7 +45,7 @@ const Email = ({ routeName = 'Ruta', stops = [] }: Props) => (
           </Section>
         ))}
         <Hr style={hr} />
-        <Text style={muted}>Reporte generado automáticamente al terminar la ruta.</Text>
+        <Text style={muted}>Resumen del viaje enviado por el operador al terminar las visitas.</Text>
       </Container>
     </Body>
   </Html>

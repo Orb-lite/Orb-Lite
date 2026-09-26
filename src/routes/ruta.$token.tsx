@@ -7,6 +7,7 @@ import {
   getSharedRoute,
   markSharedStopVisited,
   commentSharedStop,
+  finishSharedRoute,
 } from "@/lib/route-share.functions";
 import { downloadExcelWorkbook } from "@/lib/excel-export";
 
@@ -18,6 +19,10 @@ export const Route = createFileRoute("/ruta/$token")({
         name: "description",
         content: "Consulta tu ruta, marca tus visitas y abre cada parada en Waze.",
       },
+      { property: "og:title", content: "Ruta asignada | ORB-LITE" },
+      { property: "og:description", content: "Consulta tu ruta y registra las visitas del recorrido." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -67,7 +72,9 @@ function SharedRoutePage() {
   const { token } = Route.useParams();
   const queryClient = useQueryClient();
   const markVisited = useServerFn(markSharedStopVisited);
+  const finishRoute = useServerFn(finishSharedRoute);
   const [busyIndex, setBusyIndex] = React.useState<number | null>(null);
+  const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const query = useQuery({
@@ -92,6 +99,19 @@ function SharedRoutePage() {
       setError("No se pudo actualizar la parada. Intenta de nuevo.");
     } finally {
       setBusyIndex(null);
+    }
+  }
+
+  async function sendSummary() {
+    setSending(true);
+    setError(null);
+    try {
+      await finishRoute({ data: { token } });
+      await queryClient.invalidateQueries({ queryKey: ["shared-route", token] });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo enviar el resumen.");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -138,12 +158,6 @@ function SharedRoutePage() {
             <Navigation className="size-5" />
             Siguiente parada en Waze: {stops[nextIndex].label}
           </a>
-        ) : null}
-
-        {route && nextIndex === -1 && stops.length > 0 ? (
-          <div className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-4 font-display text-sm font-bold uppercase tracking-widest text-primary">
-            <Flag className="size-5" /> Ruta completada
-          </div>
         ) : null}
 
         {error ? (
@@ -229,6 +243,18 @@ function SharedRoutePage() {
             );
           })}
         </ol>
+
+        {route && nextIndex === -1 && stops.length > 0 ? (
+          route.reportSent ? (
+            <div className="mt-6 flex items-center justify-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-4 font-display text-sm font-bold uppercase tracking-widest text-primary">
+              <Flag className="size-5" /> Resumen enviado
+            </div>
+          ) : (
+            <button type="button" onClick={() => void sendSummary()} disabled={sending} className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-4 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground disabled:opacity-50">
+              <Flag className="size-5" /> {sending ? "Enviando…" : "Terminar y enviar resumen"}
+            </button>
+          )
+        ) : null}
 
         {route && doneCount > 0 ? (
           <section className="mt-8 rounded-xl border border-border/70 bg-card/60 p-4">
