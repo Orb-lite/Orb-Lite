@@ -300,10 +300,12 @@ export async function downloadExcelWorkbook({
   filename,
   sheets,
   map,
+  images,
 }: {
   filename: string;
   sheets: ExcelSheetDefinition[];
   map?: ExcelMapDefinition;
+  images?: ExcelMapDefinition[];
 }) {
   const ExcelJS = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
