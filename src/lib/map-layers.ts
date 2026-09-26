@@ -49,12 +49,16 @@ export const MAP_PROVIDERS: Record<MapTileProviderKey, MapTileProviderConfig> =
     cartoDark: {
       id: "cartoDark",
       name: "Modo Oscuro",
-      url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-      subdomains: ["a", "b", "c", "d"],
-      maxZoom: 20,
-      attribution: "&copy; OpenStreetMap &copy; CARTO",
+      // OpenStreetMap gratuito (sin clave) con filtro CSS oscuro
+      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      subdomains: ["a", "b", "c"],
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
     },
   };
+
+/** Clase CSS que oscurece las losetas (ver styles.css) */
+export const DARK_TILE_CLASS = "map-dark-tiles";
 
 /** Crea la capa Leaflet con layout oscuro exclusivo */
 export function createDarkLeafletTileLayer(): L.TileLayer {
@@ -63,6 +67,7 @@ export function createDarkLeafletTileLayer(): L.TileLayer {
     maxZoom: MAP_PROVIDERS.cartoDark.maxZoom,
     attribution: MAP_PROVIDERS.cartoDark.attribution,
     crossOrigin: true,
+    className: DARK_TILE_CLASS,
   });
 }
 
