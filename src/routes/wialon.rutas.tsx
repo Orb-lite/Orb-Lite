@@ -958,10 +958,6 @@ function RutasView({ session }: { session: WialonSession }) {
                   <h2 className="font-display text-sm font-bold uppercase tracking-widest">
                     Puntos en mapa
                   </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Haz clic sobre el mapa para agregar los puntos en el orden
-                    de la ruta.
-                  </p>
                 </div>
               </div>
               <button
@@ -971,10 +967,6 @@ function RutasView({ session }: { session: WialonSession }) {
               >
                 {drawing ? "Dibujando en el mapa…" : "Comenzar a dibujar"}
               </button>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Marca al menos dos puntos. El primero será la salida y los demás
-                serán paradas.
-              </p>
               <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -1074,10 +1066,6 @@ function RutasView({ session }: { session: WialonSession }) {
                     </a>
                   ) : null}
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Waze abre una parada a la vez; usa el enlace Waze de cada
-                  parada para seguir el orden recomendado.
-                </p>
               </div>
             </div>
           ) : null}
@@ -1188,9 +1176,6 @@ function RutasView({ session }: { session: WialonSession }) {
                 <h2 className="font-display text-base font-bold uppercase tracking-wide text-foreground">
                   Rutas de Wialon Logistics
                 </h2>
-                <p className="text-xs text-muted-foreground">
-                  Rutas creadas en la aplicación Logistics de tu cuenta ORB-FULL.
-                </p>
               </div>
             </div>
             <span className="rounded-full bg-primary/10 px-3 py-1 font-mono text-xs font-semibold text-primary">
