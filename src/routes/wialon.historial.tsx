@@ -139,13 +139,15 @@ function HistorialView({ session }: { session: WialonSession }) {
           { name: "Recorrido", rows: historyRows },
           { name: "Resumen", rows: summaryRows },
         ],
-        map: mapDataUrl
+        ...(mapDataUrl
           ? {
-              sheetName: "Recorrido",
-              title: "Mapa del recorrido",
-              dataUrl: mapDataUrl,
+              map: {
+                sheetName: "Recorrido",
+                title: "Mapa del recorrido",
+                dataUrl: mapDataUrl,
+              },
             }
-          : undefined,
+          : {}),
       });
     } catch (cause) {
       setError(

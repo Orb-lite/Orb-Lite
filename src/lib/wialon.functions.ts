@@ -1230,14 +1230,18 @@ export const saveUserRoute = createServerFn({ method: "POST" })
     // Guardar en el servidor por cuenta de usuario (privado)
     const stored = await saveUserRouteToStorage({
       userId: data.userId,
-      userName: data.userName,
       name: data.name,
       color: data.color,
       points: data.points,
-      origin: data.origin,
-      addresses: data.addresses,
-      distanceMeters: data.distanceMeters,
-      durationSeconds: data.durationSeconds,
+      ...(data.userName !== undefined && { userName: data.userName }),
+      ...(data.origin !== undefined && { origin: data.origin }),
+      ...(data.addresses !== undefined && { addresses: data.addresses }),
+      ...(data.distanceMeters !== undefined && {
+        distanceMeters: data.distanceMeters,
+      }),
+      ...(data.durationSeconds !== undefined && {
+        durationSeconds: data.durationSeconds,
+      }),
     });
 
     let wialonId: number | null = null;
