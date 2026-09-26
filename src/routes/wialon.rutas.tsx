@@ -1129,6 +1129,116 @@ function RutasView({ session }: { session: WialonSession }) {
         </form>
       </div>
 
+      {/* Rutas de Wialon Logistics (solo ORB-FULL) */}
+      {session.host === "full" ? (
+        <div className="rounded-xl border border-border/70 bg-card/60 p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <RouteIcon className="size-5" />
+              </div>
+              <div>
+                <h2 className="font-display text-base font-bold uppercase tracking-wide text-foreground">
+                  Rutas de Wialon Logistics
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Rutas creadas en la aplicación Logistics de tu cuenta ORB-FULL.
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full bg-primary/10 px-3 py-1 font-mono text-xs font-semibold text-primary">
+              {logisticsRoutes.length} ruta{logisticsRoutes.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {logisticsQuery.isLoading ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              Cargando rutas de Logistics…
+            </div>
+          ) : logisticsQuery.isError ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              No se pudieron leer las rutas de Logistics. Verifica que tu
+              cuenta tenga acceso a la aplicación Logistics.
+            </div>
+          ) : logisticsRoutes.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              No hay rutas creadas en Wialon Logistics para esta cuenta.
+            </div>
+          ) : (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {logisticsRoutes.map((route) => {
+                const isShown = shownLogisticsIds.has(route.id);
+                return (
+                  <div
+                    key={route.id}
+                    className={`flex flex-col justify-between rounded-lg border bg-background/60 p-3.5 transition-colors ${
+                      isShown
+                        ? "border-primary ring-1 ring-primary/40 shadow-sm"
+                        : "border-border/70 hover:border-primary/50"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="flex size-3.5 shrink-0 items-center justify-center">
+                          <span className="size-2.5 rounded-full border border-white bg-[#92d700] shadow-[0_0_6px_rgba(146,215,0,0.6)]" />
+                        </span>
+                        <h3
+                          className="truncate font-semibold text-sm text-foreground"
+                          title={route.name}
+                        >
+                          {route.name}
+                        </h3>
+                      </div>
+                      <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="rounded bg-muted/50 px-1.5 py-0.5 font-mono">
+                          {route.points.length} punto{route.points.length !== 1 ? "s" : ""}
+                        </span>
+                        {route.ordersCount > 0 ? (
+                          <span className="rounded bg-muted/50 px-1.5 py-0.5 font-mono">
+                            {route.ordersCount} pedido{route.ordersCount !== 1 ? "s" : ""}
+                          </span>
+                        ) : null}
+                        {route.status ? (
+                          <span className="rounded bg-muted/50 px-1.5 py-0.5">
+                            {route.status}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="mt-3 flex items-center justify-end border-t border-border/40 pt-2.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleLogisticsRoute(route.id)}
+                        disabled={route.points.length === 0}
+                        className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                          isShown
+                            ? "bg-primary text-primary-foreground font-semibold"
+                            : "text-primary hover:bg-primary/10"
+                        }`}
+                        title={
+                          route.points.length === 0
+                            ? "Esta ruta no tiene puntos para dibujar"
+                            : isShown
+                              ? "Quitar del mapa"
+                              : "Ver en el mapa"
+                        }
+                      >
+                        {isShown ? (
+                          <EyeOff className="size-3.5" />
+                        ) : (
+                          <Eye className="size-3.5" />
+                        )}
+                        <span>{isShown ? "En el mapa" : "Ver en mapa"}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : null}
+
       {/* Sección 1: Mis Rutas Guardadas (En tu cuenta de servidor fuera de Wialon) */}
       <div className="rounded-xl border border-border/70 bg-card/60 p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 pb-4">
