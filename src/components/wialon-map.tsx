@@ -176,7 +176,9 @@ export default function WialonMap({
     map.current = L.map(container.current, {
       center: [20.6736, -103.344],
       zoom: 11,
+      zoomControl: false,
     });
+    L.control.zoom({ position: "topright" }).addTo(map.current);
 
     // Layout oscuro exclusivo para todos los mapas
     const darkLayer = createDarkLeafletTileLayer();
