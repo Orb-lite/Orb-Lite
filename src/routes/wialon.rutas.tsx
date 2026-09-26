@@ -310,7 +310,7 @@ function RutasView({ session }: { session: WialonSession }) {
       markerPoints: route.points,
     }));
   const addressPoints: MapAddressPoint[] =
-    inputMode === "addresses"
+    inputMode === "addresses" || plannedRoute
       ? geocodedAddresses.map((point, index) => ({
           lat: point.lat,
           lon: point.lon,
