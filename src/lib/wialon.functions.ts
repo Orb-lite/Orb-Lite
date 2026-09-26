@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   wialonCall,
   isSessionExpired,
+  WialonError,
   WIALON_HOSTS,
   type WialonHost,
 } from "@/lib/wialon.server";
