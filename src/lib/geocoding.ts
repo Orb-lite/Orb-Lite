@@ -310,7 +310,7 @@ export async function smartGeocode(
     try {
       const nominatimUrl = new URL("https://nominatim.openstreetmap.org/search");
       nominatimUrl.searchParams.set("format", "jsonv2");
-      nominatimUrl.searchParams.set("limit", "1");
+      nominatimUrl.searchParams.set("limit", "5");
       nominatimUrl.searchParams.set("q", query);
       nominatimUrl.searchParams.set("addressdetails", "1");
 
@@ -328,7 +328,15 @@ export async function smartGeocode(
           lon?: string;
           display_name?: string;
         }>;
-        const match = matches[0];
+        // Elegir el resultado que mejor coincide con lo escrito, no solo el primero.
+        const best = matches
+          .map((match, index) => ({
+            match,
+            index,
+            score: relevanceScore(query, match.display_name ?? ""),
+          }))
+          .sort((a, b) => b.score - a.score || a.index - b.index)[0];
+        const match = best?.match;
         const lat = Number(match?.lat);
         const lon = Number(match?.lon);
         if (match && Number.isFinite(lat) && Number.isFinite(lon)) {
