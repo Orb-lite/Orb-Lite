@@ -182,7 +182,14 @@ export async function smartGeocode(
         }>;
       };
 
-      const match = photonData.features?.[0];
+      // Preferir resultados en México; ignorar coincidencias de otros países
+      // (p. ej. "Catedral de Guadalajara" resolvía a Sigüenza, España).
+      const features = photonData.features ?? [];
+      const match =
+        features.find((f) => f.properties?.country === "México") ??
+        (features.length > 0 && features.every((f) => !f.properties?.country)
+          ? features[0]
+          : undefined);
       const coords = match?.geometry?.coordinates;
       if (coords && coords.length >= 2) {
         const lon = Number(coords[0]);
