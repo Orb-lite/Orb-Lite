@@ -98,12 +98,14 @@ function routeToRow(route: StoredUserRoute) {
 }
 
 export async function getUserRoutesFromStorage(
-  userId: number,
+  userIds: number | number[],
 ): Promise<StoredUserRoute[]> {
+  const ids = Array.isArray(userIds) ? userIds : [userIds];
+  if (ids.length === 0) return [];
   const { data, error } = await supabaseAdmin
     .from("user_routes")
     .select("*")
-    .eq("user_id", userId)
+    .in("user_id", ids)
     .order("created_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data as RouteRow[]).map(rowToRoute);
