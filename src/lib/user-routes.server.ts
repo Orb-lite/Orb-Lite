@@ -6,6 +6,7 @@ export type SharedRouteStop = {
   lat: number;
   lon: number;
   visitedAt?: string;
+  comment?: string;
 };
 
 export type StoredUserRoute = {
@@ -24,6 +25,9 @@ export type StoredUserRoute = {
   shareToken?: string;
   /** Paradas del enlace público con su check de visita. */
   stops?: SharedRouteStop[];
+  /** Correo que recibe el reporte de visitas al terminar la ruta. */
+  reportEmail?: string;
+  reportSentAt?: string;
 };
 
 const DATA_FILE = path.resolve(process.cwd(), "data/user_routes.json");
@@ -88,12 +92,16 @@ export async function setRouteShare(
   routeId: string,
   shareToken: string,
   stops: SharedRouteStop[],
+  reportEmail?: string,
 ): Promise<StoredUserRoute | null> {
   const all = await ensureFile();
   const route = all.find((r) => r.id === routeId && r.userId === userId);
   if (!route) return null;
   route.shareToken = shareToken;
   route.stops = stops;
+  if (reportEmail) route.reportEmail = reportEmail;
+  else delete route.reportEmail;
+  delete route.reportSentAt;
   await fs.writeFile(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
   return route;
 }
@@ -110,4 +118,37 @@ export async function markSharedStop(
   else delete route.stops[stopIndex].visitedAt;
   await fs.writeFile(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
   return route;
+}
+
+export async function updateSharedRoute(
+  token: string,
+  mutate: (route: StoredUserRoute) => boolean,
+): Promise<StoredUserRoute | null> {
+  const all = await ensureFile();
+  const route = all.find((r) => r.shareToken === token);
+  if (!route || !mutate(route)) return null;
+  await fs.writeFile(DATA_FILE, JSON.stringify(all, null, 2), "utf-8");
+  return route;
+}
+
+const EMAILS_FILE = path.resolve(process.cwd(), "data/route_report_emails.json");
+
+async function readEmails(): Promise<Record<string, string[]>> {
+  try {
+    return JSON.parse(await fs.readFile(EMAILS_FILE, "utf-8")) as Record<string, string[]>;
+  } catch {
+    return {};
+  }
+}
+
+export async function getSavedReportEmails(userId: number): Promise<string[]> {
+  return (await readEmails())[String(userId)] ?? [];
+}
+
+export async function rememberReportEmail(userId: number, email: string) {
+  const all = await readEmails();
+  const list = (all[String(userId)] ?? []).filter((e) => e !== email);
+  all[String(userId)] = [email, ...list].slice(0, 10);
+  await fs.mkdir(path.dirname(EMAILS_FILE), { recursive: true });
+  await fs.writeFile(EMAILS_FILE, JSON.stringify(all, null, 2), "utf-8");
 }
