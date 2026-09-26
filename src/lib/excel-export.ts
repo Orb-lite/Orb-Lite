@@ -1,5 +1,6 @@
 import type { Worksheet } from "exceljs";
 import orbLiteLogoUrl from "@/assets/orb-lite-logo.png";
+import formatoBaseUrl from "@/assets/formato_base.xlsx?url";
 
 export type ExcelCell = string | number | boolean | null;
 
@@ -44,41 +45,77 @@ async function loadLogoDataUrl() {
   return `data:image/png;base64,${btoa(binary)}`;
 }
 
+const TEMPLATE_NAVY = "FF16223D";
+
+function navyFill() {
+  return {
+    type: "pattern" as const,
+    pattern: "solid" as const,
+    fgColor: { argb: TEMPLATE_NAVY },
+  };
+}
+
+function headerStyle(cell: import("exceljs").Cell) {
+  cell.font = { bold: true, color: { argb: BRAND.navy } };
+  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND.lime } };
+  cell.alignment = { vertical: "middle", wrapText: true };
+  cell.border = {
+    top: { style: "thin", color: { argb: BRAND.navy } },
+    bottom: { style: "thin", color: { argb: BRAND.navy } },
+  };
+}
+
+function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number) {
+  for (let index = 0; index < rowCount; index += 1) {
+    if (index % 2 !== 1) continue;
+    const row = sheet.getRow(6 + index);
+    for (let col = 1; col <= columnCount; col += 1) {
+      row.getCell(col).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: BRAND.stripe },
+      };
+    }
+  }
+}
+
+/**
+ * Replica la estructura de la plantilla formato_base.xlsx en una hoja nueva:
+ * fila 1 logotipo, fila 2 combinada, banda azul marino con subtítulo (fila 3)
+ * y título (fila 4), encabezados lima en la fila 5 y datos desde la fila 6.
+ */
 function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId: number) {
   const columnCount = Math.max(...rows.map((row) => row.length), 1);
-  const dataHeaderRow = 5;
+  const bandEnd = Math.max(columnCount, 11);
 
   sheet.addRow([]);
-  sheet.addRow([title]);
-  sheet.addRow(["ORB-LITE · Rastreo GPS satelital"]);
+  sheet.addRow([]);
+  sheet.addRow([]);
   sheet.addRow([]);
   sheet.addRows(rows);
-  sheet.mergeCells(2, 1, 2, columnCount);
-  sheet.getCell(2, 1).font = { bold: true, size: 18, color: { argb: BRAND.white } };
-  sheet.getCell(2, 1).fill = {
-    type: "pattern",
-    pattern: "solid",
-    fgColor: { argb: BRAND.navy },
-  };
-  sheet.getCell(2, 1).alignment = { vertical: "middle" };
-  sheet.getCell(3, 1).font = { italic: true, color: { argb: BRAND.slate } };
+
+  sheet.mergeCells(2, 1, 2, bandEnd);
+  sheet.getRow(1).height = 70;
+  sheet.getRow(2).height = 30;
+  sheet.getRow(4).height = 24;
+
+  for (let col = 1; col <= bandEnd; col += 1) {
+    sheet.getCell(3, col).fill = navyFill();
+    sheet.getCell(4, col).fill = navyFill();
+  }
+  sheet.getCell(3, 1).value = "ORB-LITE · Rastreo GPS satelital";
+  sheet.getCell(3, 1).font = { color: { argb: BRAND.white } };
+  sheet.mergeCells(4, 1, 4, bandEnd);
+  sheet.getCell(4, 1).value = title;
+  sheet.getCell(4, 1).font = { bold: true, size: 18, color: { argb: BRAND.white } };
+  sheet.getCell(4, 1).alignment = { vertical: "middle" };
 
   const logo = workbookImageAnchor(logoId, 0, 0, 128, 94);
   sheet.addImage(logo.id, logo.range);
-  sheet.getRow(1).height = 70;
-  sheet.getRow(2).height = 30;
 
-  const header = sheet.getRow(dataHeaderRow);
-  header.eachCell((cell) => {
-    cell.font = { bold: true, color: { argb: BRAND.navy } };
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND.lime } };
-    cell.alignment = { vertical: "middle", wrapText: true };
-    cell.border = {
-      top: { style: "thin", color: { argb: BRAND.navy } },
-      bottom: { style: "thin", color: { argb: BRAND.navy } },
-    };
-  });
-  sheet.getRow(dataHeaderRow).height = 28;
+  const header = sheet.getRow(5);
+  for (let col = 1; col <= columnCount; col += 1) headerStyle(header.getCell(col));
+  sheet.getRow(5).height = 28;
 
   for (let index = 1; index <= columnCount; index += 1) {
     sheet.getColumn(index).width = Math.min(
@@ -87,28 +124,49 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
     );
   }
 
-  for (
-    let rowNumber = dataHeaderRow + 1;
-    rowNumber <= dataHeaderRow + rows.length - 1;
-    rowNumber += 1
-  ) {
-    const row = sheet.getRow(rowNumber);
-    row.eachCell({ includeEmpty: true }, (cell) => {
-      cell.border = {
-        bottom: { style: "hair", color: { argb: BRAND.border } },
-      };
-      cell.alignment = { vertical: "middle", wrapText: false };
-      if ((rowNumber - dataHeaderRow) % 2 === 0) {
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND.stripe } };
-      }
-    });
-  }
+  stripeDataRows(sheet, columnCount, rows.length - 1);
 
   sheet.autoFilter = {
-    from: { row: dataHeaderRow, column: 1 },
-    to: { row: dataHeaderRow, column: columnCount },
+    from: { row: 5, column: 1 },
+    to: { row: 5, column: columnCount },
   };
-  sheet.views = [{ state: "frozen", ySplit: dataHeaderRow }];
+  sheet.views = [{ state: "frozen", ySplit: 5 }];
+  sheet.properties.tabColor = { argb: BRAND.lime };
+}
+
+/**
+ * Rellena la primera hoja de la plantilla real (logotipo, banda azul y
+ * encabezados ya vienen en el archivo) con los datos del reporte.
+ */
+function fillTemplateSheet(sheet: Worksheet, rows: ExcelCell[][], title: string) {
+  const columnCount = Math.max(...rows.map((row) => row.length), 1);
+
+  if (sheet.rowCount > 5) sheet.spliceRows(6, sheet.rowCount - 5);
+
+  sheet.getCell(4, 4).value = title;
+
+  const headerRow = sheet.getRow(5);
+  const header = rows[0] ?? [];
+  for (let col = 1; col <= header.length; col += 1) {
+    const cell = headerRow.getCell(col);
+    cell.value = header[col - 1] ?? null;
+    if (col > 5) headerStyle(cell);
+  }
+
+  for (const row of rows.slice(1)) sheet.addRow(row);
+  stripeDataRows(sheet, columnCount, rows.length - 1);
+
+  for (let col = 1; col <= columnCount; col += 1) {
+    const column = sheet.getColumn(col);
+    if (!column.width) {
+      column.width = Math.min(
+        34,
+        Math.max(14, ...rows.map((row) => String(row[col - 1] ?? "").length + 2)),
+      );
+    }
+  }
+
+  sheet.views = [{ state: "frozen", ySplit: 5 }];
   sheet.properties.tabColor = { argb: BRAND.lime };
 }
 
