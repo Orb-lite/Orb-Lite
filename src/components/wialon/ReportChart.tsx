@@ -23,7 +23,12 @@ import {
   type WialonUnit,
 } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
-import { downloadExcelWorkbook, type ExcelCell } from "@/lib/excel-export";
+import {
+  captureChartAsPng,
+  downloadExcelWorkbook,
+  type ExcelCell,
+  type ExcelMapDefinition,
+} from "@/lib/excel-export";
 
 const SERIES_COLORS = [
   "#92d700", // Lima distintivo ORB-LITE
@@ -82,6 +87,8 @@ export function ReportChart({ session }: { session: WialonSession }) {
   );
   const [exporting, setExporting] = React.useState(false);
   const [exportError, setExportError] = React.useState<string | null>(null);
+  const speedChartRef = React.useRef<HTMLDivElement>(null);
+  const sensorChartRef = React.useRef<HTMLDivElement>(null);
 
   const templatesQuery = useQuery({
     queryKey: ["wialon-report-templates", session.host, session.sid],
