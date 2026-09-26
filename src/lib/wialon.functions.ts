@@ -949,36 +949,47 @@ export const wialonGeofences = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
-    const resources = await wialonCall<{
-      items?: Array<{
-        id: number;
-        nm?: string;
-        zl?: Record<
-          string,
-          { id: number; n?: string; t?: number; c?: number; b?: { cen_x?: number; cen_y?: number; min_x?: number; max_x?: number } }
-        >;
-      }>;
-    }>(
-      host,
-      "core/search_items",
-      {
-        spec: {
-          itemsType: "avl_resource",
-          propName: "sys_name",
-          propValueMask: "*",
-          sortType: "sys_name",
-        },
-        force: 1,
-        // 0x1 base + 0x1000 geocercas: incluye las de todos los usuarios/recursos con acceso
-        flags: 0x1 | 0x1000,
-        from: 0,
-        to: 0,
-      },
-      data.sid,
+    type ZoneResource = {
+      id: number;
+      nm?: string;
+      zl?: Record<
+        string,
+        { id: number; n?: string; t?: number; c?: number; b?: { cen_x?: number; cen_y?: number; min_x?: number; max_x?: number } }
+      >;
+    };
+    // Búsqueda en cascada: recursos directos + todos los creados por
+    // usuarios/cuentas subordinados (árbol de creadores y de cuentas).
+    const specs = [
+      { itemsType: "avl_resource", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
+      { itemsType: "avl_resource", propName: "rel_user_creator_name", propValueMask: "*", sortType: "sys_name", propType: "creatortree" },
+      { itemsType: "avl_resource", propName: "rel_account_name", propValueMask: "*", sortType: "sys_name", propType: "accounttree" },
+    ];
+    const byId = new Map<number, ZoneResource>();
+    const results = await Promise.allSettled(
+      specs.map((spec) =>
+        wialonCall<{ items?: ZoneResource[] }>(
+          host,
+          "core/search_items",
+          { spec, force: 1, flags: 0x1 | 0x1000, from: 0, to: 0 },
+          data.sid,
+        ),
+      ),
     );
+    for (const r of results) {
+      if (r.status !== "fulfilled") continue;
+      for (const item of r.value.items ?? []) {
+        const prev = byId.get(item.id);
+        byId.set(item.id, { ...prev, ...item, zl: { ...(prev?.zl ?? {}), ...(item.zl ?? {}) } });
+      }
+    }
+    if (byId.size === 0) {
+      const failed = results.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
+      if (failed) throw failed.reason;
+    }
+    const resources = { items: [...byId.values()] };
 
     const zones: WialonGeofence[] = [];
-    for (const resource of resources.items ?? []) {
+    const loadResource = async (resource: ZoneResource) => {
       try {
         const res = await wialonCall<
           Array<{
@@ -1045,6 +1056,10 @@ export const wialonGeofences = createServerFn({ method: "POST" })
           });
         }
       }
+    };
+    const list = resources.items;
+    for (let i = 0; i < list.length; i += 8) {
+      await Promise.all(list.slice(i, i + 8).map(loadResource));
     }
 
     return {
