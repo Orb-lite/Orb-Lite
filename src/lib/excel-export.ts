@@ -106,6 +106,8 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   sheet.getRow(4).height = 24;
 
   for (let col = 1; col <= bandEnd; col += 1) {
+    sheet.getCell(1, col).fill = navyFill();
+    sheet.getCell(2, col).fill = navyFill();
     sheet.getCell(3, col).fill = navyFill();
     sheet.getCell(4, col).fill = navyFill();
   }
@@ -413,11 +415,12 @@ export async function downloadPdfReport({
 
   const logoDataUrl = await loadLogoDataUrl();
 
+  const pageHeight = doc.internal.pageSize.getHeight();
   const drawHeader = () => {
-    doc.setFillColor(22, 34, 61); // azul marino de la plantilla
-    doc.rect(0, 0, pageWidth, 74, "F");
+    doc.setFillColor(23, 35, 61); // fondo azul marino en toda la página
+    doc.rect(0, 0, pageWidth, pageHeight, "F");
     doc.addImage(logoDataUrl, "PNG", margin, 12, 84, 50);
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(215, 222, 232); // plateado
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
     doc.text(title, margin + 100, 36);
@@ -443,9 +446,9 @@ export async function downloadPdfReport({
       head: [(header ?? []).map((cell) => String(cell ?? ""))],
       body: body.map((row) => row.map((cell) => String(cell ?? ""))),
       margin: { left: margin, right: margin },
-      styles: { fontSize: 8, cellPadding: 4 },
+      styles: { fontSize: 8, cellPadding: 4, fillColor: [23, 35, 61], textColor: [215, 222, 232], lineColor: [163, 230, 53], lineWidth: 0.5 },
       headStyles: { fillColor: [163, 230, 53], textColor: [23, 35, 61], fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [244, 247, 251] },
+      alternateRowStyles: { fillColor: [34, 48, 78] },
       didDrawPage: () => drawHeader(),
     });
     cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 24;
@@ -454,7 +457,7 @@ export async function downloadPdfReport({
   for (const image of images ?? []) {
     doc.addPage();
     drawHeader();
-    doc.setTextColor(23, 35, 61);
+    doc.setTextColor(215, 222, 232);
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
     doc.text(image.title, margin, 110);
