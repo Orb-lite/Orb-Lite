@@ -58,7 +58,9 @@ export function VideoPlayer({
           resolution,
         },
       }),
-    onSuccess: (result) => setUrl(result.url),
+    onSuccess: (result) => {
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    },
   });
 
   // Reproduce la URL entregada por Wialon (HLS) en el elemento <video>.
@@ -162,8 +164,10 @@ export function VideoPlayer({
         ) : (
           <div className="flex size-full items-center justify-center text-center text-xs text-muted-foreground">
             {request.isPending
-              ? "Solicitando video a la plataforma…"
-              : "Presiona “Empezar a grabar” para solicitar la transmisión a la plataforma."}
+              ? "Abriendo el reproductor de Wialon…"
+              : request.isSuccess
+                ? "El video se abrió en el reproductor de Wialon (nueva pestaña)."
+                : "Presiona “Empezar a grabar” para abrir el video en Wialon."}
           </div>
         )}
       </div>
