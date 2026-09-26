@@ -931,10 +931,6 @@ function RutasView({ session }: { session: WialonSession }) {
                     ? "Buscando direcciones…"
                     : "Buscar puntos en el mapa"}
                 </button>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Ubica el origen y cada dirección como un punto numerado antes
-                  de optimizar.
-                </p>
               </div>
 
               <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm">
