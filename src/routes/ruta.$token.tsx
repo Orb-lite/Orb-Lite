@@ -11,6 +11,19 @@ import {
 } from "@/lib/route-share.functions";
 import { downloadExcelWorkbook } from "@/lib/excel-export";
 
+const SharedRouteMap = React.lazy(() => import("@/components/wialon/SharedRouteMap"));
+
+function getPosition(): Promise<{ lat: number; lon: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) return reject(new Error("Tu teléfono no permite ubicación."));
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      () => reject(new Error("Activa tu ubicación para marcar la visita.")),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+    );
+  });
+}
+
 export const Route = createFileRoute("/ruta/$token")({
   head: () => ({
     meta: [
@@ -39,11 +52,12 @@ type SharedStop = {
   lon: number;
   visitedAt?: string | null;
   comment?: string | null;
+  contact?: boolean | null;
 };
 
 async function exportVisitReport(routeName: string, stops: SharedStop[]) {
   const rows = [
-    ["Parada", "Ubicación", "Latitud", "Longitud", "Hora de visita", "Comentario"],
+    ["Parada", "Ubicación", "Latitud", "Longitud", "Hora de visita", "Acercamiento", "Nota"],
     ...stops.map((stop, index) => [
       index === 0 ? "Salida" : `Parada ${index}`,
       stop.label,
@@ -58,6 +72,7 @@ async function exportVisitReport(routeName: string, stops: SharedStop[]) {
             minute: "2-digit",
           })
         : "Sin visitar",
+      stop.contact == null ? "" : stop.contact ? "Sí" : "No",
       stop.comment ?? "",
     ]),
   ];
@@ -76,6 +91,19 @@ function SharedRoutePage() {
   const [busyIndex, setBusyIndex] = React.useState<number | null>(null);
   const [sending, setSending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [checking, setChecking] = React.useState<number | null>(null);
+  const [me, setMe] = React.useState<{ lat: number; lon: number } | null>(null);
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    setMounted(true);
+    if (!navigator.geolocation) return;
+    const id = navigator.geolocation.watchPosition(
+      (p) => setMe({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      () => undefined,
+      { enableHighAccuracy: true, maximumAge: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, []);
 
   const query = useQuery({
     queryKey: ["shared-route", token],
@@ -89,14 +117,24 @@ function SharedRoutePage() {
   const nextIndex = stops.findIndex((stop) => !stop.visitedAt);
   const doneCount = stops.filter((stop) => stop.visitedAt).length;
 
-  async function toggleStop(index: number, visited: boolean) {
+  async function toggleStop(
+    index: number,
+    visited: boolean,
+    check?: { contact: boolean; note: string },
+  ) {
+    if (visited && !check) {
+      setChecking(index);
+      return;
+    }
     setBusyIndex(index);
     setError(null);
     try {
-      await markVisited({ data: { token, stopIndex: index, visited } });
+      const pos = visited ? await getPosition() : undefined;
+      await markVisited({ data: { token, stopIndex: index, visited, ...pos, ...check } });
+      setChecking(null);
       await queryClient.invalidateQueries({ queryKey: ["shared-route", token] });
-    } catch {
-      setError("No se pudo actualizar la parada. Intenta de nuevo.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo actualizar la parada.");
     } finally {
       setBusyIndex(null);
     }
@@ -160,7 +198,20 @@ function SharedRoutePage() {
           </a>
         ) : null}
 
-        {error ? (
+        {route && mounted ? (
+          <div className="mb-6 overflow-hidden rounded-xl border border-border/70">
+            <React.Suspense fallback={<div className="h-64 bg-card" />}>
+              <SharedRouteMap
+                path={route.path}
+                stops={stops.map((s) => ({ ...s, visited: Boolean(s.visitedAt) }))}
+                nextIndex={nextIndex}
+                me={me}
+              />
+            </React.Suspense>
+          </div>
+        ) : null}
+
+        {error && checking === null ? (
           <p className="mb-4 text-center text-sm text-destructive">{error}</p>
         ) : null}
 
@@ -225,8 +276,24 @@ function SharedRoutePage() {
                       Siguiente parada
                     </p>
                   ) : null}
+                  {visited && stop.contact != null ? (
+                    <p className="text-xs text-primary">
+                      {stop.contact ? "Con acercamiento" : "Sin acercamiento"}
+                    </p>
+                  ) : null}
                   {visited ? (
                     <CommentBox token={token} index={index} initial={stop.comment ?? ""} />
+                  ) : null}
+                  {checking === index ? (
+                    <CheckForm
+                      busy={busyIndex === index}
+                      error={error}
+                      onCancel={() => {
+                        setChecking(null);
+                        setError(null);
+                      }}
+                      onConfirm={(check) => void toggleStop(index, true, check)}
+                    />
                   ) : null}
                 </div>
 
@@ -283,6 +350,11 @@ function SharedRoutePage() {
                         })}
                       </span>
                     </div>
+                    {stop.contact != null ? (
+                      <p className="mt-0.5 text-xs text-primary">
+                        {stop.contact ? "Con acercamiento" : "Sin acercamiento"}
+                      </p>
+                    ) : null}
                     {stop.comment ? (
                       <p className="mt-0.5 text-xs text-muted-foreground">{stop.comment}</p>
                     ) : null}
@@ -295,6 +367,63 @@ function SharedRoutePage() {
             ) : null}
           </section>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+function CheckForm({
+  busy,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  busy: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onConfirm: (check: { contact: boolean; note: string }) => void;
+}) {
+  const [contact, setContact] = React.useState<boolean | null>(null);
+  const [note, setNote] = React.useState("");
+  const ready = contact !== null && note.trim().length >= 3;
+  return (
+    <div className="mt-3 space-y-2 rounded-lg border border-primary/40 bg-background/60 p-3">
+      <p className="text-xs font-semibold">¿Tuviste acercamiento?</p>
+      <div className="flex gap-2">
+        {[true, false].map((v) => (
+          <button
+            key={String(v)}
+            type="button"
+            onClick={() => setContact(v)}
+            className={`flex-1 rounded-md border px-2 py-1.5 text-xs font-semibold ${
+              contact === v ? "border-primary bg-primary text-primary-foreground" : "border-border"
+            }`}
+          >
+            {v ? "Sí" : "No"}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        rows={2}
+        maxLength={1000}
+        placeholder="Nota de la visita"
+        className="w-full resize-none rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+      />
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      <div className="flex gap-2">
+        <button type="button" onClick={onCancel} className="flex-1 rounded-md border border-border px-2 py-1.5 text-xs">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          disabled={!ready || busy}
+          onClick={() => contact !== null && onConfirm({ contact, note: note.trim() })}
+          className="flex-1 rounded-md bg-primary px-2 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-50"
+        >
+          {busy ? "Verificando…" : "Confirmar visita"}
+        </button>
       </div>
     </div>
   );
