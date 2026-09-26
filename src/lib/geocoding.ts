@@ -228,7 +228,8 @@ export async function smartGeocode(
     nominatimQueries.push(shortName);
   }
 
-  for (const query of nominatimQueries) {
+  for (const [i, query] of nominatimQueries.entries()) {
+    if (i > 0) await new Promise((r) => setTimeout(r, 1100));
     try {
       const nominatimUrl = new URL("https://nominatim.openstreetmap.org/search");
       nominatimUrl.searchParams.set("format", "jsonv2");
