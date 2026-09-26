@@ -323,7 +323,7 @@ export const wialonVideoUnits = createServerFn({ method: "POST" })
           data.sid,
         );
         for (const item of res.items ?? []) {
-          if (item.id != null) byId.set(item.id, { id: item.id, nm: item.nm });
+          if (item.id != null) byId.set(item.id, { id: item.id, ...(item.nm != null ? { nm: item.nm } : {}) });
         }
       } catch (reason) {
         console.error("[video] search_items", spec.propType ?? "direct", reason);
