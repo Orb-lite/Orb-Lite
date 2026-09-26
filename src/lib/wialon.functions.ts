@@ -978,6 +978,7 @@ export const wialonGeofences = createServerFn({ method: "POST" })
         );
         results.push({ status: "fulfilled", value });
       } catch (reason) {
+        console.error("[geocercas] search_items", spec.propType ?? "direct", reason);
         results.push({ status: "rejected", reason });
       }
     }
@@ -993,6 +994,7 @@ export const wialonGeofences = createServerFn({ method: "POST" })
       if (failed) throw failed.reason;
     }
     const resources = { items: [...byId.values()] };
+    console.log("[geocercas] recursos", resources.items.length);
 
     const zones: WialonGeofence[] = [];
     type ZoneData = Array<{
