@@ -14,9 +14,11 @@ import {
   Building2,
   RefreshCw,
   Eye,
+  EyeOff,
   Lock,
   ShieldCheck,
   Layers,
+  Route as RouteIcon,
 } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { PlatformHeader } from "@/components/wialon/PlatformHeader";
@@ -36,6 +38,8 @@ import {
   wialonGeocodeAddresses,
   wialonGeofences,
   wialonPlanRoute,
+  wialonLogisticsRoutes,
+  type WialonLogisticsRoute,
   type WialonGeocodedAddress,
   type WialonPlannedRoutePoint,
   type WialonPlannedRouteStop,
