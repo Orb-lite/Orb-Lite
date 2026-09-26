@@ -40,7 +40,7 @@ export const shareUserRoute = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        userId: z.number().int().positive(),
+        userId: z.number().int().nonnegative(),
         routeId: z.string().min(1),
         reportEmail: z.string().trim().email().max(255),
       })
