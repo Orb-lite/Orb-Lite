@@ -11,12 +11,30 @@ export type SharedRouteView = {
     lon: number;
     visitedAt: string | null;
     comment: string | null;
+    contact: boolean | null;
+    checkDistance: number | null;
   }>;
+  path: Array<{ lat: number; lon: number }>;
   reportSent: boolean;
 };
 
+/** Distancia máxima (m) para aceptar el check de una parada. */
+export const CHECK_RADIUS_METERS = 300;
+
+function distanceMeters(aLat: number, aLon: number, bLat: number, bLon: number) {
+  const r = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(bLat - aLat);
+  const dLon = toRad(bLon - aLon);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * r * Math.asin(Math.sqrt(h));
+}
+
 function toView(route: {
   name: string;
+  points?: Array<{ lat: number; lon: number }>;
   origin?: string;
   stops?: SharedRouteStop[];
   reportSentAt?: string;
@@ -30,7 +48,10 @@ function toView(route: {
       lon: stop.lon,
       visitedAt: stop.visitedAt ?? null,
       comment: stop.comment ?? null,
+      contact: stop.contact ?? null,
+      checkDistance: stop.checkDistance ?? null,
     })),
+    path: (route.points ?? []).map((p) => ({ lat: p.lat, lon: p.lon })),
     reportSent: Boolean(route.reportSentAt),
   };
 }
@@ -121,15 +142,38 @@ export const markSharedStopVisited = createServerFn({ method: "POST" })
         token: z.string().min(16),
         stopIndex: z.number().int().min(0),
         visited: z.boolean(),
+        lat: z.number().min(-90).max(90).optional(),
+        lon: z.number().min(-180).max(180).optional(),
+        contact: z.boolean().optional(),
+        note: z.string().trim().max(1000).optional(),
       })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const { markSharedStop } = await import("./user-routes.server");
+    const { markSharedStop, getRouteByShareToken } = await import("./user-routes.server");
+    let check: { contact: boolean; note: string; distance: number } | undefined;
+    if (data.visited) {
+      if (data.lat == null || data.lon == null) {
+        throw new Error("Activa tu ubicación para marcar la visita.");
+      }
+      if (data.contact == null || !data.note || data.note.length < 3) {
+        throw new Error("Escribe una nota de la visita.");
+      }
+      const current = await getRouteByShareToken(data.token);
+      const stop = current?.stops?.[data.stopIndex];
+      if (!stop) throw new Error("No se pudo actualizar la parada.");
+      const distance = distanceMeters(data.lat, data.lon, stop.lat, stop.lon);
+      if (distance > CHECK_RADIUS_METERS) {
+        const km = distance >= 1000 ? `${(distance / 1000).toFixed(1)} km` : `${Math.round(distance)} m`;
+        throw new Error(`Estás a ${km} de la parada. Acércate para marcarla.`);
+      }
+      check = { contact: data.contact, note: data.note, distance };
+    }
     const route = await markSharedStop(
       data.token,
       data.stopIndex,
       data.visited,
+      check,
     );
     if (!route) throw new Error("No se pudo actualizar la parada.");
     return toView(route);
@@ -203,7 +247,10 @@ async function maybeSendReport(token: string) {
         stops: route.stops.map((s) => ({
           label: s.label,
           visitedAt: s.visitedAt ?? null,
-          comment: s.comment ?? null,
+          comment:
+            s.contact == null
+              ? (s.comment ?? null)
+              : `${s.contact ? "Con acercamiento" : "Sin acercamiento"}${s.comment ? ` · ${s.comment}` : ""}`,
         })),
       },
       idempotencyKey: `reporte-visitas-${token}-${route.stops.map((s) => s.visitedAt).join("|").length}-${route.stops[route.stops.length - 1]?.visitedAt ?? ""}`,
