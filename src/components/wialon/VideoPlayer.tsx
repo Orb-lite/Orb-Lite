@@ -60,6 +60,12 @@ export function VideoPlayer({
         },
       }),
     onSuccess: (result) => {
+      if (result.service === "hls") {
+        popupRef.current?.close();
+        popupRef.current = null;
+        setUrl(result.url);
+        return;
+      }
       const win = popupRef.current;
       if (win && !win.closed) win.location.href = result.url;
       else window.open(result.url, "_blank");
