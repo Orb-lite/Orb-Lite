@@ -20,6 +20,13 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    server: {
+      host: "0.0.0.0",
+      port: 3000,
+      allowedHosts: true,
+      hmr: process.env.DISABLE_HMR !== "true",
+      watch: process.env.DISABLE_HMR === "true" ? null : {},
+    },
     resolve: {
       alias: {
         // React Email requires entities v4.5.0; bypass nested newer copies.
