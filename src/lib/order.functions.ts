@@ -1,0 +1,267 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { ADD_ONS, IVA_RATE, SHIPPING_OPTIONS, findVariant } from "@/data/catalog";
+import { sendTemplateEmail } from "@/lib/email-templates/send-email";
+
+const renewalSchema = z.object({
+  fullName: z.string().min(1),
+  unitName: z.string().max(100).optional().nullable(),
+  imei: z.string().max(20).optional().nullable(),
+  iccid: z.string().max(25).optional().nullable(),
+  simPhone: z.string().max(25).optional().nullable(),
+});
+
+const shippingInfoSchema = z.object({
+  fullName: z.string().min(1),
+  phone: z.string().min(1),
+  email: z.string().email().nullish(),
+  city: z.string().min(1),
+  state: z.string().min(1),
+  zip: z.string().min(1),
+});
+
+const pickupInfoSchema = z.object({
+  fullName: z.string().min(1),
+  phone: z.string().min(1),
+  email: z.string().email().nullish(),
+});
+
+const billingInfoSchema = z.object({
+  legalName: z.string().min(1),
+  rfc: z.string().min(1),
+  taxRegime: z.string().min(1),
+  cfdiUse: z.string().min(1),
+  fiscalZip: z.string().min(1),
+  email: z.string().email(),
+  phone: z.string().min(1),
+  fiscalAddress: z.string().optional().nullable(),
+  constanciaFileName: z.string().max(200).nullish(),
+  constanciaUrl: z.string().url().nullish(),
+});
+
+const orderSchema = z.object({
+  orderId: z.string().min(1).max(64),
+  customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
+  items: z
+    .array(
+      z.object({
+        id: z.string(),
+        variant_id: z.string(),
+        quantity: z.number().int().min(1).max(100),
+        add_ons: z.array(z.string()).optional(),
+        renewal: renewalSchema.nullish(),
+      }),
+    )
+    .min(1)
+    .max(50),
+  shippingId: z.enum(["local", "national"]),
+  shippingInfo: shippingInfoSchema.nullish(),
+  pickupInfo: pickupInfoSchema.nullish(),
+  wantsInvoice: z.boolean(),
+  billingInfo: billingInfoSchema.nullish(),
+});
+
+export const notifyNewOrder = createServerFn({ method: "POST" })
+  .inputValidator((data) => orderSchema.parse(data))
+  .handler(async ({ data }) => {
+    const shipping = SHIPPING_OPTIONS.find((s) => s.id === data.shippingId) ?? SHIPPING_OPTIONS[0]!;
+
+    let productsTotal = 0;
+    const lines = data.items.flatMap((item) => {
+      const found = findVariant(item.variant_id);
+      if (!found) return [];
+      const addOns = (item.add_ons ?? [])
+        .map((id) => ADD_ONS.find((a) => a.id === id))
+        .filter((a): a is NonNullable<typeof a> => Boolean(a))
+        .map((a) => ({ name: a.name, price: a.price }));
+      const productAmount = found.variant.price * item.quantity;
+      const addOnAmount = addOns.reduce((sum, a) => sum + a.price, 0) * item.quantity;
+      productsTotal += productAmount + addOnAmount;
+      return [
+        {
+          variantName: found.variant.name,
+          title: found.product.title,
+          quantity: item.quantity,
+          unitPrice: found.variant.price,
+          lineTotal: productAmount + addOnAmount,
+          addOns,
+          isRenewal: found.product.category === "RENOVATION",
+          renewal: item.renewal ?? null,
+        },
+      ];
+    });
+
+    if (lines.length === 0) {
+      throw new Error("El pedido no contiene productos válidos");
+    }
+
+    const total = productsTotal + shipping.price;
+    const subtotalWithoutIva = total / (1 + IVA_RATE);
+    const isNational = data.shippingId === "national";
+
+    // Bitácora en base de datos: cada solicitud nace como "pendiente" y el
+    // equipo de ventas la marca como "vendido" o "no_vendido" desde la BD.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const contact = isNational ? data.shippingInfo : data.pickupInfo;
+      const { error } = await supabaseAdmin.from("solicitudes").insert({
+        order_id: data.orderId,
+        customer_number: data.customerNumber ?? null,
+        full_name: contact?.fullName ?? data.billingInfo?.legalName ?? null,
+        phone: contact?.phone ?? data.billingInfo?.phone ?? null,
+        email: data.billingInfo?.email ?? null,
+        items: lines,
+        shipping_label: shipping.label,
+        wants_invoice: data.wantsInvoice,
+        billing: data.wantsInvoice ? (data.billingInfo ?? null) : null,
+        total,
+        status: "pendiente",
+      });
+      if (error) console.error("No se pudo registrar la solicitud en BD", error);
+    } catch (error) {
+      console.error("No se pudo registrar la solicitud en BD", error);
+    }
+
+    // Historial del cliente para la bitácora del correo.
+    let ordersCount: number | null = null;
+    let totalSpent: number | null = null;
+    if (data.customerNumber) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: customer } = await supabaseAdmin
+          .from("customers")
+          .select("orders_count, total_spent")
+          .eq("customer_number", data.customerNumber)
+          .maybeSingle();
+        if (customer) {
+          ordersCount = customer.orders_count;
+          totalSpent = Number(customer.total_spent);
+        }
+      } catch (error) {
+        console.error("No se pudo consultar el historial del cliente", error);
+      }
+    }
+    const isFirstPurchase = ordersCount !== null ? ordersCount <= 1 : null;
+
+    await sendTemplateEmail("nuevo-pedido", "ventas@orb-lite.com", {
+      idempotencyKey: `nuevo-pedido-${data.orderId}`,
+      templateData: {
+        orderId: data.orderId,
+        customerNumber: data.customerNumber ?? null,
+        ordersCount,
+        totalSpent,
+        isFirstPurchase,
+        lines,
+        shippingLabel: shipping.label,
+        shippingPrice: shipping.price,
+        productsTotal,
+        subtotalWithoutIva,
+        iva: total - subtotalWithoutIva,
+        total,
+        totalItems: data.items.reduce((sum, i) => sum + i.quantity, 0),
+        isNational,
+        shippingInfo: isNational ? (data.shippingInfo ?? null) : null,
+        pickupInfo: !isNational ? (data.pickupInfo ?? null) : null,
+        wantsInvoice: data.wantsInvoice,
+        billingInfo: data.wantsInvoice ? (data.billingInfo ?? null) : null,
+      },
+    });
+
+    // Confirmación para el cliente al correo que capturó en sus datos de entrega.
+    const contact = isNational ? data.shippingInfo : data.pickupInfo;
+    const customerEmail = contact?.email ?? data.billingInfo?.email ?? null;
+    if (customerEmail) {
+      try {
+        await sendTemplateEmail("confirmacion-pedido", customerEmail, {
+          idempotencyKey: `confirmacion-pedido-${data.orderId}`,
+          templateData: {
+            orderId: data.orderId,
+            customerName: contact?.fullName ?? data.billingInfo?.legalName ?? null,
+            customerNumber: data.customerNumber ?? null,
+            ordersCount,
+            lines,
+            shippingLabel: shipping.label,
+            shippingPrice: shipping.price,
+            productsTotal,
+            subtotalWithoutIva,
+            iva: total - subtotalWithoutIva,
+            total,
+            isNational,
+            wantsInvoice: data.wantsInvoice,
+          },
+        });
+      } catch (error) {
+        console.error("No se pudo enviar la confirmación al cliente", error);
+      }
+    }
+
+    // Comprobante de venta (formato de factura) al cliente y a ventas.
+    const comprobanteData = {
+      orderId: data.orderId,
+      issuedAt: new Date().toLocaleString("es-MX", { timeZone: "America/Mexico_City" }),
+      channel: "Tienda en línea",
+      customerName: contact?.fullName ?? data.billingInfo?.legalName ?? null,
+      customerNumber: data.customerNumber ?? null,
+      customerEmail: customerEmail,
+      customerPhone: contact?.phone ?? data.billingInfo?.phone ?? null,
+      lines,
+      shippingLabel: shipping.label,
+      shippingPrice: shipping.price,
+      productsTotal,
+      subtotalWithoutIva,
+      iva: total - subtotalWithoutIva,
+      total,
+      wantsInvoice: data.wantsInvoice,
+      billingInfo: data.wantsInvoice ? (data.billingInfo ?? null) : null,
+    };
+
+    const comprobanteTargets = [
+      { to: "ventas@orb-lite.com", key: `comprobante-${data.orderId}-ventas` },
+      ...(customerEmail ? [{ to: customerEmail, key: `comprobante-${data.orderId}-cliente` }] : []),
+    ];
+    for (const target of comprobanteTargets) {
+      try {
+        await sendTemplateEmail("comprobante-venta", target.to, {
+          idempotencyKey: target.key,
+          templateData: comprobanteData,
+        });
+      } catch (error) {
+        console.error("No se pudo enviar el comprobante de venta", error);
+      }
+    }
+
+    // Programa los avisos de renovación (10, 5, 3 y 1 día antes del corte).
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { registerRenewals } = await import("@/lib/renovaciones.server");
+      const renewalLines = data.items.flatMap((item) => {
+        const found = findVariant(item.variant_id);
+        if (!found || found.product.category !== "RENOVATION") return [];
+        return [
+          {
+            variantId: item.variant_id,
+            variantName: found.variant.name,
+            amount: found.variant.price * item.quantity,
+            renewal: (item.renewal ?? null) as Record<string, string | null | undefined> | null,
+          },
+        ];
+      });
+      if (renewalLines.length > 0) {
+        await registerRenewals(
+          supabaseAdmin,
+          {
+            orderId: data.orderId,
+            customerNumber: data.customerNumber ?? null,
+            customerName: contact?.fullName ?? data.billingInfo?.legalName ?? null,
+            customerEmail: customerEmail,
+            customerPhone: contact?.phone ?? data.billingInfo?.phone ?? null,
+          },
+          renewalLines,
+        );
+      }
+    } catch (error) {
+      console.error("No se pudieron programar los avisos de renovación", error);
+    }
+
+    return { ok: true as const };
+  });

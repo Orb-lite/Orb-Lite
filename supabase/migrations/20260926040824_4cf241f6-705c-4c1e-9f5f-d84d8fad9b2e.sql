@@ -1,0 +1,1 @@
+CREATE POLICY "Sin acceso directo" ON public.user_routes FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
