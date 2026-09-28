@@ -1,5 +1,4 @@
 import { o as __toESM } from "../_runtime.mjs";
-import { n as AnimatePresence, t as motion } from "../_libs/framer-motion+[...].mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { t as Button } from "./button-Bq5vK6RO.mjs";
@@ -7,6 +6,7 @@ import { n as toast } from "../_libs/sonner.mjs";
 import { c as formatMxn, i as SHIPPING_OPTIONS, r as PRODUCTS } from "./catalog-BhuVKh9L.mjs";
 import { A as MapPin, E as MessageCircle, Y as Cpu, d as ShieldCheck, et as CircleCheck, o as Truck, p as Satellite, u as ShoppingCart } from "../_libs/lucide-react.mjs";
 import { t as openWhatsApp } from "./whatsapp-k5-h86dD.mjs";
+import { n as AnimatePresence, t as motion } from "../_libs/framer-motion+[...].mjs";
 import { c as formatRenewalInfo, d as validatePickup, f as validateRenewal, i as ShippingForm, l as formatShippingInfo, n as PickupForm, p as validateShipping, r as RenewalForm, s as formatPickupInfo, t as CtaBanner, u as useCartStore } from "./site-chrome-BvyCz3JB.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/tienda-B1dVxcP8.js
 var import_react = /* @__PURE__ */ __toESM(require_react());

@@ -1,7 +1,6 @@
 import { c as createServerFn } from "./createServerFn-CIHAFgYl.mjs";
 import { o as objectType, r as enumType, s as stringType } from "../_libs/zod.mjs";
 import { t as createServerRpc } from "./createServerRpc-B90ckaqP.mjs";
-import processModule from "node:process";
 //#region node_modules/.nitro/vite/services/ssr/assets/panel.functions-D5R59oq5.js
 var STATUSES = [
 	"pendiente",
@@ -9,7 +8,7 @@ var STATUSES = [
 	"no_vendido"
 ];
 function assertToken(token) {
-	const expected = processModule.env["ADMIN_PANEL_TOKEN"];
+	const expected = process.env["ADMIN_PANEL_TOKEN"];
 	if (!expected) throw new Error("Panel no configurado");
 	if (token !== expected) throw new Error("No autorizado");
 }

@@ -1,4 +1,3 @@
-import processModule from "node:process";
 //#region node_modules/.nitro/vite/services/ssr/assets/google-maps.server-DI0jyeyu.js
 /**
 * Acceso server-side a Google Maps Platform (Places New + Routes API)
@@ -6,8 +5,8 @@ import processModule from "node:process";
 */
 var GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
 function gatewayHeaders() {
-	const lovableKey = processModule.env["LOVABLE_API_KEY"];
-	const mapsKey = processModule.env["GOOGLE_MAPS_API_KEY"];
+	const lovableKey = process.env["LOVABLE_API_KEY"];
+	const mapsKey = process.env["GOOGLE_MAPS_API_KEY"];
 	if (!lovableKey || !mapsKey) throw new Error("La conexión de Google Maps no está configurada.");
 	return {
 		Authorization: `Bearer ${lovableKey}`,

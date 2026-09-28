@@ -1,33 +1,29 @@
 import { a as __toCommonJS, i as __require, n as __esmMin, r as __exportAll, t as __commonJSMin } from "../_runtime.mjs";
-import { a as globalthis_default, o as init_globalthis } from "./@fast-csv/format+[...].mjs";
-import processModule from "node:process";
-import { Buffer } from "node:buffer";
-import { setImmediate } from "node:timers";
 //#region node_modules/process-nextick-args/index.js
 var require_process_nextick_args = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	if (typeof processModule === "undefined" || !processModule.version || processModule.version.indexOf("v0.") === 0 || processModule.version.indexOf("v1.") === 0 && processModule.version.indexOf("v1.8.") !== 0) module.exports = { nextTick };
-	else module.exports = processModule;
+	if (typeof process === "undefined" || !process.version || process.version.indexOf("v0.") === 0 || process.version.indexOf("v1.") === 0 && process.version.indexOf("v1.8.") !== 0) module.exports = { nextTick };
+	else module.exports = process;
 	function nextTick(fn, arg1, arg2, arg3) {
 		if (typeof fn !== "function") throw new TypeError("\"callback\" argument must be a function");
 		var len = arguments.length;
 		var args, i;
 		switch (len) {
 			case 0:
-			case 1: return processModule.nextTick(fn);
-			case 2: return processModule.nextTick(function afterTickOne() {
+			case 1: return process.nextTick(fn);
+			case 2: return process.nextTick(function afterTickOne() {
 				fn.call(null, arg1);
 			});
-			case 3: return processModule.nextTick(function afterTickTwo() {
+			case 3: return process.nextTick(function afterTickTwo() {
 				fn.call(null, arg1, arg2);
 			});
-			case 4: return processModule.nextTick(function afterTickThree() {
+			case 4: return process.nextTick(function afterTickThree() {
 				fn.call(null, arg1, arg2, arg3);
 			});
 			default:
 				args = new Array(len - 1);
 				i = 0;
 				while (i < args.length) args[i++] = arguments[i];
-				return processModule.nextTick(function afterTick() {
+				return process.nextTick(function afterTick() {
 					fn.apply(null, args);
 				});
 		}
@@ -101,7 +97,7 @@ var require_util$2 = /* @__PURE__ */ __commonJSMin(((exports) => {
 		return arg === null || typeof arg === "boolean" || typeof arg === "number" || typeof arg === "string" || typeof arg === "symbol" || typeof arg === "undefined";
 	}
 	exports.isPrimitive = isPrimitive;
-	exports.isBuffer = __require("node:buffer").Buffer.isBuffer;
+	exports.isBuffer = __require("buffer").Buffer.isBuffer;
 	function objectToString(o) {
 		return Object.prototype.toString.call(o);
 	}
@@ -134,7 +130,7 @@ var require_inherits_browser = /* @__PURE__ */ __commonJSMin(((exports, module) 
 //#region node_modules/inherits/inherits.js
 var require_inherits = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	try {
-		var util$6 = __require("node:util");
+		var util$6 = __require("util");
 		/* istanbul ignore next */
 		if (typeof util$6.inherits !== "function") throw "";
 		module.exports = util$6.inherits;
@@ -149,12 +145,12 @@ var require_node = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/**
 	* For Node.js, simply re-export the core `util.deprecate` function.
 	*/
-	module.exports = __require("node:util").deprecate;
+	module.exports = __require("util").deprecate;
 }));
 //#endregion
 //#region node_modules/readable-stream/lib/internal/streams/stream.js
 var require_stream$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	module.exports = __require("node:stream");
+	module.exports = __require("stream");
 }));
 //#endregion
 //#region node_modules/readable-stream/lib/internal/streams/buffer_list.js
@@ -223,8 +219,8 @@ var require_buffer_list = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		return (hint === "string" ? String : Number)(input);
 	}
-	var Buffer$5 = __require("node:buffer").Buffer;
-	var inspect = __require("node:util").inspect;
+	var Buffer$5 = __require("buffer").Buffer;
+	var inspect = __require("util").inspect;
 	var custom = inspect && inspect.custom || "inspect";
 	function copyBuffer(src, target, offset) {
 		Buffer$5.prototype.copy.call(src, target, offset);
@@ -406,10 +402,10 @@ var require_destroy$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (readableDestroyed || writableDestroyed) {
 			if (cb) cb(err);
 			else if (err) {
-				if (!this._writableState) processModule.nextTick(emitErrorNT, this, err);
+				if (!this._writableState) process.nextTick(emitErrorNT, this, err);
 				else if (!this._writableState.errorEmitted) {
 					this._writableState.errorEmitted = true;
-					processModule.nextTick(emitErrorNT, this, err);
+					process.nextTick(emitErrorNT, this, err);
 				}
 			}
 			return this;
@@ -417,15 +413,15 @@ var require_destroy$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (this._readableState) this._readableState.destroyed = true;
 		if (this._writableState) this._writableState.destroyed = true;
 		this._destroy(err || null, function(err) {
-			if (!cb && err) if (!_this._writableState) processModule.nextTick(emitErrorAndCloseNT, _this, err);
+			if (!cb && err) if (!_this._writableState) process.nextTick(emitErrorAndCloseNT, _this, err);
 			else if (!_this._writableState.errorEmitted) {
 				_this._writableState.errorEmitted = true;
-				processModule.nextTick(emitErrorAndCloseNT, _this, err);
-			} else processModule.nextTick(emitCloseNT, _this);
+				process.nextTick(emitErrorAndCloseNT, _this, err);
+			} else process.nextTick(emitCloseNT, _this);
 			else if (cb) {
-				processModule.nextTick(emitCloseNT, _this);
+				process.nextTick(emitCloseNT, _this);
 				cb(err);
-			} else processModule.nextTick(emitCloseNT, _this);
+			} else process.nextTick(emitCloseNT, _this);
 		});
 		return this;
 	}
@@ -563,7 +559,6 @@ var require_state = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/readable-stream/lib/_stream_writable.js
 var require__stream_writable$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	module.exports = Writable;
 	function CorkedRequest(state) {
 		var _this = this;
@@ -577,8 +572,8 @@ var require__stream_writable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 	Writable.WritableState = WritableState;
 	var internalUtil = { deprecate: require_node() };
 	var Stream = require_stream$2();
-	var Buffer$4 = __require("node:buffer").Buffer;
-	var OurUint8Array = (typeof globalthis_default !== "undefined" ? globalthis_default : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
+	var Buffer$4 = __require("buffer").Buffer;
+	var OurUint8Array = (typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
 	function _uint8ArrayToBuffer(chunk) {
 		return Buffer$4.from(chunk);
 	}
@@ -682,7 +677,7 @@ var require__stream_writable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 	function writeAfterEnd(stream, cb) {
 		var er = new ERR_STREAM_WRITE_AFTER_END();
 		errorOrDestroy(stream, er);
-		processModule.nextTick(cb, er);
+		process.nextTick(cb, er);
 	}
 	function validChunk(stream, state, chunk, cb) {
 		var er;
@@ -690,7 +685,7 @@ var require__stream_writable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 		else if (typeof chunk !== "string" && !state.objectMode) er = new ERR_INVALID_ARG_TYPE("chunk", ["string", "Buffer"], chunk);
 		if (er) {
 			errorOrDestroy(stream, er);
-			processModule.nextTick(cb, er);
+			process.nextTick(cb, er);
 			return false;
 		}
 		return true;
@@ -799,8 +794,8 @@ var require__stream_writable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 	function onwriteError(stream, state, sync, er, cb) {
 		--state.pendingcb;
 		if (sync) {
-			processModule.nextTick(cb, er);
-			processModule.nextTick(finishMaybe, stream, state);
+			process.nextTick(cb, er);
+			process.nextTick(finishMaybe, stream, state);
 			stream._writableState.errorEmitted = true;
 			errorOrDestroy(stream, er);
 		} else {
@@ -826,7 +821,7 @@ var require__stream_writable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 		else {
 			var finished = needFinish(state) || stream.destroyed;
 			if (!finished && !state.corked && !state.bufferProcessing && state.bufferedRequest) clearBuffer(stream, state);
-			if (sync) processModule.nextTick(afterWrite, stream, state, finished, cb);
+			if (sync) process.nextTick(afterWrite, stream, state, finished, cb);
 			else afterWrite(stream, state, finished, cb);
 		}
 	}
@@ -926,7 +921,7 @@ var require__stream_writable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 		if (!state.prefinished && !state.finalCalled) if (typeof stream._final === "function" && !state.destroyed) {
 			state.pendingcb++;
 			state.finalCalled = true;
-			processModule.nextTick(callFinal, stream, state);
+			process.nextTick(callFinal, stream, state);
 		} else {
 			state.prefinished = true;
 			stream.emit("prefinish");
@@ -950,7 +945,7 @@ var require__stream_writable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 	function endWritable(stream, state, cb) {
 		state.ending = true;
 		finishMaybe(stream, state);
-		if (cb) if (state.finished) processModule.nextTick(cb);
+		if (cb) if (state.finished) process.nextTick(cb);
 		else stream.once("finish", cb);
 		state.ended = true;
 		stream.writable = false;
@@ -1034,7 +1029,7 @@ var require__stream_duplex$2 = /* @__PURE__ */ __commonJSMin(((exports, module) 
 	});
 	function onend() {
 		if (this._writableState.ended) return;
-		processModule.nextTick(onEndNT, this);
+		process.nextTick(onEndNT, this);
 	}
 	function onEndNT(self) {
 		self.end();
@@ -1191,7 +1186,7 @@ var require_async_iterator = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 		}
 	}
 	function onReadable(iter) {
-		processModule.nextTick(readAndResolve, iter);
+		process.nextTick(readAndResolve, iter);
 	}
 	function wrapForNext(lastPromise, iter) {
 		return function(resolve, reject) {
@@ -1215,7 +1210,7 @@ var require_async_iterator = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 			if (error !== null) return Promise.reject(error);
 			if (this[kEnded]) return Promise.resolve(createIterResult(void 0, true));
 			if (this[kStream].destroyed) return new Promise(function(resolve, reject) {
-				processModule.nextTick(function() {
+				process.nextTick(function() {
 					if (_this[kError]) reject(_this[kError]);
 					else resolve(createIterResult(void 0, true));
 				});
@@ -1416,24 +1411,23 @@ var require_from = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/readable-stream/lib/_stream_readable.js
 var require__stream_readable$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	module.exports = Readable;
 	var Duplex;
 	Readable.ReadableState = ReadableState$2;
-	__require("node:events").EventEmitter;
+	__require("events").EventEmitter;
 	var EElistenerCount = function EElistenerCount(emitter, type) {
 		return emitter.listeners(type).length;
 	};
 	var Stream = require_stream$2();
-	var Buffer$3 = __require("node:buffer").Buffer;
-	var OurUint8Array = (typeof globalthis_default !== "undefined" ? globalthis_default : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
+	var Buffer$3 = __require("buffer").Buffer;
+	var OurUint8Array = (typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
 	function _uint8ArrayToBuffer(chunk) {
 		return Buffer$3.from(chunk);
 	}
 	function _isUint8Array(obj) {
 		return Buffer$3.isBuffer(obj) || obj instanceof OurUint8Array;
 	}
-	var debugUtil$2 = __require("node:util");
+	var debugUtil$2 = __require("util");
 	var debug;
 	if (debugUtil$2 && debugUtil$2.debuglog) debug = debugUtil$2.debuglog("stream");
 	else debug = function debug() {};
@@ -1721,7 +1715,7 @@ var require__stream_readable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 		if (!state.emittedReadable) {
 			debug("emitReadable", state.flowing);
 			state.emittedReadable = true;
-			processModule.nextTick(emitReadable_, stream);
+			process.nextTick(emitReadable_, stream);
 		}
 	}
 	function emitReadable_(stream) {
@@ -1737,7 +1731,7 @@ var require__stream_readable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 	function maybeReadMore(stream, state) {
 		if (!state.readingMore) {
 			state.readingMore = true;
-			processModule.nextTick(maybeReadMore_, stream, state);
+			process.nextTick(maybeReadMore_, stream, state);
 		}
 	}
 	function maybeReadMore_(stream, state) {
@@ -1766,8 +1760,8 @@ var require__stream_readable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 		}
 		state.pipesCount += 1;
 		debug("pipe count=%d opts=%j", state.pipesCount, pipeOpts);
-		var endFn = (!pipeOpts || pipeOpts.end !== false) && dest !== processModule.stdout && dest !== processModule.stderr ? onend : unpipe;
-		if (state.endEmitted) processModule.nextTick(endFn);
+		var endFn = (!pipeOpts || pipeOpts.end !== false) && dest !== process.stdout && dest !== process.stderr ? onend : unpipe;
+		if (state.endEmitted) process.nextTick(endFn);
 		else src.once("end", endFn);
 		dest.on("unpipe", onunpipe);
 		function onunpipe(readable, unpipeInfo) {
@@ -1895,7 +1889,7 @@ var require__stream_readable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 				state.emittedReadable = false;
 				debug("on readable", state.length, state.reading);
 				if (state.length) emitReadable(this);
-				else if (!state.reading) processModule.nextTick(nReadingNextTick, this);
+				else if (!state.reading) process.nextTick(nReadingNextTick, this);
 			}
 		}
 		return res;
@@ -1903,12 +1897,12 @@ var require__stream_readable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 	Readable.prototype.addListener = Readable.prototype.on;
 	Readable.prototype.removeListener = function(ev, fn) {
 		var res = Stream.prototype.removeListener.call(this, ev, fn);
-		if (ev === "readable") processModule.nextTick(updateReadableListening, this);
+		if (ev === "readable") process.nextTick(updateReadableListening, this);
 		return res;
 	};
 	Readable.prototype.removeAllListeners = function(ev) {
 		var res = Stream.prototype.removeAllListeners.apply(this, arguments);
-		if (ev === "readable" || ev === void 0) processModule.nextTick(updateReadableListening, this);
+		if (ev === "readable" || ev === void 0) process.nextTick(updateReadableListening, this);
 		return res;
 	};
 	function updateReadableListening(self) {
@@ -1934,7 +1928,7 @@ var require__stream_readable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 	function resume(stream, state) {
 		if (!state.resumeScheduled) {
 			state.resumeScheduled = true;
-			processModule.nextTick(resume_, stream, state);
+			process.nextTick(resume_, stream, state);
 		}
 	}
 	function resume_(stream, state) {
@@ -2046,7 +2040,7 @@ var require__stream_readable$2 = /* @__PURE__ */ __commonJSMin(((exports, module
 		debug("endReadable", state.endEmitted);
 		if (!state.endEmitted) {
 			state.ended = true;
-			processModule.nextTick(endReadableNT, state, stream);
+			process.nextTick(endReadableNT, state, stream);
 		}
 	}
 	function endReadableNT(state, stream) {
@@ -2251,8 +2245,8 @@ var require_pipeline = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/readable-stream/readable.js
 var require_readable$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var Stream$6 = __require("node:stream");
-	if (processModule.env.READABLE_STREAM === "disable" && Stream$6) {
+	var Stream$6 = __require("stream");
+	if (process.env.READABLE_STREAM === "disable" && Stream$6) {
 		module.exports = Stream$6.Readable;
 		Object.assign(module.exports, Stream$6);
 		module.exports.Stream = Stream$6;
@@ -2271,7 +2265,7 @@ var require_readable$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/readdir-glob/node_modules/minimatch/lib/path.js
 var require_path = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	module.exports = typeof processModule === "object" && processModule && processModule.platform === "win32" ? { sep: "\\" } : { sep: "/" };
+	module.exports = typeof process === "object" && process && process.platform === "win32" ? { sep: "\\" } : { sep: "/" };
 }));
 //#endregion
 //#region node_modules/balanced-match/index.js
@@ -3067,10 +3061,10 @@ var require_minimatch$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#region node_modules/readdir-glob/index.js
 var require_readdir_glob = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = readdirGlob;
-	var fs$5 = __require("node:fs");
-	var { EventEmitter } = __require("node:events");
+	var fs$5 = __require("fs");
+	var { EventEmitter } = __require("events");
 	var { Minimatch } = require_minimatch$1();
-	var { resolve } = __require("node:path");
+	var { resolve } = __require("path");
 	function readdir(dir, strict) {
 		return new Promise((resolve, reject) => {
 			fs$5.readdir(dir, { withFileTypes: true }, (err, files) => {
@@ -8155,10 +8149,10 @@ var hasQueueMicrotask, hasSetImmediate, hasNextTick, _defer$1, setImmediate$1, b
 var init_async = __esmMin((() => {
 	hasQueueMicrotask = typeof queueMicrotask === "function" && queueMicrotask;
 	hasSetImmediate = typeof setImmediate === "function" && setImmediate;
-	hasNextTick = typeof processModule === "object" && typeof processModule.nextTick === "function";
+	hasNextTick = typeof process === "object" && typeof process.nextTick === "function";
 	if (hasQueueMicrotask) _defer$1 = queueMicrotask;
 	else if (hasSetImmediate) _defer$1 = setImmediate;
-	else if (hasNextTick) _defer$1 = processModule.nextTick;
+	else if (hasNextTick) _defer$1 = process.nextTick;
 	else _defer$1 = fallback;
 	setImmediate$1 = wrap(_defer$1);
 	breakLoop = {};
@@ -8308,7 +8302,7 @@ var init_async = __esmMin((() => {
 	groupByLimit$1 = awaitify(groupByLimit, 4);
 	log = consoleFunc("log");
 	mapValuesLimit$1 = awaitify(mapValuesLimit, 4);
-	if (hasNextTick) _defer = processModule.nextTick;
+	if (hasNextTick) _defer = process.nextTick;
 	else if (hasSetImmediate) _defer = setImmediate;
 	else _defer = fallback;
 	nextTick = wrap(_defer);
@@ -8508,28 +8502,28 @@ var init_async = __esmMin((() => {
 //#endregion
 //#region node_modules/graceful-fs/polyfills.js
 var require_polyfills = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var constants = __require("node:constants");
-	var origCwd = processModule.cwd;
+	var constants = __require("constants");
+	var origCwd = process.cwd;
 	var cwd = null;
-	var platform = processModule.env.GRACEFUL_FS_PLATFORM || processModule.platform;
-	processModule.cwd = function() {
-		if (!cwd) cwd = origCwd.call(processModule);
+	var platform = process.env.GRACEFUL_FS_PLATFORM || process.platform;
+	process.cwd = function() {
+		if (!cwd) cwd = origCwd.call(process);
 		return cwd;
 	};
 	try {
-		processModule.cwd();
+		process.cwd();
 	} catch (er) {}
-	if (typeof processModule.chdir === "function") {
-		var chdir = processModule.chdir;
-		processModule.chdir = function(d) {
+	if (typeof process.chdir === "function") {
+		var chdir = process.chdir;
+		process.chdir = function(d) {
 			cwd = null;
-			chdir.call(processModule, d);
+			chdir.call(process, d);
 		};
-		if (Object.setPrototypeOf) Object.setPrototypeOf(processModule.chdir, chdir);
+		if (Object.setPrototypeOf) Object.setPrototypeOf(process.chdir, chdir);
 	}
 	module.exports = patch;
 	function patch(fs) {
-		if (constants.hasOwnProperty("O_SYMLINK") && processModule.version.match(/^v0\.6\.[0-2]|^v0\.5\./)) patchLchmod(fs);
+		if (constants.hasOwnProperty("O_SYMLINK") && process.version.match(/^v0\.6\.[0-2]|^v0\.5\./)) patchLchmod(fs);
 		if (!fs.lutimes) patchLutimes(fs);
 		fs.chown = chownFix(fs.chown);
 		fs.fchown = chownFix(fs.fchown);
@@ -8551,13 +8545,13 @@ var require_polyfills = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		fs.lstatSync = statFixSync(fs.lstatSync);
 		if (fs.chmod && !fs.lchmod) {
 			fs.lchmod = function(path, mode, cb) {
-				if (cb) processModule.nextTick(cb);
+				if (cb) process.nextTick(cb);
 			};
 			fs.lchmodSync = function() {};
 		}
 		if (fs.chown && !fs.lchown) {
 			fs.lchown = function(path, uid, gid, cb) {
-				if (cb) processModule.nextTick(cb);
+				if (cb) process.nextTick(cb);
 			};
 			fs.lchownSync = function() {};
 		}
@@ -8676,7 +8670,7 @@ var require_polyfills = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				};
 			} else if (fs.futimes) {
 				fs.lutimes = function(_a, _b, _c, cb) {
-					if (cb) processModule.nextTick(cb);
+					if (cb) process.nextTick(cb);
 				};
 				fs.lutimesSync = function() {};
 			}
@@ -8750,7 +8744,7 @@ var require_polyfills = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		function chownErOk(er) {
 			if (!er) return true;
 			if (er.code === "ENOSYS") return true;
-			if (!processModule.getuid || processModule.getuid() !== 0) {
+			if (!process.getuid || process.getuid() !== 0) {
 				if (er.code === "EINVAL" || er.code === "EPERM") return true;
 			}
 			return false;
@@ -8760,7 +8754,7 @@ var require_polyfills = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/graceful-fs/legacy-streams.js
 var require_legacy_streams = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var Stream$5 = __require("node:stream").Stream;
+	var Stream$5 = __require("stream").Stream;
 	module.exports = legacy;
 	function legacy(fs) {
 		return {
@@ -8793,7 +8787,7 @@ var require_legacy_streams = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 				this.pos = this.start;
 			}
 			if (this.fd !== null) {
-				processModule.nextTick(function() {
+				process.nextTick(function() {
 					self._read();
 				});
 				return;
@@ -8866,12 +8860,11 @@ var require_clone = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/graceful-fs/graceful-fs.js
 var require_graceful_fs = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
-	var fs$4 = __require("node:fs");
+	var fs$4 = __require("fs");
 	var polyfills = require_polyfills();
 	var legacy = require_legacy_streams();
 	var clone = require_clone();
-	var util$5 = __require("node:util");
+	var util$5 = __require("util");
 	/* istanbul ignore next - node 0.x polyfill */
 	var gracefulQueue;
 	var previousSymbol;
@@ -8891,13 +8884,13 @@ var require_graceful_fs = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 	var debug = noop;
 	if (util$5.debuglog) debug = util$5.debuglog("gfs4");
-	else if (/\bgfs4\b/i.test(processModule.env.NODE_DEBUG || "")) debug = function() {
+	else if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || "")) debug = function() {
 		var m = util$5.format.apply(util$5, arguments);
 		m = "GFS4: " + m.split(/\n/).join("\nGFS4: ");
 		console.error(m);
 	};
 	if (!fs$4[gracefulQueue]) {
-		publishQueue(fs$4, globalthis_default[gracefulQueue] || []);
+		publishQueue(fs$4, global[gracefulQueue] || []);
 		fs$4.close = (function(fs$close) {
 			function close(fd, cb) {
 				return fs$close.call(fs$4, fd, function(err) {
@@ -8916,14 +8909,14 @@ var require_graceful_fs = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			Object.defineProperty(closeSync, previousSymbol, { value: fs$closeSync });
 			return closeSync;
 		})(fs$4.closeSync);
-		if (/\bgfs4\b/i.test(processModule.env.NODE_DEBUG || "")) processModule.on("exit", function() {
+		if (/\bgfs4\b/i.test(process.env.NODE_DEBUG || "")) process.on("exit", function() {
 			debug(fs$4[gracefulQueue]);
-			__require("node:assert").equal(fs$4[gracefulQueue].length, 0);
+			__require("assert").equal(fs$4[gracefulQueue].length, 0);
 		});
 	}
-	if (!globalthis_default[gracefulQueue]) publishQueue(globalthis_default, fs$4[gracefulQueue]);
+	if (!global[gracefulQueue]) publishQueue(global, fs$4[gracefulQueue]);
 	module.exports = patch(clone(fs$4));
-	if (processModule.env.TEST_GRACEFUL_FS_GLOBAL_PATCH && !fs$4.__patched) {
+	if (process.env.TEST_GRACEFUL_FS_GLOBAL_PATCH && !fs$4.__patched) {
 		module.exports = patch(fs$4);
 		fs$4.__patched = true;
 	}
@@ -9031,7 +9024,7 @@ var require_graceful_fs = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		var noReaddirOptionVersions = /^v[0-5]\./;
 		function readdir(path, options, cb) {
 			if (typeof options === "function") cb = options, options = null;
-			var go$readdir = noReaddirOptionVersions.test(processModule.version) ? function go$readdir(path, options, cb, startTime) {
+			var go$readdir = noReaddirOptionVersions.test(process.version) ? function go$readdir(path, options, cb, startTime) {
 				return fs$readdir(path, fs$readdirCallback(path, options, cb, startTime));
 			} : function go$readdir(path, options, cb, startTime) {
 				return fs$readdir(path, options, fs$readdirCallback(path, options, cb, startTime));
@@ -9057,7 +9050,7 @@ var require_graceful_fs = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				};
 			}
 		}
-		if (processModule.version.substr(0, 4) === "v0.8") {
+		if (process.version.substr(0, 4) === "v0.8") {
 			var legStreams = legacy(fs);
 			ReadStream = legStreams.ReadStream;
 			WriteStream = legStreams.WriteStream;
@@ -9223,12 +9216,12 @@ var require_graceful_fs = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/lazystream/node_modules/readable-stream/lib/internal/streams/stream.js
 var require_stream$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	module.exports = __require("node:stream");
+	module.exports = __require("stream");
 }));
 //#endregion
 //#region node_modules/lazystream/node_modules/safe-buffer/index.js
 var require_safe_buffer$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var buffer$1 = __require("node:buffer");
+	var buffer$1 = __require("buffer");
 	var Buffer = buffer$1.Buffer;
 	function copyProps(src, dst) {
 		for (var key in src) dst[key] = src[key];
@@ -9270,7 +9263,7 @@ var require_BufferList$2 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (!(instance instanceof Constructor)) throw new TypeError("Cannot call a class as a function");
 	}
 	var Buffer = require_safe_buffer$1().Buffer;
-	var util$4 = __require("node:util");
+	var util$4 = __require("util");
 	function copyBuffer(src, target, offset) {
 		src.copy(target, offset);
 	}
@@ -9398,7 +9391,6 @@ var require_destroy$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/lazystream/node_modules/readable-stream/lib/_stream_writable.js
 var require__stream_writable$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	var pna = require_process_nextick_args();
 	module.exports = Writable;
 	function CorkedRequest(state) {
@@ -9409,7 +9401,7 @@ var require__stream_writable$1 = /* @__PURE__ */ __commonJSMin(((exports, module
 			onCorkedFinish(_this, state);
 		};
 	}
-	var asyncWrite = !processModule.browser && ["v0.10", "v0.9."].indexOf(processModule.version.slice(0, 5)) > -1 ? setImmediate : pna.nextTick;
+	var asyncWrite = !process.browser && ["v0.10", "v0.9."].indexOf(process.version.slice(0, 5)) > -1 ? setImmediate : pna.nextTick;
 	var Duplex;
 	Writable.WritableState = WritableState;
 	var util = Object.create(require_util$2());
@@ -9417,7 +9409,7 @@ var require__stream_writable$1 = /* @__PURE__ */ __commonJSMin(((exports, module
 	var internalUtil = { deprecate: require_node() };
 	var Stream = require_stream$1();
 	var Buffer = require_safe_buffer$1().Buffer;
-	var OurUint8Array = (typeof globalthis_default !== "undefined" ? globalthis_default : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
+	var OurUint8Array = (typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
 	function _uint8ArrayToBuffer(chunk) {
 		return Buffer.from(chunk);
 	}
@@ -9860,19 +9852,18 @@ var require__stream_duplex$1 = /* @__PURE__ */ __commonJSMin(((exports, module) 
 //#endregion
 //#region node_modules/lazystream/node_modules/readable-stream/lib/_stream_readable.js
 var require__stream_readable$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	var pna = require_process_nextick_args();
 	module.exports = Readable;
 	var isArray = require_isarray();
 	var Duplex;
 	Readable.ReadableState = ReadableState$1;
-	__require("node:events").EventEmitter;
+	__require("events").EventEmitter;
 	var EElistenerCount = function(emitter, type) {
 		return emitter.listeners(type).length;
 	};
 	var Stream = require_stream$1();
 	var Buffer = require_safe_buffer$1().Buffer;
-	var OurUint8Array = (typeof globalthis_default !== "undefined" ? globalthis_default : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
+	var OurUint8Array = (typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
 	function _uint8ArrayToBuffer(chunk) {
 		return Buffer.from(chunk);
 	}
@@ -9881,7 +9872,7 @@ var require__stream_readable$1 = /* @__PURE__ */ __commonJSMin(((exports, module
 	}
 	var util = Object.create(require_util$2());
 	util.inherits = require_inherits();
-	var debugUtil$1 = __require("node:util");
+	var debugUtil$1 = __require("util");
 	var debug = void 0;
 	if (debugUtil$1 && debugUtil$1.debuglog) debug = debugUtil$1.debuglog("stream");
 	else debug = function() {};
@@ -10176,7 +10167,7 @@ var require__stream_readable$1 = /* @__PURE__ */ __commonJSMin(((exports, module
 		}
 		state.pipesCount += 1;
 		debug("pipe count=%d opts=%j", state.pipesCount, pipeOpts);
-		var endFn = (!pipeOpts || pipeOpts.end !== false) && dest !== processModule.stdout && dest !== processModule.stderr ? onend : unpipe;
+		var endFn = (!pipeOpts || pipeOpts.end !== false) && dest !== process.stdout && dest !== process.stderr ? onend : unpipe;
 		if (state.endEmitted) pna.nextTick(endFn);
 		else src.once("end", endFn);
 		dest.on("unpipe", onunpipe);
@@ -10597,8 +10588,8 @@ var require__stream_passthrough$1 = /* @__PURE__ */ __commonJSMin(((exports, mod
 //#endregion
 //#region node_modules/lazystream/node_modules/readable-stream/readable.js
 var require_readable$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var Stream$4 = __require("node:stream");
-	if (processModule.env.READABLE_STREAM === "disable" && Stream$4) {
+	var Stream$4 = __require("stream");
+	if (process.env.READABLE_STREAM === "disable" && Stream$4) {
 		module.exports = Stream$4;
 		exports = module.exports = Stream$4.Readable;
 		exports.Readable = Stream$4.Readable;
@@ -10625,7 +10616,7 @@ var require_passthrough = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/lazystream/lib/lazystream.js
 var require_lazystream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var util$3 = __require("node:util");
+	var util$3 = __require("util");
 	var PassThrough = require_passthrough();
 	module.exports = {
 		Readable,
@@ -11256,12 +11247,12 @@ var require_lodash_defaults = /* @__PURE__ */ __commonJSMin(((exports, module) =
 //#endregion
 //#region node_modules/archiver-utils/node_modules/readable-stream/lib/internal/streams/stream.js
 var require_stream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	module.exports = __require("node:stream");
+	module.exports = __require("stream");
 }));
 //#endregion
 //#region node_modules/archiver-utils/node_modules/safe-buffer/index.js
 var require_safe_buffer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var buffer = __require("node:buffer");
+	var buffer = __require("buffer");
 	var Buffer = buffer.Buffer;
 	function copyProps(src, dst) {
 		for (var key in src) dst[key] = src[key];
@@ -11303,7 +11294,7 @@ var require_BufferList$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (!(instance instanceof Constructor)) throw new TypeError("Cannot call a class as a function");
 	}
 	var Buffer = require_safe_buffer().Buffer;
-	var util$2 = __require("node:util");
+	var util$2 = __require("util");
 	function copyBuffer(src, target, offset) {
 		src.copy(target, offset);
 	}
@@ -11431,7 +11422,6 @@ var require_destroy = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/archiver-utils/node_modules/readable-stream/lib/_stream_writable.js
 var require__stream_writable = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	var pna = require_process_nextick_args();
 	module.exports = Writable;
 	function CorkedRequest(state) {
@@ -11442,7 +11432,7 @@ var require__stream_writable = /* @__PURE__ */ __commonJSMin(((exports, module) 
 			onCorkedFinish(_this, state);
 		};
 	}
-	var asyncWrite = !processModule.browser && ["v0.10", "v0.9."].indexOf(processModule.version.slice(0, 5)) > -1 ? setImmediate : pna.nextTick;
+	var asyncWrite = !process.browser && ["v0.10", "v0.9."].indexOf(process.version.slice(0, 5)) > -1 ? setImmediate : pna.nextTick;
 	var Duplex;
 	Writable.WritableState = WritableState;
 	var util = Object.create(require_util$2());
@@ -11450,7 +11440,7 @@ var require__stream_writable = /* @__PURE__ */ __commonJSMin(((exports, module) 
 	var internalUtil = { deprecate: require_node() };
 	var Stream = require_stream();
 	var Buffer = require_safe_buffer().Buffer;
-	var OurUint8Array = (typeof globalthis_default !== "undefined" ? globalthis_default : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
+	var OurUint8Array = (typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
 	function _uint8ArrayToBuffer(chunk) {
 		return Buffer.from(chunk);
 	}
@@ -11893,19 +11883,18 @@ var require__stream_duplex = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 //#endregion
 //#region node_modules/archiver-utils/node_modules/readable-stream/lib/_stream_readable.js
 var require__stream_readable = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	var pna = require_process_nextick_args();
 	module.exports = Readable;
 	var isArray = require_isarray();
 	var Duplex;
 	Readable.ReadableState = ReadableState;
-	__require("node:events").EventEmitter;
+	__require("events").EventEmitter;
 	var EElistenerCount = function(emitter, type) {
 		return emitter.listeners(type).length;
 	};
 	var Stream = require_stream();
 	var Buffer = require_safe_buffer().Buffer;
-	var OurUint8Array = (typeof globalthis_default !== "undefined" ? globalthis_default : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
+	var OurUint8Array = (typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
 	function _uint8ArrayToBuffer(chunk) {
 		return Buffer.from(chunk);
 	}
@@ -11914,7 +11903,7 @@ var require__stream_readable = /* @__PURE__ */ __commonJSMin(((exports, module) 
 	}
 	var util = Object.create(require_util$2());
 	util.inherits = require_inherits();
-	var debugUtil = __require("node:util");
+	var debugUtil = __require("util");
 	var debug = void 0;
 	if (debugUtil && debugUtil.debuglog) debug = debugUtil.debuglog("stream");
 	else debug = function() {};
@@ -12209,7 +12198,7 @@ var require__stream_readable = /* @__PURE__ */ __commonJSMin(((exports, module) 
 		}
 		state.pipesCount += 1;
 		debug("pipe count=%d opts=%j", state.pipesCount, pipeOpts);
-		var endFn = (!pipeOpts || pipeOpts.end !== false) && dest !== processModule.stdout && dest !== processModule.stderr ? onend : unpipe;
+		var endFn = (!pipeOpts || pipeOpts.end !== false) && dest !== process.stdout && dest !== process.stderr ? onend : unpipe;
 		if (state.endEmitted) pna.nextTick(endFn);
 		else src.once("end", endFn);
 		dest.on("unpipe", onunpipe);
@@ -12630,8 +12619,8 @@ var require__stream_passthrough = /* @__PURE__ */ __commonJSMin(((exports, modul
 //#endregion
 //#region node_modules/archiver-utils/node_modules/readable-stream/readable.js
 var require_readable = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var Stream$3 = __require("node:stream");
-	if (processModule.env.READABLE_STREAM === "disable" && Stream$3) {
+	var Stream$3 = __require("stream");
+	if (process.env.READABLE_STREAM === "disable" && Stream$3) {
 		module.exports = Stream$3;
 		exports = module.exports = Stream$3.Readable;
 		exports.Readable = Stream$3.Readable;
@@ -12653,7 +12642,6 @@ var require_readable = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/lodash.flatten/index.js
 var require_lodash_flatten = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	/**
 	* lodash (Custom Build) <https://lodash.com/>
 	* Build: `lodash modularize exports="npm" -o ./`
@@ -12669,7 +12657,7 @@ var require_lodash_flatten = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	var funcTag = "[object Function]";
 	var genTag = "[object GeneratorFunction]";
 	/** Detect free variable `global` from Node.js. */
-	var freeGlobal = typeof globalthis_default == "object" && globalthis_default && globalthis_default.Object === Object && globalthis_default;
+	var freeGlobal = typeof global == "object" && global && global.Object === Object && global;
 	/** Detect free variable `self`. */
 	var freeSelf = typeof self == "object" && self && self.Object === Object && self;
 	/** Used as a reference to the global object. */
@@ -12963,7 +12951,6 @@ var require_lodash_flatten = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 //#endregion
 //#region node_modules/lodash.difference/index.js
 var require_lodash_difference = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	/**
 	* lodash (Custom Build) <https://lodash.com/>
 	* Build: `lodash modularize exports="npm" -o ./`
@@ -12990,7 +12977,7 @@ var require_lodash_difference = /* @__PURE__ */ __commonJSMin(((exports, module)
 	/** Used to detect host constructors (Safari). */
 	var reIsHostCtor = /^\[object .+?Constructor\]$/;
 	/** Detect free variable `global` from Node.js. */
-	var freeGlobal = typeof globalthis_default == "object" && globalthis_default && globalthis_default.Object === Object && globalthis_default;
+	var freeGlobal = typeof global == "object" && global && global.Object === Object && global;
 	/** Detect free variable `self`. */
 	var freeSelf = typeof self == "object" && self && self.Object === Object && self;
 	/** Used as a reference to the global object. */
@@ -13933,7 +13920,6 @@ var require_lodash_difference = /* @__PURE__ */ __commonJSMin(((exports, module)
 //#endregion
 //#region node_modules/lodash.union/index.js
 var require_lodash_union = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	/**
 	* lodash (Custom Build) <https://lodash.com/>
 	* Build: `lodash modularize exports="npm" -o ./`
@@ -13961,7 +13947,7 @@ var require_lodash_union = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/** Used to detect host constructors (Safari). */
 	var reIsHostCtor = /^\[object .+?Constructor\]$/;
 	/** Detect free variable `global` from Node.js. */
-	var freeGlobal = typeof globalthis_default == "object" && globalthis_default && globalthis_default.Object === Object && globalthis_default;
+	var freeGlobal = typeof global == "object" && global && global.Object === Object && global;
 	/** Detect free variable `self`. */
 	var freeSelf = typeof self == "object" && self && self.Object === Object && self;
 	/** Used as a reference to the global object. */
@@ -15034,10 +15020,10 @@ var require_lodash_isplainobject = /* @__PURE__ */ __commonJSMin(((exports, modu
 //#endregion
 //#region node_modules/fs.realpath/old.js
 var require_old = /* @__PURE__ */ __commonJSMin(((exports) => {
-	var pathModule = __require("node:path");
-	var isWindows = processModule.platform === "win32";
-	var fs$3 = __require("node:fs");
-	var DEBUG = processModule.env.NODE_DEBUG && /fs/.test(processModule.env.NODE_DEBUG);
+	var pathModule = __require("path");
+	var isWindows = process.platform === "win32";
+	var fs$3 = __require("fs");
+	var DEBUG = process.env.NODE_DEBUG && /fs/.test(process.env.NODE_DEBUG);
 	function rethrow() {
 		var callback;
 		if (DEBUG) {
@@ -15054,10 +15040,10 @@ var require_old = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		function missingCallback(err) {
 			if (err) {
-				if (processModule.throwDeprecation) throw err;
-				else if (!processModule.noDeprecation) {
+				if (process.throwDeprecation) throw err;
+				else if (!process.noDeprecation) {
 					var msg = "fs: missing callback " + (err.stack || err.message);
-					if (processModule.traceDeprecation) console.trace(msg);
+					if (process.traceDeprecation) console.trace(msg);
 					else console.error(msg);
 				}
 			}
@@ -15133,7 +15119,7 @@ var require_old = /* @__PURE__ */ __commonJSMin(((exports) => {
 			cache = null;
 		}
 		p = pathModule.resolve(p);
-		if (cache && Object.prototype.hasOwnProperty.call(cache, p)) return processModule.nextTick(cb.bind(null, null, cache[p]));
+		if (cache && Object.prototype.hasOwnProperty.call(cache, p)) return process.nextTick(cb.bind(null, null, cache[p]));
 		var original = p, seenLinks = {}, knownHard = {};
 		var pos;
 		var current;
@@ -15151,7 +15137,7 @@ var require_old = /* @__PURE__ */ __commonJSMin(((exports) => {
 				knownHard[base] = true;
 				LOOP();
 			});
-			else processModule.nextTick(LOOP);
+			else process.nextTick(LOOP);
 		}
 		function LOOP() {
 			if (pos >= p.length) {
@@ -15164,7 +15150,7 @@ var require_old = /* @__PURE__ */ __commonJSMin(((exports) => {
 			current += result[0];
 			base = previous + result[1];
 			pos = nextPartRe.lastIndex;
-			if (knownHard[base] || cache && cache[base] === base) return processModule.nextTick(LOOP);
+			if (knownHard[base] || cache && cache[base] === base) return process.nextTick(LOOP);
 			if (cache && Object.prototype.hasOwnProperty.call(cache, base)) return gotResolvedLink(cache[base]);
 			return fs$3.lstat(base, gotStat);
 		}
@@ -15173,7 +15159,7 @@ var require_old = /* @__PURE__ */ __commonJSMin(((exports) => {
 			if (!stat.isSymbolicLink()) {
 				knownHard[base] = true;
 				if (cache) cache[base] = base;
-				return processModule.nextTick(LOOP);
+				return process.nextTick(LOOP);
 			}
 			if (!isWindows) {
 				var id = stat.dev.toString(32) + ":" + stat.ino.toString(32);
@@ -15208,10 +15194,10 @@ var require_fs_realpath = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	realpath.realpathSync = realpathSync;
 	realpath.monkeypatch = monkeypatch;
 	realpath.unmonkeypatch = unmonkeypatch;
-	var fs$2 = __require("node:fs");
+	var fs$2 = __require("fs");
 	var origRealpath = fs$2.realpath;
 	var origRealpathSync = fs$2.realpathSync;
-	var version = processModule.version;
+	var version = process.version;
 	var ok = /^v[0-5]\./.test(version);
 	var old = require_old();
 	function newError(er) {
@@ -15471,7 +15457,7 @@ var require_minimatch = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	minimatch.Minimatch = Minimatch;
 	var path$8 = function() {
 		try {
-			return __require("node:path");
+			return __require("path");
 		} catch (e) {}
 	}() || { sep: "/" };
 	minimatch.sep = path$8.sep;
@@ -16049,7 +16035,7 @@ var require_path_is_absolute = /* @__PURE__ */ __commonJSMin(((exports, module) 
 		var isUnc = Boolean(device && device.charAt(1) !== ":");
 		return Boolean(result[2] || isUnc);
 	}
-	module.exports = processModule.platform === "win32" ? win32 : posix;
+	module.exports = process.platform === "win32" ? win32 : posix;
 	module.exports.posix = posix;
 	module.exports.win32 = win32;
 }));
@@ -16066,8 +16052,8 @@ var require_common = /* @__PURE__ */ __commonJSMin(((exports) => {
 	function ownProp(obj, field) {
 		return Object.prototype.hasOwnProperty.call(obj, field);
 	}
-	var fs$1 = __require("node:fs");
-	var path$7 = __require("node:path");
+	var fs$1 = __require("fs");
+	var path$7 = __require("path");
 	var minimatch = require_minimatch();
 	var isAbsolute = require_path_is_absolute();
 	var Minimatch = minimatch.Minimatch;
@@ -16118,7 +16104,7 @@ var require_common = /* @__PURE__ */ __commonJSMin(((exports) => {
 		self.symlinks = options.symlinks || Object.create(null);
 		setupIgnores(self, options);
 		self.changedCwd = false;
-		var cwd = processModule.cwd();
+		var cwd = process.cwd();
 		if (!ownProp(options, "cwd")) self.cwd = cwd;
 		else {
 			self.cwd = path$7.resolve(options.cwd);
@@ -16126,9 +16112,9 @@ var require_common = /* @__PURE__ */ __commonJSMin(((exports) => {
 		}
 		self.root = options.root || path$7.resolve(self.cwd, "/");
 		self.root = path$7.resolve(self.root);
-		if (processModule.platform === "win32") self.root = self.root.replace(/\\/g, "/");
+		if (process.platform === "win32") self.root = self.root.replace(/\\/g, "/");
 		self.cwdAbs = isAbsolute(self.cwd) ? self.cwd : makeAbs(self, self.cwd);
-		if (processModule.platform === "win32") self.cwdAbs = self.cwdAbs.replace(/\\/g, "/");
+		if (process.platform === "win32") self.cwdAbs = self.cwdAbs.replace(/\\/g, "/");
 		self.nomount = !!options.nomount;
 		options.nonegate = true;
 		options.nocomment = true;
@@ -16194,7 +16180,7 @@ var require_common = /* @__PURE__ */ __commonJSMin(((exports) => {
 		else if (isAbsolute(f) || f === "") abs = f;
 		else if (self.changedCwd) abs = path$7.resolve(self.cwd, f);
 		else abs = path$7.resolve(f);
-		if (processModule.platform === "win32") abs = abs.replace(/\\/g, "/");
+		if (process.platform === "win32") abs = abs.replace(/\\/g, "/");
 		return abs;
 	}
 	function isIgnored(self, path) {
@@ -16219,9 +16205,9 @@ var require_sync = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var minimatch = require_minimatch();
 	minimatch.Minimatch;
 	require_glob().Glob;
-	__require("node:util");
-	var path$6 = __require("node:path");
-	var assert$1 = __require("node:assert");
+	__require("util");
+	var path$6 = __require("path");
+	var assert$1 = __require("assert");
 	var isAbsolute = require_path_is_absolute();
 	var common = require_common();
 	var setopts = common.setopts;
@@ -16434,7 +16420,7 @@ var require_sync = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				if (trail) prefix += "/";
 			}
 		}
-		if (processModule.platform === "win32") prefix = prefix.replace(/\\/g, "/");
+		if (process.platform === "win32") prefix = prefix.replace(/\\/g, "/");
 		this._emitMatch(index, prefix);
 	};
 	GlobSync.prototype._stat = function(f) {
@@ -16568,7 +16554,7 @@ var require_inflight = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			} finally {
 				if (cbs.length > len) {
 					cbs.splice(0, len);
-					processModule.nextTick(function() {
+					process.nextTick(function() {
 						RES.apply(null, args);
 					});
 				} else delete reqs[key];
@@ -16590,16 +16576,16 @@ var require_glob = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var minimatch = require_minimatch();
 	minimatch.Minimatch;
 	var inherits = require_inherits();
-	var EE = __require("node:events").EventEmitter;
-	var path$5 = __require("node:path");
-	var assert = __require("node:assert");
+	var EE = __require("events").EventEmitter;
+	var path$5 = __require("path");
+	var assert = __require("assert");
 	var isAbsolute = require_path_is_absolute();
 	var globSync = require_sync();
 	var common = require_common();
 	var setopts = common.setopts;
 	var ownProp = common.ownProp;
 	var inflight = require_inflight();
-	__require("node:util");
+	__require("util");
 	var childrenIgnored = common.childrenIgnored;
 	var isIgnored = common.isIgnored;
 	var once = require_once();
@@ -16666,7 +16652,7 @@ var require_glob = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		sync = false;
 		function done() {
 			--self._processing;
-			if (self._processing <= 0) if (sync) processModule.nextTick(function() {
+			if (self._processing <= 0) if (sync) process.nextTick(function() {
 				self._finish();
 			});
 			else self._finish();
@@ -16972,7 +16958,7 @@ var require_glob = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 				if (trail) prefix += "/";
 			}
 		}
-		if (processModule.platform === "win32") prefix = prefix.replace(/\\/g, "/");
+		if (process.platform === "win32") prefix = prefix.replace(/\\/g, "/");
 		this._emitMatch(index, prefix);
 		cb();
 	};
@@ -17030,7 +17016,7 @@ var require_file$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* https://github.com/archiverjs/node-archiver/blob/master/LICENSE-MIT
 	*/
 	var fs = require_graceful_fs();
-	var path$4 = __require("node:path");
+	var path$4 = __require("path");
 	var flatten = require_lodash_flatten();
 	var difference = require_lodash_difference();
 	var union = require_lodash_union();
@@ -17157,12 +17143,12 @@ var require_archiver_utils$1 = /* @__PURE__ */ __commonJSMin(((exports, module) 
 	* https://github.com/archiverjs/archiver-utils/blob/master/LICENSE
 	*/
 	var fs = require_graceful_fs();
-	var path$3 = __require("node:path");
-	__require("node:util");
+	var path$3 = __require("path");
+	__require("util");
 	var lazystream = require_lazystream();
 	var normalizePath = require_normalize_path();
 	var defaults = require_lodash_defaults();
-	var Stream$2 = __require("node:stream").Stream;
+	var Stream$2 = __require("stream").Stream;
 	var PassThrough = require_readable().PassThrough;
 	var utils = module.exports = {};
 	utils.file = require_file$1();
@@ -17266,7 +17252,7 @@ var require_error = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @license [MIT]{@link https://github.com/archiverjs/node-archiver/blob/master/LICENSE}
 	* @copyright (c) 2012-2014 Chris Talkington, contributors.
 	*/
-	var util$1 = __require("node:util");
+	var util$1 = __require("util");
 	var ERROR_CODES = {
 		"ABORTED": "archive was aborted",
 		"DIRECTORYDIRPATHREQUIRED": "diretory dirpath argument must be a non-empty string value",
@@ -17304,15 +17290,15 @@ var require_core = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @license [MIT]{@link https://github.com/archiverjs/node-archiver/blob/master/LICENSE}
 	* @copyright (c) 2012-2014 Chris Talkington, contributors.
 	*/
-	var fs = __require("node:fs");
+	var fs = __require("fs");
 	var glob = require_readdir_glob();
 	var async = (init_async(), __toCommonJS(async_exports));
-	var path$2 = __require("node:path");
+	var path$2 = __require("path");
 	var util = require_archiver_utils$1();
-	var inherits$5 = __require("node:util").inherits;
+	var inherits$5 = __require("util").inherits;
 	var ArchiverError = require_error();
 	var Transform = require_readable$2().Transform;
-	var win32 = processModule.platform === "win32";
+	var win32 = process.platform === "win32";
 	/**
 	* @constructor
 	* @param {String} format The archive format to use.
@@ -18325,7 +18311,7 @@ var require_zip_archive_entry = /* @__PURE__ */ __commonJSMin(((exports, module)
 	* Licensed under the MIT license.
 	* https://github.com/archiverjs/node-compress-commons/blob/master/LICENSE-MIT
 	*/
-	var inherits$4 = __require("node:util").inherits;
+	var inherits$4 = __require("util").inherits;
 	var normalizePath = require_normalize_path();
 	var ArchiveEntry = require_archive_entry();
 	var GeneralPurposeBit = require_general_purpose_bit();
@@ -18662,7 +18648,7 @@ var require_util = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* Licensed under the MIT license.
 	* https://github.com/archiverjs/node-compress-commons/blob/master/LICENSE-MIT
 	*/
-	var Stream$1 = __require("node:stream").Stream;
+	var Stream$1 = __require("stream").Stream;
 	var PassThrough = require_readable$2().PassThrough;
 	var util = module.exports = {};
 	util.isStream = function(source) {
@@ -18689,7 +18675,7 @@ var require_archive_output_stream = /* @__PURE__ */ __commonJSMin(((exports, mod
 	* Licensed under the MIT license.
 	* https://github.com/archiverjs/node-compress-commons/blob/master/LICENSE-MIT
 	*/
-	var inherits$3 = __require("node:util").inherits;
+	var inherits$3 = __require("util").inherits;
 	var Transform = require_readable$2().Transform;
 	var ArchiveEntry = require_archive_entry();
 	var util = require_util();
@@ -18760,7 +18746,7 @@ var require_archive_output_stream = /* @__PURE__ */ __commonJSMin(((exports, mod
 //#endregion
 //#region node_modules/buffer-crc32/index.js
 var require_buffer_crc32 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var Buffer$2 = __require("node:buffer").Buffer;
+	var Buffer$2 = __require("buffer").Buffer;
 	var CRC_TABLE = [
 		0,
 		1996959894,
@@ -19188,7 +19174,7 @@ var require_crc32_stream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 * https://github.com/archiverjs/node-crc32-stream/blob/master/LICENSE-MIT
 */
 var require_deflate_crc32_stream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var { DeflateRaw } = __require("node:zlib");
+	var { DeflateRaw } = __require("zlib");
 	var crc32 = require_crc32();
 	var DeflateCRC32Stream = class extends DeflateRaw {
 		constructor(options) {
@@ -19249,7 +19235,7 @@ var require_zip_archive_output_stream = /* @__PURE__ */ __commonJSMin(((exports,
 	* Licensed under the MIT license.
 	* https://github.com/archiverjs/node-compress-commons/blob/master/LICENSE-MIT
 	*/
-	var inherits$2 = __require("node:util").inherits;
+	var inherits$2 = __require("util").inherits;
 	var crc32 = require_buffer_crc32();
 	var { CRC32Stream } = require_lib();
 	var { DeflateCRC32Stream } = require_lib();
@@ -19534,7 +19520,7 @@ var require_file = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* https://github.com/archiverjs/node-archiver/blob/master/LICENSE-MIT
 	*/
 	var fs = require_graceful_fs();
-	var path$1 = __require("node:path");
+	var path$1 = __require("path");
 	var flatten = require_lodash_flatten();
 	var difference = require_lodash_difference();
 	var union = require_lodash_union();
@@ -19661,11 +19647,11 @@ var require_archiver_utils = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	* https://github.com/archiverjs/archiver-utils/blob/master/LICENSE
 	*/
 	var fs = require_graceful_fs();
-	var path = __require("node:path");
+	var path = __require("path");
 	var lazystream = require_lazystream();
 	var normalizePath = require_normalize_path();
 	var defaults = require_lodash_defaults();
-	var Stream = __require("node:stream").Stream;
+	var Stream = __require("stream").Stream;
 	var PassThrough = require_readable$2().PassThrough;
 	var utils = module.exports = {};
 	utils.file = require_file();
@@ -19765,7 +19751,7 @@ var require_zip_stream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @license [MIT]{@link https://github.com/archiverjs/node-zip-stream/blob/master/LICENSE}
 	* @copyright (c) 2014 Chris Talkington, contributors.
 	*/
-	var inherits$1 = __require("node:util").inherits;
+	var inherits$1 = __require("util").inherits;
 	var ZipArchiveOutputStream = require_compress_commons().ZipArchiveOutputStream;
 	var ZipArchiveEntry = require_compress_commons().ZipArchiveEntry;
 	var util = require_archiver_utils();
@@ -20000,7 +19986,7 @@ var require_zip = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/bl/BufferList.js
 var require_BufferList = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var { Buffer: Buffer$1 } = __require("node:buffer");
+	var { Buffer: Buffer$1 } = __require("buffer");
 	var symbol = Symbol.for("BufferList");
 	function BufferList(buf) {
 		if (!(this instanceof BufferList)) return new BufferList(buf);
@@ -20472,7 +20458,7 @@ var require_headers = /* @__PURE__ */ __commonJSMin(((exports) => {
 //#endregion
 //#region node_modules/tar-stream/extract.js
 var require_extract = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var util = __require("node:util");
+	var util = __require("util");
 	var bl = require_bl();
 	var headers = require_headers();
 	var Writable = require_readable$2().Writable;
@@ -20685,15 +20671,14 @@ var require_extract = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/fs-constants/index.js
 var require_fs_constants = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	module.exports = __require("node:fs").constants || __require("node:constants");
+	module.exports = __require("fs").constants || __require("constants");
 }));
 //#endregion
 //#region node_modules/end-of-stream/index.js
 var require_end_of_stream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	var once = require_once();
 	var noop = function() {};
-	var qnt = globalthis_default.Bare ? queueMicrotask : processModule.nextTick.bind(processModule);
+	var qnt = global.Bare ? queueMicrotask : process.nextTick.bind(process);
 	var isRequest = function(stream) {
 		return stream.setHeader && typeof stream.abort === "function";
 	};
@@ -20777,7 +20762,7 @@ var require_pack = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var alloc = Buffer.alloc;
 	var Readable = require_readable$2().Readable;
 	var Writable = require_readable$2().Writable;
-	var StringDecoder = __require("node:string_decoder").StringDecoder;
+	var StringDecoder = __require("string_decoder").StringDecoder;
 	var headers = require_headers();
 	var DMODE = parseInt("755", 8);
 	var FMODE = parseInt("644", 8);
@@ -20874,7 +20859,7 @@ var require_pack = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			this._encode(header);
 			var ok = this.push(buffer);
 			overflow(self, header.size);
-			if (ok) processModule.nextTick(callback);
+			if (ok) process.nextTick(callback);
 			else this._drain = callback;
 			return new Void();
 		}
@@ -20893,7 +20878,7 @@ var require_pack = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		}
 		this._encode(header);
 		if (header.type !== "file" && header.type !== "contiguous-file") {
-			processModule.nextTick(callback);
+			process.nextTick(callback);
 			return new Void();
 		}
 		var sink = new Sink(this);
@@ -20991,7 +20976,7 @@ var require_tar = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @license [MIT]{@link https://github.com/archiverjs/node-archiver/blob/master/LICENSE}
 	* @copyright (c) 2012-2014 Chris Talkington, contributors.
 	*/
-	var zlib = __require("node:zlib");
+	var zlib = __require("zlib");
 	var engine = require_tar_stream();
 	var util = require_archiver_utils$1();
 	/**
@@ -21124,7 +21109,7 @@ var require_json = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	* @license [MIT]{@link https://github.com/archiverjs/node-archiver/blob/master/LICENSE}
 	* @copyright (c) 2012-2014 Chris Talkington, contributors.
 	*/
-	var inherits = __require("node:util").inherits;
+	var inherits = __require("util").inherits;
 	var Transform = require_readable$2().Transform;
 	var crc32 = require_buffer_crc32();
 	var util = require_archiver_utils$1();

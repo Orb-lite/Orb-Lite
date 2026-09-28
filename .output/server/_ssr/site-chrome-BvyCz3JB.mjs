@@ -1,5 +1,4 @@
 import { o as __toESM } from "../_runtime.mjs";
-import { t as motion } from "../_libs/framer-motion+[...].mjs";
 import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { _ as Link } from "../_libs/@tanstack/react-router+[...].mjs";
@@ -16,6 +15,7 @@ import { A as MapPin, D as Menu, E as MessageCircle, P as LoaderCircle, T as Min
 import { i as formatFechaEmision, n as constanciaVigente, t as constanciaVenceEl } from "./constancia-validez-DGGWBZS_.mjs";
 import { t as openWhatsApp } from "./whatsapp-k5-h86dD.mjs";
 import { t as orb_lite_logo_default } from "./orb-lite-logo-CEgq-Hxq.mjs";
+import { t as motion } from "../_libs/framer-motion+[...].mjs";
 import { n as persist, r as create, t as createJSONStorage } from "../_libs/zustand.mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/site-chrome-BvyCz3JB.js
 var import_react = /* @__PURE__ */ __toESM(require_react());

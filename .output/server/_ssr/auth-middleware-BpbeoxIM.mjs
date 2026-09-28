@@ -1,7 +1,6 @@
 import { t as createClient } from "../_libs/supabase__supabase-js.mjs";
 import { t as getRequest } from "./request-response-BEPp1C2k.mjs";
 import { t as createMiddleware } from "./createMiddleware-B_4t7rW1.mjs";
-import processModule from "node:process";
 //#region node_modules/.nitro/vite/services/ssr/assets/auth-middleware-BpbeoxIM.js
 function isNewSupabaseApiKey(value) {
 	return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -19,8 +18,8 @@ function createSupabaseFetch(supabaseKey) {
 	};
 }
 var requireSupabaseAuth = createMiddleware({ type: "function" }).server(async ({ next }) => {
-	const SUPABASE_URL = processModule.env["SUPABASE_URL"];
-	const SUPABASE_PUBLISHABLE_KEY = processModule.env["SUPABASE_PUBLISHABLE_KEY"];
+	const SUPABASE_URL = process.env["SUPABASE_URL"];
+	const SUPABASE_PUBLISHABLE_KEY = process.env["SUPABASE_PUBLISHABLE_KEY"];
 	if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
 		const message = `Missing Supabase environment variable(s): ${[...!SUPABASE_URL ? ["SUPABASE_URL"] : [], ...!SUPABASE_PUBLISHABLE_KEY ? ["SUPABASE_PUBLISHABLE_KEY"] : []].join(", ")}. Connect Supabase in Lovable Cloud.`;
 		console.error(`[Supabase] ${message}`);

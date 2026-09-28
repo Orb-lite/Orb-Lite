@@ -3,7 +3,7 @@ import { u as require_react } from "../_libs/@floating-ui/react-dom+[...].mjs";
 import { n as require_jsx_runtime } from "../_libs/radix-ui__react-context+react.mjs";
 import { t as cva } from "../_libs/class-variance-authority+clsx.mjs";
 import { t as cn } from "./utils-C_uf36nf.mjs";
-import { C as Slot } from "../_libs/@radix-ui/react-dialog+[...].mjs";
+import { x as Slot } from "../_libs/@radix-ui/react-dialog+[...].mjs";
 //#region node_modules/.nitro/vite/services/ssr/assets/button-Bq5vK6RO.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();

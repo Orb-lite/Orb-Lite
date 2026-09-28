@@ -17,7 +17,6 @@ import { t as Preview } from "../_libs/react-email__preview.mjs";
 import { t as Row } from "../_libs/react-email__row.mjs";
 import { t as Section } from "../_libs/react-email__section.mjs";
 import { t as Text } from "../_libs/react-email__text.mjs";
-import processModule from "node:process";
 //#region node_modules/.nitro/vite/services/ssr/assets/send-email-C5luKd1M.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
@@ -2233,7 +2232,7 @@ var FROM_DOMAIN = "orb-lite.com";
 * .code and .status for branching.
 */
 async function sendTemplateEmail(templateName, to, options = {}) {
-	const apiKey = processModule.env["LOVABLE_API_KEY"];
+	const apiKey = process.env["LOVABLE_API_KEY"];
 	if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
 	const template = TEMPLATES[templateName];
 	if (!template) throw new Error(`Template '${templateName}' not found. Available: ${Object.keys(TEMPLATES).join(", ")}`);
@@ -2258,7 +2257,7 @@ async function sendTemplateEmail(templateName, to, options = {}) {
 			...options.replyTo ? { reply_to: options.replyTo } : {}
 		}, {
 			apiKey,
-			sendUrl: processModule.env["LOVABLE_SEND_URL"]
+			sendUrl: process.env["LOVABLE_SEND_URL"]
 		});
 	} catch (error) {
 		console.error("Error sending email:", error);

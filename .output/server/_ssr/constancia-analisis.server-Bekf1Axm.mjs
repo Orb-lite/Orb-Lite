@@ -1,4 +1,3 @@
-import processModule from "node:process";
 //#region node_modules/.nitro/vite/services/ssr/assets/constancia-analisis.server-Bekf1Axm.js
 var PROMPT = `Eres un validador documental del SAT (México). Analiza el documento adjunto y determina si es una "Constancia de Situación Fiscal" emitida por el SAT (suele incluir el escudo nacional, "Cédula de Identificación Fiscal" o "Constancia de Situación Fiscal", RFC, idCIF, régimen(es), domicilio fiscal y código QR).
 Rechaza cualquier otro documento (identificaciones, facturas, CFDI, comprobantes de domicilio, estados de cuenta, fotos aleatorias, capturas de pantalla, documentos ilegibles).
@@ -6,7 +5,7 @@ Responde SOLO con JSON válido, sin texto extra, con esta forma exacta:
 {"esConstancia": boolean, "motivo": string|null, "rfc": string|null, "razonSocial": string|null, "regimenFiscal": string|null, "cpFiscal": string|null, "fechaEmision": string|null}
 "motivo" explica en español y en una frase breve por qué se rechaza (null si se acepta). Fechas en formato YYYY-MM-DD si son legibles.`;
 async function analizarConstancia(base64, contentType) {
-	const apiKey = processModule.env["LOVABLE_API_KEY"];
+	const apiKey = process.env["LOVABLE_API_KEY"];
 	if (!apiKey) throw new Error("LOVABLE_API_KEY no está configurada");
 	const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
 		method: "POST",

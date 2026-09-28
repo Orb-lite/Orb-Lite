@@ -1,7 +1,5 @@
-import { a as globalthis_default, o as init_globalthis } from "./@fast-csv/format+[...].mjs";
 import { n as Socket, t as Presence } from "./supabase__phoenix.mjs";
 //#region node_modules/@supabase/realtime-js/dist/module/lib/websocket-factory.js
-init_globalthis();
 /**
 * Utilities for creating WebSocket instances across runtimes.
 */
@@ -21,7 +19,7 @@ var WebSocketFactory = class {
 			type: "native",
 			wsConstructor: gt.WebSocket
 		};
-		const gl = typeof globalthis_default !== "undefined" ? globalthis_default : void 0;
+		const gl = typeof global !== "undefined" ? global : void 0;
 		if (gl && typeof gl.WebSocket !== "undefined") return {
 			type: "native",
 			wsConstructor: gl.WebSocket

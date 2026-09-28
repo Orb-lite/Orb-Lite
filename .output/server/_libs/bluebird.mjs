@@ -1,7 +1,4 @@
 import { t as __commonJSMin } from "../_runtime.mjs";
-import { a as globalthis_default, o as init_globalthis } from "./@fast-csv/format+[...].mjs";
-import processModule from "node:process";
-import { setImmediate } from "node:timers";
 //#region node_modules/bluebird/js/release/es5.js
 var require_es5 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var isES5 = (function() {
@@ -73,12 +70,11 @@ var require_es5 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/bluebird/js/release/util.js
 var require_util = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	var es5 = require_es5();
 	var canEvaluate = typeof navigator == "undefined";
 	var errorObj = { e: {} };
 	var tryCatchTarget;
-	var globalObject = typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : typeof globalthis_default !== "undefined" ? globalthis_default : exports !== void 0 ? exports : null;
+	var globalObject = typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : exports !== void 0 ? exports : null;
 	function tryCatcher() {
 		try {
 			var target = tryCatchTarget;
@@ -288,10 +284,10 @@ var require_util = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			return null;
 		};
 	}
-	var isNode = typeof processModule !== "undefined" && classString(processModule).toLowerCase() === "[object process]";
-	var hasEnvVariables = typeof processModule !== "undefined" && typeof processModule.env !== "undefined";
+	var isNode = typeof process !== "undefined" && classString(process).toLowerCase() === "[object process]";
+	var hasEnvVariables = typeof process !== "undefined" && typeof process.env !== "undefined";
 	function env(key) {
-		return hasEnvVariables ? processModule.env[key] : void 0;
+		return hasEnvVariables ? process.env[key] : void 0;
 	}
 	function getNativePromise() {
 		if (typeof Promise === "function") try {
@@ -338,10 +334,10 @@ var require_util = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		domainBind
 	};
 	ret.isRecentNode = ret.isNode && (function() {
-		var version = processModule.versions.node.split(".").map(Number);
+		var version = process.versions.node.split(".").map(Number);
 		return version[0] === 0 && version[1] > 10 || version[0] > 0;
 	})();
-	if (ret.isNode) ret.toFastProperties(processModule);
+	if (ret.isNode) ret.toFastProperties(process);
 	try {
 		throw new Error();
 	} catch (e) {
@@ -352,7 +348,6 @@ var require_util = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/bluebird/js/release/schedule.js
 var require_schedule = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	var util = require_util();
 	var schedule;
 	var noAsyncScheduler = function() {
@@ -360,12 +355,12 @@ var require_schedule = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 	var NativePromise = util.getNativePromise();
 	if (util.isNode && typeof MutationObserver === "undefined") {
-		var GlobalSetImmediate = globalthis_default.setImmediate;
-		var ProcessNextTick = processModule.nextTick;
+		var GlobalSetImmediate = global.setImmediate;
+		var ProcessNextTick = process.nextTick;
 		schedule = util.isRecentNode ? function(fn) {
-			GlobalSetImmediate.call(globalthis_default, fn);
+			GlobalSetImmediate.call(global, fn);
 		} : function(fn) {
-			ProcessNextTick.call(processModule, fn);
+			ProcessNextTick.call(process, fn);
 		};
 	} else if (typeof NativePromise === "function" && typeof NativePromise.resolve === "function") {
 		var nativePromise = NativePromise.resolve();
@@ -510,8 +505,8 @@ var require_async = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 	Async.prototype.fatalError = function(e, isNode) {
 		if (isNode) {
-			processModule.stderr.write("Fatal " + (e instanceof Error ? e.stack : e) + "\n");
-			processModule.exit(2);
+			process.stderr.write("Fatal " + (e instanceof Error ? e.stack : e) + "\n");
+			process.exit(2);
 		} else this.throwLater(e);
 	};
 	Async.prototype.throwLater = function(fn, arg) {
@@ -1105,7 +1100,7 @@ var require_debuggability = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 		})();
 		var fireGlobalEvent = (function() {
 			if (util.isNode) return function() {
-				return processModule.emit.apply(processModule, arguments);
+				return process.emit.apply(process, arguments);
 			};
 			else {
 				if (!util.global) return function() {
@@ -1613,7 +1608,7 @@ var require_debuggability = /* @__PURE__ */ __commonJSMin(((exports, module) => 
 			printWarning = function(message) {
 				console.warn(message);
 			};
-			if (util.isNode && processModule.stderr.isTTY) printWarning = function(message, isSoft) {
+			if (util.isNode && process.stderr.isTTY) printWarning = function(message, isSoft) {
 				console.warn((isSoft ? "\x1B[33m" : "\x1B[31m") + message + "\x1B[0m\n");
 			};
 			else if (!util.isNode && typeof (/* @__PURE__ */ new Error()).stack === "string") printWarning = function(message, isSoft) {
@@ -3522,7 +3517,7 @@ var require_promise = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		var util = require_util();
 		var getDomain;
 		if (util.isNode) getDomain = function() {
-			var ret = processModule.domain;
+			var ret = process.domain;
 			if (ret === void 0) ret = null;
 			return ret;
 		};

@@ -8,7 +8,6 @@ import { a as X_TSS_RAW_RESPONSE, d as getStartOptions, f as runWithStartContext
 import { t as getServerFnById } from "../__23tanstack-start-server-fn-resolver-CyNxniMe.mjs";
 import { n as getResponse, r as requestHandler } from "./request-response-BEPp1C2k.mjs";
 import { t as createCsrfMiddleware } from "./createCsrfMiddleware-jzif2P7h.mjs";
-import processModule from "node:process";
 require_react();
 var import_jsx_runtime = require_jsx_runtime();
 function StartServer(props) {
@@ -990,8 +989,8 @@ function getEntries() {
 }
 var ROUTER_BASEPATH = "/";
 var SERVER_FN_BASE = "/_serverFn/";
-var IS_PRERENDERING = processModule.env.TSS_PRERENDERING === "true";
-var IS_SHELL_ENV = processModule.env.TSS_SHELL === "true";
+var IS_PRERENDERING = process.env.TSS_PRERENDERING === "true";
+var IS_SHELL_ENV = process.env.TSS_SHELL === "true";
 var IS_DEV = false;
 var ERR_NO_RESPONSE = IS_DEV ? `It looks like you forgot to return a response from your server route handler. If you want to defer to the app router, make sure to have a component set in this route.` : "Internal Server Error";
 var ERR_NO_DEFER = IS_DEV ? `You cannot defer to the app router if there is no component defined on this route.` : "Internal Server Error";

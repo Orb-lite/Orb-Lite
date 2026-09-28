@@ -3,6 +3,7 @@ import { l as require_react_dom, u as require_react } from "../@floating-ui/reac
 import { n as require_jsx_runtime, t as createContextScope } from "../radix-ui__react-context+react.mjs";
 import { n as useComposedRefs } from "../radix-ui__react-compose-refs.mjs";
 import { t as composeEventHandlers } from "../radix-ui__primitive.mjs";
+import { __assign, __rest, __spreadArray } from "tslib";
 //#region node_modules/@radix-ui/react-slot/dist/index.mjs
 var import_react_dom = /* @__PURE__ */ __toESM(require_react_dom(), 1);
 var import_react = /* @__PURE__ */ __toESM(require_react(), 1);
@@ -117,62 +118,6 @@ var createSlottableError = /* @__PURE__ */ __name$11((ownerName) => {
 	return `${ownerName} failed to slot onto its \`Slottable\`. Expected \`Slottable\` to receive a single React element child.`;
 }, "createSlottableError");
 var use = import_react[" use ".trim().toString()];
-//#endregion
-//#region node_modules/tslib/tslib.es6.mjs
-var __assign = function() {
-	__assign = Object.assign || function __assign(t) {
-		for (var s, i = 1, n = arguments.length; i < n; i++) {
-			s = arguments[i];
-			for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
-		}
-		return t;
-	};
-	return __assign.apply(this, arguments);
-};
-function __rest(s, e) {
-	var t = {};
-	for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
-	if (s != null && typeof Object.getOwnPropertySymbols === "function") {
-		for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i])) t[p[i]] = s[p[i]];
-	}
-	return t;
-}
-function __awaiter(thisArg, _arguments, P, generator) {
-	function adopt(value) {
-		return value instanceof P ? value : new P(function(resolve) {
-			resolve(value);
-		});
-	}
-	return new (P || (P = Promise))(function(resolve, reject) {
-		function fulfilled(value) {
-			try {
-				step(generator.next(value));
-			} catch (e) {
-				reject(e);
-			}
-		}
-		function rejected(value) {
-			try {
-				step(generator["throw"](value));
-			} catch (e) {
-				reject(e);
-			}
-		}
-		function step(result) {
-			result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
-		}
-		step((generator = generator.apply(thisArg, _arguments || [])).next());
-	});
-}
-function __spreadArray(to, from, pack) {
-	if (pack || arguments.length === 2) {
-		for (var i = 0, l = from.length, ar; i < l; i++) if (ar || !(i in from)) {
-			if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-			ar[i] = from[i];
-		}
-	}
-	return to.concat(ar || Array.prototype.slice.call(from));
-}
 //#endregion
 //#region node_modules/@radix-ui/react-primitive/dist/index.mjs
 var import_jsx_runtime = require_jsx_runtime();
@@ -2093,4 +2038,4 @@ function getState(open) {
 }
 __name(getState, "getState");
 //#endregion
-export { Slot$1 as C, __rest as S, useControllableState as _, DialogOverlay as a, Primitive as b, DialogTrigger as c, useFocusGuards as d, Presence as f, useCallbackRef$1 as g, DismissableLayer as h, DialogDescription as i, hideOthers as l, FocusScope as m, DialogClose as n, DialogPortal as o, Portal as p, DialogContent as r, DialogTitle as s, Dialog as t, ReactRemoveScroll as u, useId as v, createSlot as w, __awaiter as x, useLayoutEffect2 as y };
+export { createSlot as S, useControllableState as _, DialogOverlay as a, Primitive as b, DialogTrigger as c, useFocusGuards as d, Presence as f, useCallbackRef$1 as g, DismissableLayer as h, DialogDescription as i, hideOthers as l, FocusScope as m, DialogClose as n, DialogPortal as o, Portal as p, DialogContent as r, DialogTitle as s, Dialog as t, ReactRemoveScroll as u, useId as v, Slot$1 as x, useLayoutEffect2 as y };

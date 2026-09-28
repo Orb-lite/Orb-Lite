@@ -1,7 +1,6 @@
 import { c as createServerFn } from "./createServerFn-CIHAFgYl.mjs";
 import { o as objectType, s as stringType } from "../_libs/zod.mjs";
 import { t as createServerRpc } from "./createServerRpc-B90ckaqP.mjs";
-import processModule from "node:process";
 //#region node_modules/.nitro/vite/services/ssr/assets/crm-access.functions-B8dCEmcg.js
 var CRM_EMAIL = "ventas@orb-lite.com";
 var CODE_TTL_MINUTES = 20;
@@ -38,7 +37,7 @@ async function triggerCodeRequest() {
 	await sendTemplateEmail("codigo-acceso-crm", CRM_EMAIL, { templateData: {
 		code,
 		minutes: CODE_TTL_MINUTES,
-		url: `${processModule.env["SITE_URL"] ?? "https://orb-lite.com"}/acceso-crm`
+		url: `${process.env["SITE_URL"] ?? "https://orb-lite.com"}/acceso-crm`
 	} });
 	return { ok: true };
 }

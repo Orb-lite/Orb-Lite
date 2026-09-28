@@ -14,7 +14,6 @@ import { t as Route$28 } from "./panel._token-j2Ifa-U2.mjs";
 import { n as getLogs } from "./ssr.mjs";
 import { a as SiteFooter, o as SiteHeader } from "./site-chrome-BvyCz3JB.mjs";
 import { t as Route$29 } from "./ruta._token-XYqjC3s8.mjs";
-import processModule from "node:process";
 //#region node_modules/.nitro/vite/services/ssr/assets/router-B7cDeYBL.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
@@ -742,7 +741,7 @@ function daysBetween(from, to) {
 	return Math.round((b - a) / 864e5);
 }
 async function handle$1(request) {
-	const secret = processModule.env["CRON_RESUMEN_SECRET"] ?? processModule.env["LOVABLE_CRON_SECRET"];
+	const secret = process.env["CRON_RESUMEN_SECRET"] ?? process.env["LOVABLE_CRON_SECRET"];
 	const provided = request.headers.get("x-cron-secret") ?? (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
 	if (!secret || !provided || provided !== secret) return new Response("Unauthorized", { status: 401 });
 	const { supabaseAdmin } = await import("./client.server-KzwUIAkW.mjs");
@@ -869,7 +868,7 @@ function summarizeItems(items) {
 	}).join(" · ");
 }
 async function handle(request) {
-	const secret = processModule.env["CRON_RESUMEN_SECRET"] ?? processModule.env["LOVABLE_CRON_SECRET"];
+	const secret = process.env["CRON_RESUMEN_SECRET"] ?? process.env["LOVABLE_CRON_SECRET"];
 	const provided = request.headers.get("x-cron-secret") ?? (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
 	if (!secret || !provided || provided !== secret) return new Response("Unauthorized", { status: 401 });
 	const { supabaseAdmin } = await import("./client.server-KzwUIAkW.mjs");
@@ -897,8 +896,8 @@ async function handle(request) {
 	const totalPending = orders.reduce((sum, o) => sum + (o.total ?? 0), 0);
 	const now = /* @__PURE__ */ new Date();
 	const dateKey = now.toISOString().slice(0, 10);
-	const panelToken = processModule.env["ADMIN_PANEL_TOKEN"];
-	const siteUrl = processModule.env["PUBLIC_SITE_URL"] ?? "https://orb-lite.com";
+	const panelToken = process.env["ADMIN_PANEL_TOKEN"];
+	const siteUrl = process.env["PUBLIC_SITE_URL"] ?? "https://orb-lite.com";
 	const panelUrl = panelToken ? `${siteUrl}/panel/${panelToken}` : "";
 	const result = await sendTemplateEmail("resumen-pendientes", "ventas@orb-lite.com", {
 		idempotencyKey: `resumen-pendientes-${dateKey}-${now.getUTCHours()}`,
@@ -924,7 +923,7 @@ var Route$1 = createFileRoute("/api/public/cron/resumen-pendientes")({ server: {
 	GET: async ({ request }) => handle(request)
 } } });
 var Route = createFileRoute("/lovable/email/transactional/preview")({ server: { handlers: { POST: async ({ request }) => {
-	const apiKey = processModule.env["LOVABLE_API_KEY"];
+	const apiKey = process.env["LOVABLE_API_KEY"];
 	if (!apiKey) return Response.json({ error: "Server configuration error" }, { status: 500 });
 	if (request.headers.get("Authorization")?.replace(/^Bearer\s+/i, "") !== apiKey) return Response.json({ error: "Unauthorized" }, { status: 401 });
 	const templateNames = Object.keys(TEMPLATES);

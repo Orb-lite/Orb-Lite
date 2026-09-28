@@ -1,6 +1,5 @@
 import { i as __require, t as __commonJSMin } from "../../_runtime.mjs";
-import { a as globalthis_default, i as require_lodash_isfunction, n as require_lodash_escaperegexp, o as init_globalthis, r as require_lodash_isnil } from "./format+[...].mjs";
-import { setImmediate } from "node:timers";
+import { i as require_lodash_isfunction, n as require_lodash_escaperegexp, r as require_lodash_isnil } from "./format+[...].mjs";
 //#region node_modules/@fast-csv/parse/build/src/ParserOptions.js
 var require_ParserOptions = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var __importDefault = exports && exports.__importDefault || function(mod) {
@@ -180,7 +179,6 @@ var require_lodash_isundefined = /* @__PURE__ */ __commonJSMin(((exports, module
 //#endregion
 //#region node_modules/lodash.uniq/index.js
 var require_lodash_uniq = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	/**
 	* lodash (Custom Build) <https://lodash.com/>
 	* Build: `lodash modularize exports="npm" -o ./`
@@ -206,7 +204,7 @@ var require_lodash_uniq = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	/** Used to detect host constructors (Safari). */
 	var reIsHostCtor = /^\[object .+?Constructor\]$/;
 	/** Detect free variable `global` from Node.js. */
-	var freeGlobal = typeof globalthis_default == "object" && globalthis_default && globalthis_default.Object === Object && globalthis_default;
+	var freeGlobal = typeof global == "object" && global && global.Object === Object && global;
 	/** Detect free variable `self`. */
 	var freeSelf = typeof self == "object" && self && self.Object === Object && self;
 	/** Used as a reference to the global object. */
@@ -913,17 +911,6 @@ var require_lodash_uniq = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/lodash.groupby/index.js
 var require_lodash_groupby = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
-	/**
-	* lodash (Custom Build) <https://lodash.com/>
-	* Build: `lodash modularize exports="npm" -o ./`
-	* Copyright jQuery Foundation and other contributors <https://jquery.org/>
-	* Released under MIT license <https://lodash.com/license>
-	* Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
-	* Copyright Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
-	*/
-	/** Used as the size to enable large array optimizations. */
-	var LARGE_ARRAY_SIZE = 200;
 	/** Used as the `TypeError` message for "Functions" methods. */
 	var FUNC_ERROR_TEXT = "Expected a function";
 	/** Used to stand-in for `undefined` hash values. */
@@ -931,8 +918,6 @@ var require_lodash_groupby = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	/** Used to compose bitmasks for comparison styles. */
 	var UNORDERED_COMPARE_FLAG = 1;
 	var PARTIAL_COMPARE_FLAG = 2;
-	/** Used as references for various `Number` constants. */
-	var INFINITY = Infinity;
 	var MAX_SAFE_INTEGER = 9007199254740991;
 	/** `Object#toString` result references. */
 	var argsTag = "[object Arguments]";
@@ -983,7 +968,7 @@ var require_lodash_groupby = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	typedArrayTags[float32Tag] = typedArrayTags[float64Tag] = typedArrayTags[int8Tag] = typedArrayTags[int16Tag] = typedArrayTags[int32Tag] = typedArrayTags[uint8Tag] = typedArrayTags[uint8ClampedTag] = typedArrayTags[uint16Tag] = typedArrayTags[uint32Tag] = true;
 	typedArrayTags[argsTag] = typedArrayTags[arrayTag] = typedArrayTags[arrayBufferTag] = typedArrayTags[boolTag] = typedArrayTags[dataViewTag] = typedArrayTags[dateTag] = typedArrayTags[errorTag] = typedArrayTags[funcTag] = typedArrayTags[mapTag] = typedArrayTags[numberTag] = typedArrayTags[objectTag] = typedArrayTags[regexpTag] = typedArrayTags[setTag] = typedArrayTags[stringTag] = typedArrayTags[weakMapTag] = false;
 	/** Detect free variable `global` from Node.js. */
-	var freeGlobal = typeof globalthis_default == "object" && globalthis_default && globalthis_default.Object === Object && globalthis_default;
+	var freeGlobal = typeof global == "object" && global && global.Object === Object && global;
 	/** Detect free variable `self`. */
 	var freeSelf = typeof self == "object" && self && self.Object === Object && self;
 	/** Used as a reference to the global object. */
@@ -1553,7 +1538,7 @@ var require_lodash_groupby = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 		var cache = this.__data__;
 		if (cache instanceof ListCache) {
 			var pairs = cache.__data__;
-			if (!Map || pairs.length < LARGE_ARRAY_SIZE - 1) {
+			if (!Map || pairs.length < 199) {
 				pairs.push([key, value]);
 				return this;
 			}
@@ -1766,7 +1751,7 @@ var require_lodash_groupby = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 			} else {
 				var stack = new Stack();
 				if (customizer) var result = customizer(objValue, srcValue, key, object, source, stack);
-				if (!(result === void 0 ? baseIsEqual(srcValue, objValue, customizer, UNORDERED_COMPARE_FLAG | PARTIAL_COMPARE_FLAG, stack) : result)) return false;
+				if (!(result === void 0 ? baseIsEqual(srcValue, objValue, customizer, 3, stack) : result)) return false;
 			}
 		}
 		return true;
@@ -1845,7 +1830,7 @@ var require_lodash_groupby = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 		if (isKey(path) && isStrictComparable(srcValue)) return matchesStrictComparable(toKey(path), srcValue);
 		return function(object) {
 			var objValue = get(object, path);
-			return objValue === void 0 && objValue === srcValue ? hasIn(object, path) : baseIsEqual(srcValue, objValue, void 0, UNORDERED_COMPARE_FLAG | PARTIAL_COMPARE_FLAG);
+			return objValue === void 0 && objValue === srcValue ? hasIn(object, path) : baseIsEqual(srcValue, objValue, void 0, 3);
 		};
 	}
 	/**
@@ -1872,7 +1857,7 @@ var require_lodash_groupby = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 		if (typeof value == "string") return value;
 		if (isSymbol(value)) return symbolToString ? symbolToString.call(value) : "";
 		var result = value + "";
-		return result == "0" && 1 / value == -INFINITY ? "-0" : result;
+		return result == "0" && 1 / value == -Infinity ? "-0" : result;
 	}
 	/**
 	* Casts `value` to a path array if it's not one.
@@ -2266,7 +2251,7 @@ var require_lodash_groupby = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	function toKey(value) {
 		if (typeof value == "string" || isSymbol(value)) return value;
 		var result = value + "";
-		return result == "0" && 1 / value == -INFINITY ? "-0" : result;
+		return result == "0" && 1 / value == -Infinity ? "-0" : result;
 	}
 	/**
 	* Converts `func` to its source code.
@@ -3395,8 +3380,8 @@ var require_parser = /* @__PURE__ */ __commonJSMin(((exports) => {
 var require_CsvParserStream = /* @__PURE__ */ __commonJSMin(((exports) => {
 	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.CsvParserStream = void 0;
-	var string_decoder_1 = __require("node:string_decoder");
-	var stream_1$1 = __require("node:stream");
+	var string_decoder_1 = __require("string_decoder");
+	var stream_1$1 = __require("stream");
 	var transforms_1 = require_transforms();
 	var parser_1 = require_parser();
 	exports.CsvParserStream = class CsvParserStream extends stream_1$1.Transform {
@@ -3602,8 +3587,8 @@ var require_src = /* @__PURE__ */ __commonJSMin(((exports) => {
 	};
 	Object.defineProperty(exports, "__esModule", { value: true });
 	exports.parseString = exports.parseFile = exports.parseStream = exports.parse = exports.ParserOptions = exports.CsvParserStream = void 0;
-	var fs = __importStar(__require("node:fs"));
-	var stream_1 = __require("node:stream");
+	var fs = __importStar(__require("fs"));
+	var stream_1 = __require("stream");
 	var ParserOptions_1 = require_ParserOptions();
 	var CsvParserStream_1 = require_CsvParserStream();
 	__exportStar(require_types(), exports);

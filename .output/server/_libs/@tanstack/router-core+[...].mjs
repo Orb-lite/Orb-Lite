@@ -1,8 +1,5 @@
 import { C as createInlineCssPlaceholderAsset, E as getStylesheetHref, I as createLRUCache, L as invariant, P as rootRouteId, R as decodePath, S as TSR_SCRIPT_BARRIER_ID, w as createInlineCssStyleAsset, x as GLOBAL_TSR } from "./react-router+[...].mjs";
-import { a as globalthis_default, o as init_globalthis } from "../@fast-csv/format+[...].mjs";
-import { Buffer } from "node:buffer";
 //#region node_modules/seroval/dist/index.js
-init_globalthis();
 var SYM_ASYNC_ITERATOR = Symbol.asyncIterator;
 var SYM_HAS_INSTANCE = Symbol.hasInstance;
 var SYM_IS_CONCAT_SPREADABLE = Symbol.isConcatSpreadable;
@@ -294,7 +291,7 @@ else if (typeof self !== "undefined") Object.defineProperty(self, REFERENCES_KEY
 	writable: false,
 	enumerable: false
 });
-else if (typeof globalthis_default !== "undefined") Object.defineProperty(globalthis_default, REFERENCES_KEY, {
+else if (typeof global !== "undefined") Object.defineProperty(global, REFERENCES_KEY, {
 	value: INV_REFERENCE,
 	configurable: true,
 	writable: false,

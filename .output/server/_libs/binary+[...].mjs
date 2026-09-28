@@ -1,6 +1,4 @@
 import { i as __require, t as __commonJSMin } from "../_runtime.mjs";
-import processModule from "node:process";
-import { Buffer } from "node:buffer";
 //#region node_modules/traverse/index.js
 var require_traverse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = Traverse;
@@ -223,7 +221,7 @@ var require_traverse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#region node_modules/chainsaw/index.js
 var require_chainsaw = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var Traverse = require_traverse();
-	var EventEmitter$1 = __require("node:events").EventEmitter;
+	var EventEmitter$1 = __require("events").EventEmitter;
 	module.exports = Chainsaw;
 	function Chainsaw(builder) {
 		var saw = Chainsaw.saw(builder, {});
@@ -254,7 +252,7 @@ var require_chainsaw = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 					return ch;
 				});
 			});
-			processModule.nextTick(function() {
+			process.nextTick(function() {
 				saw.emit("begin");
 				saw.next();
 			});
@@ -536,10 +534,10 @@ var require_vars = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#region node_modules/binary/index.js
 var require_binary = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var Chainsaw = require_chainsaw();
-	var EventEmitter = __require("node:events").EventEmitter;
+	var EventEmitter = __require("events").EventEmitter;
 	var Buffers = require_buffers();
 	var Vars = require_vars();
-	var Stream = __require("node:stream").Stream;
+	var Stream = __require("stream").Stream;
 	exports = module.exports = function(bufOrEm, eventName) {
 		if (Buffer.isBuffer(bufOrEm)) return exports.parse(bufOrEm);
 		var s = exports.stream();

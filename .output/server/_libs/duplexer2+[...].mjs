@@ -1,16 +1,13 @@
 import { i as __require, t as __commonJSMin } from "../_runtime.mjs";
-import { a as globalthis_default, o as init_globalthis } from "./@fast-csv/format+[...].mjs";
 import { a as require_node, c as require_isarray, l as require_process_nextick_args, o as require_inherits, s as require_util } from "./archiver+[...].mjs";
-import processModule from "node:process";
-import { setImmediate } from "node:timers";
 //#region node_modules/duplexer2/node_modules/readable-stream/lib/internal/streams/stream.js
 var require_stream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	module.exports = __require("node:stream");
+	module.exports = __require("stream");
 }));
 //#endregion
 //#region node_modules/duplexer2/node_modules/safe-buffer/index.js
 var require_safe_buffer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var buffer = __require("node:buffer");
+	var buffer = __require("buffer");
 	var Buffer = buffer.Buffer;
 	function copyProps(src, dst) {
 		for (var key in src) dst[key] = src[key];
@@ -52,7 +49,7 @@ var require_BufferList = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 		if (!(instance instanceof Constructor)) throw new TypeError("Cannot call a class as a function");
 	}
 	var Buffer = require_safe_buffer().Buffer;
-	var util = __require("node:util");
+	var util = __require("util");
 	function copyBuffer(src, target, offset) {
 		src.copy(target, offset);
 	}
@@ -180,7 +177,6 @@ var require_destroy = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#endregion
 //#region node_modules/duplexer2/node_modules/readable-stream/lib/_stream_writable.js
 var require__stream_writable = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	var pna = require_process_nextick_args();
 	module.exports = Writable;
 	function CorkedRequest(state) {
@@ -191,7 +187,7 @@ var require__stream_writable = /* @__PURE__ */ __commonJSMin(((exports, module) 
 			onCorkedFinish(_this, state);
 		};
 	}
-	var asyncWrite = !processModule.browser && ["v0.10", "v0.9."].indexOf(processModule.version.slice(0, 5)) > -1 ? setImmediate : pna.nextTick;
+	var asyncWrite = !process.browser && ["v0.10", "v0.9."].indexOf(process.version.slice(0, 5)) > -1 ? setImmediate : pna.nextTick;
 	var Duplex;
 	Writable.WritableState = WritableState;
 	var util = Object.create(require_util());
@@ -199,7 +195,7 @@ var require__stream_writable = /* @__PURE__ */ __commonJSMin(((exports, module) 
 	var internalUtil = { deprecate: require_node() };
 	var Stream = require_stream();
 	var Buffer = require_safe_buffer().Buffer;
-	var OurUint8Array = (typeof globalthis_default !== "undefined" ? globalthis_default : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
+	var OurUint8Array = (typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
 	function _uint8ArrayToBuffer(chunk) {
 		return Buffer.from(chunk);
 	}
@@ -642,19 +638,18 @@ var require__stream_duplex = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 //#endregion
 //#region node_modules/duplexer2/node_modules/readable-stream/lib/_stream_readable.js
 var require__stream_readable = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	init_globalthis();
 	var pna = require_process_nextick_args();
 	module.exports = Readable;
 	var isArray = require_isarray();
 	var Duplex;
 	Readable.ReadableState = ReadableState;
-	__require("node:events").EventEmitter;
+	__require("events").EventEmitter;
 	var EElistenerCount = function(emitter, type) {
 		return emitter.listeners(type).length;
 	};
 	var Stream = require_stream();
 	var Buffer = require_safe_buffer().Buffer;
-	var OurUint8Array = (typeof globalthis_default !== "undefined" ? globalthis_default : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
+	var OurUint8Array = (typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
 	function _uint8ArrayToBuffer(chunk) {
 		return Buffer.from(chunk);
 	}
@@ -663,7 +658,7 @@ var require__stream_readable = /* @__PURE__ */ __commonJSMin(((exports, module) 
 	}
 	var util = Object.create(require_util());
 	util.inherits = require_inherits();
-	var debugUtil = __require("node:util");
+	var debugUtil = __require("util");
 	var debug = void 0;
 	if (debugUtil && debugUtil.debuglog) debug = debugUtil.debuglog("stream");
 	else debug = function() {};
@@ -958,7 +953,7 @@ var require__stream_readable = /* @__PURE__ */ __commonJSMin(((exports, module) 
 		}
 		state.pipesCount += 1;
 		debug("pipe count=%d opts=%j", state.pipesCount, pipeOpts);
-		var endFn = (!pipeOpts || pipeOpts.end !== false) && dest !== processModule.stdout && dest !== processModule.stderr ? onend : unpipe;
+		var endFn = (!pipeOpts || pipeOpts.end !== false) && dest !== process.stdout && dest !== process.stderr ? onend : unpipe;
 		if (state.endEmitted) pna.nextTick(endFn);
 		else src.once("end", endFn);
 		dest.on("unpipe", onunpipe);
@@ -1379,8 +1374,8 @@ var require__stream_passthrough = /* @__PURE__ */ __commonJSMin(((exports, modul
 //#endregion
 //#region node_modules/duplexer2/node_modules/readable-stream/readable.js
 var require_readable = /* @__PURE__ */ __commonJSMin(((exports, module) => {
-	var Stream = __require("node:stream");
-	if (processModule.env.READABLE_STREAM === "disable" && Stream) {
+	var Stream = __require("stream");
+	if (process.env.READABLE_STREAM === "disable" && Stream) {
 		module.exports = Stream;
 		exports = module.exports = Stream.Readable;
 		exports.Readable = Stream.Readable;

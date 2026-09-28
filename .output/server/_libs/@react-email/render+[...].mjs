@@ -1,6 +1,7 @@
 import { o as __toESM, r as __exportAll, t as __commonJSMin } from "../../_runtime.mjs";
 import { u as require_react } from "../@floating-ui/react-dom+[...].mjs";
 import { n as require_jsx_runtime } from "../radix-ui__react-context+react.mjs";
+import { Writable } from "node:stream";
 //#region node_modules/prettier/plugins/html.mjs
 var html_exports = /* @__PURE__ */ __exportAll({
 	default: () => Zi,
@@ -16342,7 +16343,6 @@ function handleDeprecatedOptions(options) {
 }
 //#endregion
 //#region node_modules/html5parser/dist/index.js
-var import_react = /* @__PURE__ */ __toESM(require_react(), 1);
 var SyntaxKind = /* @__PURE__ */ ((SyntaxKind2) => {
 	SyntaxKind2["Text"] = "Text";
 	SyntaxKind2["Tag"] = "Tag";
@@ -16937,7 +16937,8 @@ function parse(input, options) {
 	return _nodes;
 }
 //#endregion
-//#region node_modules/@react-email/render/dist/edge/index.mjs
+//#region node_modules/@react-email/render/dist/node/index.mjs
+var import_react = /* @__PURE__ */ __toESM(require_react(), 1);
 var import_jsx_runtime = require_jsx_runtime();
 function getHtmlNode(path) {
 	const topNode = path.node;
@@ -17342,50 +17343,83 @@ var parseAttributes = (tag) => {
 	for (const [, name, doubleQuoted, singleQuoted, unquoted] of attributeSection.matchAll(ATTRIBUTE_PATTERN)) attributes[name.toLowerCase()] = doubleQuoted ?? singleQuoted ?? unquoted ?? "";
 	return attributes;
 };
-var decoder = new TextDecoder("utf-8");
 var readStream = async (stream) => {
-	const chunks = [];
-	const writableStream = new WritableStream({
-		write(chunk) {
-			chunks.push(chunk);
-		},
-		abort(reason) {
-			throw new Error("Stream aborted", { cause: { reason } });
-		}
-	});
-	await stream.pipeTo(writableStream);
-	let length = 0;
-	chunks.forEach((item) => {
-		length += item.length;
-	});
-	const mergedChunks = new Uint8Array(length);
-	let offset = 0;
-	chunks.forEach((item) => {
-		mergedChunks.set(item, offset);
-		offset += item.length;
-	});
-	return decoder.decode(mergedChunks);
+	let result = "";
+	const decoder = new TextDecoder("utf-8");
+	if ("pipeTo" in stream) {
+		const writableStream = new WritableStream({
+			write(chunk) {
+				result += decoder.decode(chunk, { stream: true });
+			},
+			close() {
+				result += decoder.decode();
+			}
+		});
+		await stream.pipeTo(writableStream);
+	} else {
+		const writable = new Writable({
+			write(chunk, _encoding, callback) {
+				result += decoder.decode(chunk, { stream: true });
+				callback();
+			},
+			final(callback) {
+				result += decoder.decode();
+				callback();
+			}
+		});
+		await new Promise((resolve, reject) => {
+			writable.on("pipe", (source) => {
+				source.on("error", (err) => {
+					writable.destroy(err);
+				});
+			});
+			writable.on("error", reject);
+			writable.on("close", () => {
+				resolve();
+			});
+			stream.pipe(writable);
+		});
+	}
+	return result;
 };
-var importReactDom = () => {
-	return import("../@tanstack/react-router+[...].mjs").then((n) => /* @__PURE__ */ __toESM(n.s(), 1)).catch(() => import("../@tanstack/react-router+[...].mjs").then((n) => /* @__PURE__ */ __toESM(n.s(), 1)));
-};
-var render = async (element, options) => {
-	const reactDOMServer = await importReactDom().then((m) => {
+var render = async (node, options) => {
+	const reactDOMServer = await import("../@tanstack/react-router+[...].mjs").then((n) => /* @__PURE__ */ __toESM(n.s(), 1)).then((m) => {
 		if ("default" in m) return m.default;
 		return m;
 	});
-	const html = await new Promise((resolve, reject) => {
-		const ErrorBoundary = createErrorBoundary(reject);
-		reactDOMServer.renderToReadableStream(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ErrorBoundary, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react.Suspense, { children: element }) }), {
-			onError(error) {
-				reject(error);
-			},
-			progressiveChunkSize: Number.POSITIVE_INFINITY
-		}).then(async (stream) => {
-			await stream.allReady;
-			return readStream(stream);
-		}).then((result) => resolve(stripImagePreloadLinks(result))).catch(reject);
+	let html;
+	await new Promise((resolve, reject) => {
+		if (Object.hasOwn(reactDOMServer, "renderToReadableStream") && typeof WritableStream !== "undefined") {
+			const ErrorBoundary = createErrorBoundary(reject);
+			reactDOMServer.renderToReadableStream(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ErrorBoundary, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react.Suspense, { children: node }) }), {
+				progressiveChunkSize: Number.POSITIVE_INFINITY,
+				onError(error) {
+					reject(error);
+				}
+			}).then(async (stream) => {
+				await stream.allReady;
+				return readStream(stream);
+			}).then((result) => {
+				html = result;
+				resolve();
+			}).catch(reject);
+		} else {
+			const ErrorBoundary = createErrorBoundary(reject);
+			const stream = reactDOMServer.renderToPipeableStream(/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ErrorBoundary, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_react.Suspense, { children: node }) }), {
+				async onAllReady() {
+					html = await readStream(stream).then((s) => {
+						return s.replaceAll("\0", "");
+					});
+					resolve();
+				},
+				onError(error) {
+					reject(error);
+				},
+				progressiveChunkSize: Number.POSITIVE_INFINITY
+			});
+		}
 	});
+	html = stripImagePreloadLinks(html);
 	if (options?.plainText) return options.unstableTextConversion ? unstableToPlainText(html) : toPlainText(html, options.htmlToTextOptions);
 	const document = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">${html.replace(/<!DOCTYPE.*?>/, "")}`;
 	if (options?.pretty) return pretty(document);
