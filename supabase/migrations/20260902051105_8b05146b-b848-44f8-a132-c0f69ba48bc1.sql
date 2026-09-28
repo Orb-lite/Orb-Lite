@@ -1,0 +1,2 @@
+CREATE POLICY "Solo el sistema gestiona solicitudes" ON public.solicitudes FOR ALL TO authenticated USING (false) WITH CHECK (false);
+CREATE POLICY "Solo el sistema gestiona clientes" ON public.customers FOR ALL TO authenticated USING (false) WITH CHECK (false);
