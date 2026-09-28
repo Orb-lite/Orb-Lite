@@ -20,7 +20,7 @@ export default defineConfig({
     server: { entry: "server" },
   },
   nitro: {
-    preset: "node-server",
+    preset: "cloudflare-module",
   },
   vite: {
     server: {
@@ -46,3 +46,4 @@ export default defineConfig({
     },
   },
 });
+
