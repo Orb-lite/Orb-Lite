@@ -1,11 +1,24 @@
 //#region node_modules/.nitro/vite/services/ssr/index.js
 var lastCapturedError;
 var TTL_MS = 5e3;
+var LOG_BUFFER_SIZE = 50;
+var logBuffer = [];
 function record(error) {
 	lastCapturedError = {
 		error,
 		at: Date.now()
 	};
+	addToBuffer(describeError(error));
+}
+function addToBuffer(message) {
+	logBuffer.push({
+		message,
+		timestamp: Date.now()
+	});
+	if (logBuffer.length > LOG_BUFFER_SIZE) logBuffer.shift();
+}
+function getLogs() {
+	return logBuffer;
 }
 var CAUSE_DEPTH_LIMIT = 5;
 var DESCRIPTION_LENGTH_LIMIT = 8e3;
@@ -42,7 +55,11 @@ function isErrorLike(value) {
 var originalConsoleError = console.error.bind(console);
 console.error = (...args) => {
 	originalConsoleError(...args.map((arg) => {
-		if (!isErrorLike(arg)) return arg;
+		if (!isErrorLike(arg)) {
+			const str = String(arg);
+			addToBuffer(str);
+			return str;
+		}
 		record(arg);
 		return describeError(arg);
 	}));
@@ -93,7 +110,7 @@ function renderErrorPage() {
 }
 var serverEntryPromise;
 async function getServerEntry() {
-	if (!serverEntryPromise) serverEntryPromise = import("./server-B9A9g8Cl.mjs").then((m) => m.default ?? m);
+	if (!serverEntryPromise) serverEntryPromise = import("./server-DovNT2IZ.mjs").then((m) => m.default ?? m);
 	return serverEntryPromise;
 }
 async function normalizeCatastrophicSsrResponse(response) {
@@ -127,4 +144,4 @@ var server_default = { async fetch(request, env, ctx) {
 	}
 } };
 //#endregion
-export { server_default as default, renderErrorPage as t };
+export { server_default as default, getLogs as n, renderErrorPage as t };
