@@ -854,6 +854,7 @@ export const crmCreateDemoUser = createServerFn({ method: "POST" })
         emailSent = sent.sent;
         if (!sent.sent) emailReason = sent.reason ?? "no enviado";
       } catch (e) {
+        console.error("Error al enviar email (demo-wialon):", e);
         emailReason = e instanceof Error ? e.message : "error de envío";
       }
     }
@@ -962,6 +963,7 @@ export const crmSendDemoRequest = createServerFn({ method: "POST" })
       emailSent = sent.sent;
       if (!sent.sent) emailReason = sent.reason ?? "no enviado";
     } catch (e) {
+      console.error("Error al enviar email (demo-request):", e);
       emailReason = e instanceof Error ? e.message : "error de envío";
     }
 

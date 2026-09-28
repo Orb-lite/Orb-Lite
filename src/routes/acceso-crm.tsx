@@ -52,8 +52,9 @@ function AccesoCrmPage() {
       const res = await request();
       if (res.ok) toast.success("Código enviado a ventas@orb-lite.com");
       else toast.error("Espera un minuto antes de pedir otro código");
-    } catch {
-      toast.error("No se pudo enviar el código");
+    } catch (e) {
+      console.error("Error al enviar código:", e);
+      toast.error(`No se pudo enviar el código: ${e instanceof Error ? e.message : "Error desconocido"}`);
     }
     setSending(false);
   }

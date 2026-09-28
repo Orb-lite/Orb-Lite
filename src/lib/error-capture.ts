@@ -4,8 +4,23 @@
 let lastCapturedError: { error: unknown; at: number } | undefined;
 const TTL_MS = 5_000;
 
+const LOG_BUFFER_SIZE = 50;
+const logBuffer: { message: string; timestamp: number }[] = [];
+
 function record(error: unknown) {
   lastCapturedError = { error, at: Date.now() };
+  addToBuffer(describeError(error));
+}
+
+function addToBuffer(message: string) {
+  logBuffer.push({ message, timestamp: Date.now() });
+  if (logBuffer.length > LOG_BUFFER_SIZE) {
+    logBuffer.shift();
+  }
+}
+
+export function getLogs() {
+  return logBuffer;
 }
 
 // h3's HTTPError serializes to {"status":500,"unhandled":true,"message":"HTTPError"} —
@@ -55,7 +70,11 @@ function isErrorLike(value: unknown): value is Error {
 const originalConsoleError = console.error.bind(console);
 console.error = (...args: unknown[]) => {
   const expanded = args.map((arg) => {
-    if (!isErrorLike(arg)) return arg;
+    if (!isErrorLike(arg)) {
+      const str = String(arg);
+      addToBuffer(str);
+      return str;
+    }
     record(arg);
     return describeError(arg);
   });

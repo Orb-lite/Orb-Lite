@@ -22,6 +22,7 @@ import { Route as WialonRouteImport } from './routes/wialon'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedRenovacionesRouteImport } from './routes/_authenticated/renovaciones'
+import { Route as ApiLogsRouteImport } from './routes/api/logs'
 import { Route as PanelTokenRouteImport } from './routes/panel.$token'
 import { Route as RutaTokenRouteImport } from './routes/ruta.$token'
 import { Route as WialonIndexRouteImport } from './routes/wialon.index'
@@ -103,6 +104,11 @@ const AuthenticatedRenovacionesRoute =
     path: '/renovaciones',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiLogsRoute = ApiLogsRouteImport.update({
+  id: '/api/logs',
+  path: '/api/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PanelTokenRoute = PanelTokenRouteImport.update({
   id: '/panel/$token',
   path: '/panel/$token',
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
+  '/api/logs': typeof ApiLogsRoute
   '/panel/$token': typeof PanelTokenRoute
   '/ruta/$token': typeof RutaTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
@@ -223,6 +230,7 @@ export interface FileRoutesByTo {
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
+  '/api/logs': typeof ApiLogsRoute
   '/panel/$token': typeof PanelTokenRoute
   '/ruta/$token': typeof RutaTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
@@ -254,6 +262,7 @@ export interface FileRoutesById {
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/renovaciones': typeof AuthenticatedRenovacionesRoute
+  '/api/logs': typeof ApiLogsRoute
   '/panel/$token': typeof PanelTokenRoute
   '/ruta/$token': typeof RutaTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/crm'
     | '/renovaciones'
+    | '/api/logs'
     | '/panel/$token'
     | '/ruta/$token'
     | '/wialon/callback'
@@ -313,6 +323,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/crm'
     | '/renovaciones'
+    | '/api/logs'
     | '/panel/$token'
     | '/ruta/$token'
     | '/wialon/callback'
@@ -343,6 +354,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes'
     | '/_authenticated/crm'
     | '/_authenticated/renovaciones'
+    | '/api/logs'
     | '/panel/$token'
     | '/ruta/$token'
     | '/wialon/callback'
@@ -371,6 +383,7 @@ export interface RootRouteChildren {
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
   WialonRoute: typeof WialonRouteWithChildren
+  ApiLogsRoute: typeof ApiLogsRoute
   PanelTokenRoute: typeof PanelTokenRoute
   RutaTokenRoute: typeof RutaTokenRoute
   ApiPublicCronAvisosRenovacionRoute: typeof ApiPublicCronAvisosRenovacionRoute
@@ -470,6 +483,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/renovaciones'
       preLoaderRoute: typeof AuthenticatedRenovacionesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/logs': {
+      id: '/api/logs'
+      path: '/api/logs'
+      fullPath: '/api/logs'
+      preLoaderRoute: typeof ApiLogsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/panel/$token': {
       id: '/panel/$token'
@@ -634,6 +654,7 @@ const rootRouteChildren: RootRouteChildren = {
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,
   WialonRoute: WialonRouteWithChildren,
+  ApiLogsRoute: ApiLogsRoute,
   PanelTokenRoute: PanelTokenRoute,
   RutaTokenRoute: RutaTokenRoute,
   ApiPublicCronAvisosRenovacionRoute: ApiPublicCronAvisosRenovacionRoute,
