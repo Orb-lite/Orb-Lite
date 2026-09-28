@@ -1,12 +1,12 @@
 import { a as __toCommonJS, i as __require, n as __esmMin, r as __exportAll, t as __commonJSMin } from "../_runtime.mjs";
 import { a as globalthis_default, o as init_globalthis, t as require_src$1 } from "./@fast-csv/format+[...].mjs";
-import { a as require_node, c as require_safe_buffer, i as require_readable$2, l as require_isarray, n as require_glob, o as require_inherits, r as require_graceful_fs, s as require_util, t as require_archiver, u as require_process_nextick_args } from "./archiver+[...].mjs";
+import { a as require_node, c as require_isarray, i as require_readable$2, l as require_process_nextick_args, n as require_glob, o as require_inherits, r as require_graceful_fs, s as require_util, t as require_archiver } from "./archiver+[...].mjs";
 import { t as require_src$2 } from "./@fast-csv/parse+[...].mjs";
 import { n as require_utc, r as require_customParseFormat, t as require_dayjs_min } from "./dayjs.mjs";
 import { n as init_buffer_indexof_polyfill } from "./buffer-indexof-polyfill.mjs";
 import { t as require_binary } from "./binary+[...].mjs";
 import { t as require_bluebird } from "./bluebird.mjs";
-import { t as require_duplexer2 } from "./duplexer2+readable-stream.mjs";
+import { t as require_duplexer2 } from "./duplexer2+[...].mjs";
 import { t as require_BigInteger } from "./big-integer.mjs";
 import processModule from "node:process";
 import { Buffer } from "node:buffer";
@@ -3431,12 +3431,50 @@ var require_stream$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = __require("node:stream");
 }));
 //#endregion
+//#region node_modules/jszip/node_modules/safe-buffer/index.js
+var require_safe_buffer$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var buffer$1 = __require("node:buffer");
+	var Buffer = buffer$1.Buffer;
+	function copyProps(src, dst) {
+		for (var key in src) dst[key] = src[key];
+	}
+	if (Buffer.from && Buffer.alloc && Buffer.allocUnsafe && Buffer.allocUnsafeSlow) module.exports = buffer$1;
+	else {
+		copyProps(buffer$1, exports);
+		exports.Buffer = SafeBuffer;
+	}
+	function SafeBuffer(arg, encodingOrOffset, length) {
+		return Buffer(arg, encodingOrOffset, length);
+	}
+	copyProps(Buffer, SafeBuffer);
+	SafeBuffer.from = function(arg, encodingOrOffset, length) {
+		if (typeof arg === "number") throw new TypeError("Argument must not be a number");
+		return Buffer(arg, encodingOrOffset, length);
+	};
+	SafeBuffer.alloc = function(size, fill, encoding) {
+		if (typeof size !== "number") throw new TypeError("Argument must be a number");
+		var buf = Buffer(size);
+		if (fill !== void 0) if (typeof encoding === "string") buf.fill(fill, encoding);
+		else buf.fill(fill);
+		else buf.fill(0);
+		return buf;
+	};
+	SafeBuffer.allocUnsafe = function(size) {
+		if (typeof size !== "number") throw new TypeError("Argument must be a number");
+		return Buffer(size);
+	};
+	SafeBuffer.allocUnsafeSlow = function(size) {
+		if (typeof size !== "number") throw new TypeError("Argument must be a number");
+		return buffer$1.SlowBuffer(size);
+	};
+}));
+//#endregion
 //#region node_modules/jszip/node_modules/readable-stream/lib/internal/streams/BufferList.js
 var require_BufferList$1 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	function _classCallCheck(instance, Constructor) {
 		if (!(instance instanceof Constructor)) throw new TypeError("Cannot call a class as a function");
 	}
-	var Buffer = require_safe_buffer().Buffer;
+	var Buffer = require_safe_buffer$1().Buffer;
 	var util$4 = __require("node:util");
 	function copyBuffer(src, target, offset) {
 		src.copy(target, offset);
@@ -3583,7 +3621,7 @@ var require__stream_writable$1 = /* @__PURE__ */ __commonJSMin(((exports, module
 	util.inherits = require_inherits();
 	var internalUtil = { deprecate: require_node() };
 	var Stream = require_stream$1();
-	var Buffer = require_safe_buffer().Buffer;
+	var Buffer = require_safe_buffer$1().Buffer;
 	var OurUint8Array = (typeof globalthis_default !== "undefined" ? globalthis_default : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
 	function _uint8ArrayToBuffer(chunk) {
 		return Buffer.from(chunk);
@@ -4038,7 +4076,7 @@ var require__stream_readable$1 = /* @__PURE__ */ __commonJSMin(((exports, module
 		return emitter.listeners(type).length;
 	};
 	var Stream = require_stream$1();
-	var Buffer = require_safe_buffer().Buffer;
+	var Buffer = require_safe_buffer$1().Buffer;
 	var OurUint8Array = (typeof globalthis_default !== "undefined" ? globalthis_default : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {};
 	function _uint8ArrayToBuffer(chunk) {
 		return Buffer.from(chunk);
@@ -6683,7 +6721,7 @@ var require_zipObject = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = ZipObject;
 }));
 //#endregion
-//#region node_modules/pako/lib/utils/common.js
+//#region node_modules/jszip/node_modules/pako/lib/utils/common.js
 var require_common = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var TYPED_OK = typeof Uint8Array !== "undefined" && typeof Uint16Array !== "undefined" && typeof Int32Array !== "undefined";
 	function _has(obj, key) {
@@ -6750,7 +6788,7 @@ var require_common = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.setTyped(TYPED_OK);
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/trees.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/trees.js
 var require_trees = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var utils = require_common();
 	var Z_FIXED = 4;
@@ -7365,7 +7403,7 @@ var require_trees = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports._tr_align = _tr_align;
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/adler32.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/adler32.js
 var require_adler32 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	function adler32(adler, buf, len, pos) {
 		var s1 = adler & 65535 | 0, s2 = adler >>> 16 & 65535 | 0, n = 0;
@@ -7384,7 +7422,7 @@ var require_adler32 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = adler32;
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/crc32.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/crc32.js
 var require_crc32 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	function makeTable() {
 		var c, table = [];
@@ -7405,7 +7443,7 @@ var require_crc32 = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = crc32;
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/messages.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/messages.js
 var require_messages = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = {
 		2: "need dictionary",
@@ -7420,7 +7458,7 @@ var require_messages = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/deflate.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/deflate.js
 var require_deflate$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var utils = require_common();
 	var trees = require_trees();
@@ -8294,7 +8332,7 @@ while (prev === _win[++scan] && prev === _win[++scan] && prev === _win[++scan] &
 	exports.deflateInfo = "pako deflate (from Nodeca project)";
 }));
 //#endregion
-//#region node_modules/pako/lib/utils/strings.js
+//#region node_modules/jszip/node_modules/pako/lib/utils/strings.js
 var require_strings = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var utils = require_common();
 	var STR_APPLY_OK = true;
@@ -8414,7 +8452,7 @@ var require_strings = /* @__PURE__ */ __commonJSMin(((exports) => {
 	};
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/zstream.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/zstream.js
 var require_zstream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	function ZStream() {
 		this.input = null;
@@ -8433,7 +8471,7 @@ var require_zstream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = ZStream;
 }));
 //#endregion
-//#region node_modules/pako/lib/deflate.js
+//#region node_modules/jszip/node_modules/pako/lib/deflate.js
 var require_deflate = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var zlib_deflate = require_deflate$1();
 	var utils = require_common();
@@ -8729,7 +8767,7 @@ var require_deflate = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.gzip = gzip;
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/inffast.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/inffast.js
 var require_inffast = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var BAD = 30;
 	var TYPE = 12;
@@ -8946,7 +8984,7 @@ var require_inffast = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/inftrees.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/inftrees.js
 var require_inftrees = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var utils = require_common();
 	var MAXBITS = 15;
@@ -9213,7 +9251,7 @@ var require_inftrees = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/inflate.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/inflate.js
 var require_inflate$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var utils = require_common();
 	var adler32 = require_adler32();
@@ -10237,7 +10275,7 @@ var require_inflate$1 = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.inflateInfo = "pako inflate (from Nodeca project)";
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/constants.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/constants.js
 var require_constants = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = {
 		Z_NO_FLUSH: 0,
@@ -10270,7 +10308,7 @@ var require_constants = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	};
 }));
 //#endregion
-//#region node_modules/pako/lib/zlib/gzheader.js
+//#region node_modules/jszip/node_modules/pako/lib/zlib/gzheader.js
 var require_gzheader = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	function GZheader() {
 		this.text = 0;
@@ -10287,7 +10325,7 @@ var require_gzheader = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = GZheader;
 }));
 //#endregion
-//#region node_modules/pako/lib/inflate.js
+//#region node_modules/jszip/node_modules/pako/lib/inflate.js
 var require_inflate = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var zlib_inflate = require_inflate$1();
 	var utils = require_common();
@@ -10587,7 +10625,7 @@ var require_inflate = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.ungzip = inflate;
 }));
 //#endregion
-//#region node_modules/pako/index.js
+//#region node_modules/jszip/node_modules/pako/index.js
 var require_pako = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var assign = require_common().assign;
 	var deflate = require_deflate();
@@ -24954,6 +24992,44 @@ var require_Buffer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 //#region node_modules/unzipper/node_modules/readable-stream/lib/internal/streams/stream.js
 var require_stream = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = __require("node:stream");
+}));
+//#endregion
+//#region node_modules/unzipper/node_modules/safe-buffer/index.js
+var require_safe_buffer = /* @__PURE__ */ __commonJSMin(((exports, module) => {
+	var buffer = __require("node:buffer");
+	var Buffer = buffer.Buffer;
+	function copyProps(src, dst) {
+		for (var key in src) dst[key] = src[key];
+	}
+	if (Buffer.from && Buffer.alloc && Buffer.allocUnsafe && Buffer.allocUnsafeSlow) module.exports = buffer;
+	else {
+		copyProps(buffer, exports);
+		exports.Buffer = SafeBuffer;
+	}
+	function SafeBuffer(arg, encodingOrOffset, length) {
+		return Buffer(arg, encodingOrOffset, length);
+	}
+	copyProps(Buffer, SafeBuffer);
+	SafeBuffer.from = function(arg, encodingOrOffset, length) {
+		if (typeof arg === "number") throw new TypeError("Argument must not be a number");
+		return Buffer(arg, encodingOrOffset, length);
+	};
+	SafeBuffer.alloc = function(size, fill, encoding) {
+		if (typeof size !== "number") throw new TypeError("Argument must be a number");
+		var buf = Buffer(size);
+		if (fill !== void 0) if (typeof encoding === "string") buf.fill(fill, encoding);
+		else buf.fill(fill);
+		else buf.fill(0);
+		return buf;
+	};
+	SafeBuffer.allocUnsafe = function(size) {
+		if (typeof size !== "number") throw new TypeError("Argument must be a number");
+		return Buffer(size);
+	};
+	SafeBuffer.allocUnsafeSlow = function(size) {
+		if (typeof size !== "number") throw new TypeError("Argument must be a number");
+		return buffer.SlowBuffer(size);
+	};
 }));
 //#endregion
 //#region node_modules/unzipper/node_modules/readable-stream/lib/internal/streams/BufferList.js
