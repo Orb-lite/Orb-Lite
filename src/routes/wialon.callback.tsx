@@ -16,8 +16,6 @@ function WialonCallbackComponent() {
 
     if (token) {
       localStorage.setItem('wialon_token', token)
-      
-      // Redirección directa a /plataforma
       navigate({ to: '/plataforma' })
     } else {
       navigate({ to: '/auth' })
