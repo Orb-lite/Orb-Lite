@@ -1265,7 +1265,7 @@ export async function processAssistantMessage(
     const currentPrompt = `${conversationTurns ? `HISTORIAL DE LA CONVERSACIÓN:\n${conversationTurns}\n\n` : ""}MENSAJE DEL USUARIO AHORA:\n${message}`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+      model: "gemini-2.5-flash",
       contents: currentPrompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -1279,7 +1279,7 @@ export async function processAssistantMessage(
             },
             processId: {
               type: Type.STRING,
-              description: "Uno de: renewal, crm_customer, demo_request, route_share, geofence, quick_quote, o null si solo es charla general",
+              description: "Uno de: renewal, crm_customer, demo_request, route_share, smart_route, geofence, unit_history, wialon_report, quick_quote, o null si solo es charla general",
             },
             processTitle: {
               type: Type.STRING,

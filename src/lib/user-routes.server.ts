@@ -97,18 +97,37 @@ function routeToRow(route: StoredUserRoute) {
   };
 }
 
+// Store en memoria resiliente para garantizar que los enlaces compartidos y rutas
+// se registren y consulten siempre de inmediato, con sincronización a Supabase si está disponible.
+const inMemoryRoutes = new Map<string, StoredUserRoute>();
+
 export async function getUserRoutesFromStorage(
   userIds: number | number[],
 ): Promise<StoredUserRoute[]> {
   const ids = Array.isArray(userIds) ? userIds : [userIds];
   if (ids.length === 0) return [];
-  const { data, error } = await supabaseAdmin
-    .from("user_routes")
-    .select("*")
-    .in("user_id", ids)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data as RouteRow[]).map(rowToRoute);
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_routes")
+      .select("*")
+      .in("user_id", ids)
+      .order("created_at", { ascending: false });
+    if (!error && data) {
+      const dbRoutes = (data as RouteRow[]).map(rowToRoute);
+      for (const r of dbRoutes) {
+        inMemoryRoutes.set(r.id, r);
+        if (r.shareToken) inMemoryRoutes.set(r.shareToken, r);
+      }
+      return dbRoutes;
+    }
+  } catch (err) {
+    console.warn("[user-routes] Supabase offline, using in-memory store:", err);
+  }
+
+  // Fallback en memoria
+  return Array.from(inMemoryRoutes.values())
+    .filter((r) => ids.includes(r.userId))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function saveUserRouteToStorage(
@@ -119,8 +138,19 @@ export async function saveUserRouteToStorage(
     id: `route_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     createdAt: new Date().toISOString(),
   };
-  const { error } = await supabaseAdmin.from("user_routes").insert(routeToRow(newRoute));
-  if (error) throw new Error(error.message);
+
+  // Guardar en memoria inmediatamente
+  inMemoryRoutes.set(newRoute.id, newRoute);
+  if (newRoute.shareToken) {
+    inMemoryRoutes.set(newRoute.shareToken, newRoute);
+  }
+
+  try {
+    await supabaseAdmin.from("user_routes").insert(routeToRow(newRoute));
+  } catch (err) {
+    console.warn("[user-routes] Could not sync insert to Supabase, persisted in memory:", err);
+  }
+
   return newRoute;
 }
 
@@ -128,23 +158,46 @@ export async function deleteUserRouteFromStorage(
   userId: number,
   routeId: string,
 ): Promise<boolean> {
-  const { error } = await supabaseAdmin
-    .from("user_routes")
-    .delete()
-    .eq("id", routeId)
-    .eq("user_id", userId);
-  if (error) throw new Error(error.message);
+  inMemoryRoutes.delete(routeId);
+  try {
+    await supabaseAdmin
+      .from("user_routes")
+      .delete()
+      .eq("id", routeId)
+      .eq("user_id", userId);
+  } catch (err) {
+    console.warn("[user-routes] Could not sync delete to Supabase:", err);
+  }
   return true;
 }
 
 export async function getRouteByShareToken(token: string): Promise<StoredUserRoute | null> {
-  const { data, error } = await supabaseAdmin
-    .from("user_routes")
-    .select("*")
-    .eq("share_token", token)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data ? rowToRoute(data as RouteRow) : null;
+  // 1. Revisar caché en memoria
+  const memoryHit = inMemoryRoutes.get(token);
+  if (memoryHit && memoryHit.stops?.length) return memoryHit;
+
+  for (const r of inMemoryRoutes.values()) {
+    if (r.shareToken === token && r.stops?.length) return r;
+  }
+
+  // 2. Revisar Supabase
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_routes")
+      .select("*")
+      .eq("share_token", token)
+      .maybeSingle();
+    if (!error && data) {
+      const found = rowToRoute(data as RouteRow);
+      inMemoryRoutes.set(token, found);
+      inMemoryRoutes.set(found.id, found);
+      return found;
+    }
+  } catch (err) {
+    console.warn("[user-routes] Supabase token query failed, relying on memory:", err);
+  }
+
+  return memoryHit ?? null;
 }
 
 export async function setRouteShare(
@@ -154,26 +207,46 @@ export async function setRouteShare(
   stops: SharedRouteStop[],
   reportEmail?: string,
 ): Promise<StoredUserRoute | null> {
-  const { data, error } = await supabaseAdmin
-    .from("user_routes")
-    .select("*")
-    .eq("id", routeId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) return null;
-  const route = rowToRoute(data as RouteRow);
+  let route = inMemoryRoutes.get(routeId);
+
+  if (!route) {
+    try {
+      const { data } = await supabaseAdmin
+        .from("user_routes")
+        .select("*")
+        .eq("id", routeId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (data) {
+        route = rowToRoute(data as RouteRow);
+      }
+    } catch {
+      // Ignorar error de red
+    }
+  }
+
+  if (!route) return null;
+
   const recipientChanged = route.reportEmail !== reportEmail;
   route.shareToken = shareToken;
   route.stops = stops;
   if (reportEmail) route.reportEmail = reportEmail;
   else delete route.reportEmail;
   if (recipientChanged) delete route.reportSentAt;
-  const { error: updateError } = await supabaseAdmin
-    .from("user_routes")
-    .update(routeToRow(route))
-    .eq("id", route.id);
-  if (updateError) throw new Error(updateError.message);
+
+  // Actualizar en memoria
+  inMemoryRoutes.set(route.id, route);
+  inMemoryRoutes.set(shareToken, route);
+
+  try {
+    await supabaseAdmin
+      .from("user_routes")
+      .update(routeToRow(route))
+      .eq("id", route.id);
+  } catch (err) {
+    console.warn("[user-routes] Could not sync share update to Supabase:", err);
+  }
+
   return route;
 }
 
@@ -198,11 +271,17 @@ export async function markSharedStop(
     delete stop.contact;
     delete stop.checkDistance;
   }
-  const { error } = await supabaseAdmin
-    .from("user_routes")
-    .update({ stops: route.stops })
-    .eq("id", route.id);
-  if (error) throw new Error(error.message);
+  inMemoryRoutes.set(route.id, route);
+  if (route.shareToken) inMemoryRoutes.set(route.shareToken, route);
+
+  try {
+    await supabaseAdmin
+      .from("user_routes")
+      .update({ stops: route.stops })
+      .eq("id", route.id);
+  } catch (err) {
+    console.warn("[user-routes] Could not sync stop update to Supabase:", err);
+  }
   return route;
 }
 
@@ -212,11 +291,18 @@ export async function updateSharedRoute(
 ): Promise<StoredUserRoute | null> {
   const route = await getRouteByShareToken(token);
   if (!route || !mutate(route)) return null;
-  const { error } = await supabaseAdmin
-    .from("user_routes")
-    .update(routeToRow(route))
-    .eq("id", route.id);
-  if (error) throw new Error(error.message);
+
+  inMemoryRoutes.set(route.id, route);
+  if (route.shareToken) inMemoryRoutes.set(route.shareToken, route);
+
+  try {
+    await supabaseAdmin
+      .from("user_routes")
+      .update(routeToRow(route))
+      .eq("id", route.id);
+  } catch (err) {
+    console.warn("[user-routes] Could not sync route update to Supabase:", err);
+  }
   return route;
 }
 

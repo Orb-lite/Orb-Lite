@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  ClientOnly,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
@@ -140,7 +141,9 @@ function RootComponent() {
         <Outlet />
         <SiteFooter />
         <Toaster position="top-center" />
-        <AssistantChat />
+        <ClientOnly>
+          <AssistantChat />
+        </ClientOnly>
       </div>
     </QueryClientProvider>
   );

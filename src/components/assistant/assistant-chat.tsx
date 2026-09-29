@@ -83,8 +83,21 @@ type Message = {
 };
 
 export function AssistantChat() {
-  const routerState = useRouterState();
-  const pathname = routerState?.location?.pathname ?? "/";
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  let pathname = "/";
+  try {
+    const routerState = useRouterState();
+    pathname = routerState?.location?.pathname ?? "/";
+  } catch {
+    if (typeof window !== "undefined") {
+      pathname = window.location.pathname;
+    }
+  }
 
   // Determinar el contexto actual: CRM, Plataforma GPS o Sitio Público
   const isCrm =

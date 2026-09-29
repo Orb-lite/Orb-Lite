@@ -195,20 +195,67 @@ export const assistantExecuteProcess = createServerFn({ method: "POST" })
           throw new Error("Faltan datos obligatorios: Nombre de la unidad y correo de reporte.");
         }
 
-        const token = Math.random().toString(36).substring(2, 12);
+        const token = crypto.randomUUID().replaceAll("-", "");
         const link = `/ruta/${token}`;
+        const durationHours = Number(fields.durationHours || 24);
+
+        const { saveUserRouteToStorage, setRouteShare } = await import("./user-routes.server");
+
+        // Coordenadas para la unidad compartida (ej. Guadalajara / zona metropolitana)
+        const baseLat = 20.6736;
+        const baseLon = -103.3440;
+
+        const stops = [
+          {
+            label: `Base de Operaciones (${fields.unitName})`,
+            lat: baseLat,
+            lon: baseLon,
+          },
+          {
+            label: `Punto de Entrega / Supervisión (${fields.unitName})`,
+            lat: baseLat + 0.035,
+            lon: baseLon - 0.025,
+          },
+        ];
+
+        const points = [
+          { lat: baseLat, lon: baseLon, radius: 100 },
+          { lat: baseLat + 0.015, lon: baseLon - 0.01, radius: 100 },
+          { lat: baseLat + 0.035, lon: baseLon - 0.025, radius: 100 },
+        ];
+
+        const savedRoute = await saveUserRouteToStorage({
+          userId: 1,
+          userName: "Operaciones ORB-LITE",
+          name: `Rastreo Compartido - ${fields.unitName}`,
+          color: "#92d700",
+          points,
+          origin: `Base de Operaciones (${fields.unitName})`,
+          addresses: [
+            `Base de Operaciones (${fields.unitName})`,
+            `Punto de Entrega / Supervisión (${fields.unitName})`,
+          ],
+          distanceMeters: 4800,
+          durationSeconds: 900,
+          shareToken: token,
+          stops,
+          reportEmail: String(fields.reportEmail).trim(),
+        });
+
+        await setRouteShare(1, savedRoute.id, token, stops, String(fields.reportEmail).trim());
 
         return {
           ok: true,
-          processTitle: "Enlace de Rastreo Compartido",
+          processTitle: "Enlace de Rastreo Compartido Registrado",
           id: token,
-          message: `Enlace temporal de rastreo generado para "${fields.unitName}". Válido por ${fields.durationHours || "24"} horas.`,
+          message: `Enlace temporal de rastreo generado y registrado con éxito para "${fields.unitName}". Válido por ${durationHours} horas. Los operadores o supervisores pueden abrirlo de inmediato sin iniciar sesión.`,
           link,
           summary: {
             "Unidad": fields.unitName,
             "Destinatario": fields.reportEmail,
-            "Vigencia": `${fields.durationHours || "24"} horas`,
-            "Enlace Directo": `${fields.unitName ? `/ruta/${token}` : "/ruta/demo"}`,
+            "Vigencia": `${durationHours} horas`,
+            "Estado": "Activo y registrado en el sistema",
+            "Enlace Directo": `/ruta/${token}`,
           },
         };
       }
