@@ -31,7 +31,10 @@ export const assistantExecuteProcess = createServerFn({ method: "POST" })
           "crm_customer",
           "demo_request",
           "route_share",
+          "smart_route",
           "geofence",
+          "unit_history",
+          "wialon_report",
           "quick_quote",
         ]),
         fields: z.record(z.any()),
@@ -210,23 +213,92 @@ export const assistantExecuteProcess = createServerFn({ method: "POST" })
         };
       }
 
+      case "smart_route": {
+        const fields = data.fields;
+        if (!fields.originAddress || !fields.destinations) {
+          throw new Error("Faltan datos obligatorios: Punto de salida y al menos una dirección de destino.");
+        }
+
+        const routeId = "RUTA-" + Math.floor(1000 + Math.random() * 9000);
+        return {
+          ok: true,
+          processTitle: "Planificador Inteligente de Rutas",
+          id: routeId,
+          message: `Ruta optimizada con éxito. Punto de salida: "${fields.originAddress}" con destino(s): "${fields.destinations}". ${fields.returnToOrigin === "true" || fields.returnToOrigin === true ? "(Circuito con regreso al origen)" : ""}`,
+          link: `/wialon/rutas?origin=${encodeURIComponent(fields.originAddress)}&dest=${encodeURIComponent(fields.destinations)}`,
+          summary: {
+            "Punto de Salida": fields.originAddress,
+            "Destinos": fields.destinations,
+            "Regreso al Origen": fields.returnToOrigin === "true" || fields.returnToOrigin === true ? "Sí" : "No",
+            "Método": fields.creationMethod || "Direcciones escritas",
+            "Estado": "Lista para navegación en Wialon",
+          },
+        };
+      }
+
       case "geofence": {
         const fields = data.fields;
         if (!fields.name || !fields.centerCoordinates) {
           throw new Error("Faltan datos obligatorios: Nombre de la geocerca y coordenadas.");
         }
 
+        const resource = fields.resourceName || "AlfredoRetana";
+        const geoId = "GEO-" + Math.floor(1000 + Math.random() * 9000);
+
         return {
           ok: true,
-          processTitle: "Geocerca Satelital",
-          id: "GEO-" + Math.floor(1000 + Math.random() * 9000),
-          message: `Geocerca "${fields.name}" configurada con radio de ${fields.radiusMeters || 150}m en coordenadas [${fields.centerCoordinates}]. Se reflejará en el mapa de monitoreo.`,
+          processTitle: "Geocerca Satelital Wialon",
+          id: geoId,
+          message: `Geocerca "${fields.name}" configurada para el recurso "${resource}" (${fields.type === "polygon" ? "Polígono" : `Círculo ${fields.radiusMeters || 150}m`}) en coordenadas [${fields.centerCoordinates}].`,
+          link: `/wialon/geocercas`,
           summary: {
             "Nombre": fields.name,
-            "Tipo": fields.type === "polygon" ? "Polígono" : "Circular",
-            "Radio": `${fields.radiusMeters || 150} metros`,
-            "Ubicación": fields.centerCoordinates,
-            "Color": fields.color || "#06b6d4",
+            "Recurso / Cliente": resource,
+            "Forma": fields.type === "polygon" ? "Polígono" : "Círculo",
+            "Radio": fields.type === "polygon" ? "Perímetro trazado" : `${fields.radiusMeters || 150} metros`,
+            "Coordenadas": fields.centerCoordinates,
+          },
+        };
+      }
+
+      case "unit_history": {
+        const fields = data.fields;
+        if (!fields.unitName) {
+          throw new Error("Falta indicar la unidad satelital a consultar.");
+        }
+
+        return {
+          ok: true,
+          processTitle: "Historial de Recorridos",
+          id: "HIST-" + Math.floor(1000 + Math.random() * 9000),
+          message: `Parámetros de historial cargados para "${fields.unitName}". Periodo: Desde ${fields.from} hasta ${fields.to}.`,
+          link: `/wialon/historial`,
+          summary: {
+            "Unidad": fields.unitName,
+            "Desde": fields.from || "Últimas 24 horas",
+            "Hasta": fields.to || "Tiempo actual",
+            "Acceso": "Ver recorrido en mapa de Wialon",
+          },
+        };
+      }
+
+      case "wialon_report": {
+        const fields = data.fields;
+        if (!fields.unitName) {
+          throw new Error("Falta indicar la unidad para generar el reporte.");
+        }
+
+        return {
+          ok: true,
+          processTitle: "Reportes y Gráficas para Excel",
+          id: "REP-" + Math.floor(1000 + Math.random() * 9000),
+          message: `Reporte configurado para la unidad "${fields.unitName}" con plantilla "${fields.template || "Solo tabla de posiciones y sensores"}". Listo para generar y exportar a Excel.`,
+          link: `/wialon/reportes`,
+          summary: {
+            "Unidad": fields.unitName,
+            "Plantilla": fields.template || "Solo tabla de posiciones y sensores",
+            "Rango": `${fields.from} al ${fields.to}`,
+            "Formato": "Excel (.xlsx) y Gráficas Recharts",
           },
         };
       }

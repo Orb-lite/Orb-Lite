@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import {
   X,
   Send,
@@ -18,6 +18,9 @@ import {
   Share2,
   MapPin,
   Package,
+  Navigation,
+  Clock3,
+  FileSpreadsheet,
 } from "lucide-react";
 import {
   assistantChat,
@@ -120,14 +123,14 @@ export function AssistantChat() {
         badge: "Plataforma Satelital",
         badgeColor: "border-cyan-500/40 bg-cyan-500/20 text-cyan-300",
         welcome:
-          "¡Hola! Estás en la **Plataforma de Monitoreo Satelital**. Puedo ayudarte a crear geocercas perimetrales, generar enlaces temporales de seguimiento, renovar unidades y resolver consultas de telemetría.",
+          "¡Hola! Estás en la **Plataforma Satelital**. Puedo planificar rutas punto a punto, crear geocercas en Wialon, consultar el historial de recorridos y generar reportes para Excel.",
         actions: [
-          { label: "📍 Crear Geocerca", prompt: "Ayúdame a crear una geocerca perimetral para un patio" },
+          { label: "🗺️ Planificar Ruta", prompt: "Quiero planificar una ruta en el planificador inteligente con punto de salida y destinos" },
+          { label: "📍 Nueva Geocerca", prompt: "Quiero crear una nueva geocerca en Wialon indicando el cliente y la forma" },
+          { label: "⏱️ Historial de Recorrido", prompt: "Quiero consultar el historial de recorrido de una unidad satelital" },
+          { label: "📊 Generar Reporte Excel", prompt: "Generar reporte de posiciones y sensores para exportar a Excel" },
           { label: "🔗 Compartir Rastreo", prompt: "Generar un enlace temporal para compartir una unidad con un cliente" },
           { label: "⚡ Renovar Unidad", prompt: "Registrar la renovación de servicio para un vehículo monitoreado" },
-          { label: "🛑 Apagado de Motor", prompt: "¿Cómo enviar comandos de paro de motor a las unidades?" },
-          { label: "🗺️ Historial de Viajes", prompt: "¿Cómo consultar el recorrido y paradas de una unidad?" },
-          { label: "📊 Exportar Reportes", prompt: "¿Cómo generar reportes de kilometraje y viajes?" },
         ],
       };
     }
@@ -484,8 +487,14 @@ function ProcessFormCard({
         return <Radio className="h-4 w-4 text-emerald-400" />;
       case "route_share":
         return <Share2 className="h-4 w-4 text-indigo-400" />;
+      case "smart_route":
+        return <Navigation className="h-4 w-4 text-lime-400" />;
       case "geofence":
         return <MapPin className="h-4 w-4 text-red-400" />;
+      case "unit_history":
+        return <Clock3 className="h-4 w-4 text-sky-400" />;
+      case "wialon_report":
+        return <FileSpreadsheet className="h-4 w-4 text-emerald-400" />;
       case "quick_quote":
         return <Package className="h-4 w-4 text-purple-400" />;
     }

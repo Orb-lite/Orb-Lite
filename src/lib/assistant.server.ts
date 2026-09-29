@@ -6,6 +6,9 @@ export type AssistantProcessId =
   | "demo_request"
   | "route_share"
   | "geofence"
+  | "smart_route"
+  | "unit_history"
+  | "wialon_report"
   | "quick_quote";
 
 export type FormFieldDefinition = {
@@ -98,14 +101,33 @@ PROCESOS QUE PUEDES EJECUTAR:
    - durationHours: Duración de vigencia del enlace (ej. 2, 4, 8, 12, 24, 48)
    - clientNotes: Comentario o nota del cliente/destinatario
 
-5. "geofence" (Crear Geocerca Satelital):
-   - name: Nombre de la geocerca (ej. "Patio Guadalajara", "Bodega Centro")
-   - type: "circle" o "polygon"
-   - radiusMeters: Radio en metros para círculos (mínimo 20)
-   - centerCoordinates: "lat, lon" (ej. "20.6736, -103.3440")
-   - color: Color hexadecimal (ej. "#3b82f6")
+5. "smart_route" (Rutas por Cliente / Recurso - Planificador Inteligente):
+   - originAddress: Punto de salida (ej. "Av. Vallarta 1000, Guadalajara" o coordenadas)
+   - destinations: Direcciones de destino (una o varias direcciones, lugares o links de Google Maps)
+   - returnToOrigin: "true" o "false" (si regresa al punto de salida al terminar)
+   - creationMethod: "Direcciones escritas" o "Puntos en mapa"
+   - routeName: Nombre con el que se guardará la ruta en Wialon
 
-6. "quick_quote" (Cotización de Equipos / Tienda GPS):
+6. "geofence" (Geocercas por Cliente / Recurso):
+   - name: Nombre de la geocerca (ej. "Bodega Guadalajara / Cliente Norte")
+   - resourceName: Guardar en cliente / recurso de Wialon (ej. "AlfredoRetana", "Recurso Principal")
+   - type: Forma de geocerca ("circle" = Círculo, "polygon" = Polígono)
+   - centerCoordinates: Coordenadas del centro o puntos ("lat, lon")
+   - radiusMeters: Radio en metros (para círculos, mínimo 10)
+   - color: Color de trazo (ej. "#92d700")
+
+7. "unit_history" (Historial de Recorridos):
+   - unitName: Unidad (ej. "Attitude Isaac")
+   - from: Desde (fecha y hora en formato YYYY-MM-DDTHH:mm)
+   - to: Hasta (fecha y hora en formato YYYY-MM-DDTHH:mm)
+
+8. "wialon_report" (Reportes y Gráficas para Excel):
+   - unitName: Unidad a consultar
+   - from: Fecha y hora de inicio (YYYY-MM-DDTHH:mm)
+   - to: Fecha y hora final (YYYY-MM-DDTHH:mm)
+   - template: Plantilla de reporte para Excel (ej. "Solo tabla de posiciones y sensores", "Viajes y paradas", "Control de combustible")
+
+9. "quick_quote" (Cotización de Equipos / Tienda GPS):
    - equipmentType: Dispositivo deseado ("FMB920", "OBD-II Plug & Play", "4G Solar Magnético", "SIM Multicarrier")
    - quantity: Cantidad de equipos
    - contactName: Nombre de contacto
@@ -387,6 +409,53 @@ function getFieldDefinitions(processId: AssistantProcessId, values: Record<strin
         },
       ];
 
+    case "smart_route":
+      return [
+        {
+          key: "creationMethod",
+          label: "Método de Creación",
+          type: "select",
+          options: [
+            { label: "Direcciones escritas", value: "Direcciones escritas" },
+            { label: "Puntos en mapa", value: "Puntos en mapa" },
+          ],
+          value: values.creationMethod || "Direcciones escritas",
+        },
+        {
+          key: "originAddress",
+          label: "Punto de Salida",
+          type: "text",
+          value: values.originAddress || "",
+          placeholder: "Ej. Av. Vallarta 1000, Guadalajara o coordenadas (20.6...)",
+          required: true,
+        },
+        {
+          key: "destinations",
+          label: "Direcciones de Destino (una o varias)",
+          type: "textarea",
+          value: values.destinations || "",
+          placeholder: "Dirección 1, lugar o link Google Maps",
+          required: true,
+        },
+        {
+          key: "returnToOrigin",
+          label: "Regresar al punto de salida",
+          type: "select",
+          options: [
+            { label: "Sí (Regresar al origen)", value: "true" },
+            { label: "No (Ruta punto a punto)", value: "false" },
+          ],
+          value: String(values.returnToOrigin ?? "true"),
+        },
+        {
+          key: "routeName",
+          label: "Nombre de la Ruta (opcional)",
+          type: "text",
+          value: values.routeName || "",
+          placeholder: "Ej. Ruta Reparto Zapopan Norte",
+        },
+      ];
+
     case "geofence":
       return [
         {
@@ -394,16 +463,24 @@ function getFieldDefinitions(processId: AssistantProcessId, values: Record<strin
           label: "Nombre de la Geocerca",
           type: "text",
           value: values.name || "",
-          placeholder: "Almacén Guadalajara Norte",
+          placeholder: "Ej. Bodega Guadalajara / Cliente Norte",
+          required: true,
+        },
+        {
+          key: "resourceName",
+          label: "Guardar en cliente / Recurso de Wialon",
+          type: "text",
+          value: values.resourceName || "AlfredoRetana",
+          placeholder: "Ej. AlfredoRetana",
           required: true,
         },
         {
           key: "type",
-          label: "Tipo de Geocerca",
+          label: "Forma de Geocerca",
           type: "select",
           options: [
-            { label: "Circular (Radio de control)", value: "circle" },
-            { label: "Polígono (Perímetro personalizado)", value: "polygon" },
+            { label: "🔘 Círculo (Radio de control)", value: "circle" },
+            { label: "🔘 Polígono (Perímetro personalizado)", value: "polygon" },
           ],
           value: values.type || "circle",
           required: true,
@@ -422,12 +499,74 @@ function getFieldDefinitions(processId: AssistantProcessId, values: Record<strin
           placeholder: "20.6736, -103.3440",
           required: true,
         },
+      ];
+
+    case "unit_history":
+      return [
         {
-          key: "color",
-          label: "Color de visualización (Hexadecimal)",
+          key: "unitName",
+          label: "Unidad",
           type: "text",
-          value: values.color || "#06b6d4",
-          placeholder: "#06b6d4",
+          value: values.unitName || "",
+          placeholder: "Ej. Attitude Isaac",
+          required: true,
+        },
+        {
+          key: "from",
+          label: "Desde (Fecha y Hora)",
+          type: "text",
+          value: values.from || new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 16),
+          placeholder: "YYYY-MM-DDTHH:mm",
+          required: true,
+        },
+        {
+          key: "to",
+          label: "Hasta (Fecha y Hora)",
+          type: "text",
+          value: values.to || new Date().toISOString().slice(0, 16),
+          placeholder: "YYYY-MM-DDTHH:mm",
+          required: true,
+        },
+      ];
+
+    case "wialon_report":
+      return [
+        {
+          key: "unitName",
+          label: "Unidad",
+          type: "text",
+          value: values.unitName || "",
+          placeholder: "Selecciona o escribe el nombre de la unidad",
+          required: true,
+        },
+        {
+          key: "from",
+          label: "Desde (Fecha y Hora)",
+          type: "text",
+          value: values.from || new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 16),
+          placeholder: "YYYY-MM-DDTHH:mm",
+          required: true,
+        },
+        {
+          key: "to",
+          label: "Hasta (Fecha y Hora)",
+          type: "text",
+          value: values.to || new Date().toISOString().slice(0, 16),
+          placeholder: "YYYY-MM-DDTHH:mm",
+          required: true,
+        },
+        {
+          key: "template",
+          label: "Plantilla de reporte para Excel (opcional)",
+          type: "select",
+          options: [
+            { label: "Solo tabla de posiciones y sensores", value: "Solo tabla de posiciones y sensores" },
+            { label: "Viajes y kilometraje", value: "Viajes y kilometraje" },
+            { label: "Paradas y estacionamientos", value: "Paradas y estacionamientos" },
+            { label: "Control y nivel de combustible", value: "Control y nivel de combustible" },
+            { label: "Excesos de velocidad", value: "Excesos de velocidad" },
+          ],
+          value: values.template || "Solo tabla de posiciones y sensores",
         },
       ];
 
@@ -648,28 +787,120 @@ export function analyzeProcessRequirements(
       ];
       break;
 
+    case "smart_route":
+      checklist = [
+        {
+          field: "originAddress",
+          label: "Punto de Salida",
+          why: "Dirección o coordenadas de partida donde inicia el vehículo o repartidor.",
+          isRequired: true,
+          isComplete: Boolean(fields.originAddress && String(fields.originAddress).trim().length > 0),
+        },
+        {
+          field: "destinations",
+          label: "Direcciones de Destino",
+          why: "Destinos o paradas a visitar (se pueden escribir direcciones o pegar enlaces de Google Maps).",
+          isRequired: true,
+          isComplete: Boolean(fields.destinations && String(fields.destinations).trim().length > 0),
+        },
+        {
+          field: "returnToOrigin",
+          label: "Regresar al Punto de Salida",
+          why: "Determina si el cálculo de kilometraje y tiempo considera el viaje de regreso a la base.",
+          isRequired: false,
+          isComplete: Boolean(fields.returnToOrigin),
+        },
+      ];
+      break;
+
     case "geofence":
       checklist = [
         {
           field: "name",
           label: "Nombre de la Geocerca",
-          why: "Etiqueta visible en el mapa y en los reportes de entradas/salidas de zona.",
+          why: "Etiqueta visible en el mapa y en los reportes de entradas/salidas de zona (ej. Bodega Guadalajara).",
           isRequired: true,
           isComplete: Boolean(fields.name && String(fields.name).trim().length > 0),
         },
         {
+          field: "resourceName",
+          label: "Guardar en Cliente / Recurso Wialon",
+          why: "Cuenta o recurso de Wialon donde se almacenará la zona (ej. AlfredoRetana).",
+          isRequired: true,
+          isComplete: Boolean(fields.resourceName && String(fields.resourceName).trim().length > 0),
+        },
+        {
+          field: "type",
+          label: "Forma de Geocerca (Círculo o Polígono)",
+          why: "Tipo geométrico de la geocerca para calcular intersección y alertas perimetrales.",
+          isRequired: true,
+          isComplete: Boolean(fields.type),
+        },
+        {
           field: "centerCoordinates",
           label: "Coordenadas (Latitud, Longitud)",
-          why: "Posición GPS exacta donde se dibujará el perímetro en el visor satelital.",
+          why: "Punto central o vértices geográficos donde se traza el perímetro en el mapa.",
           isRequired: true,
           isComplete: Boolean(fields.centerCoordinates && String(fields.centerCoordinates).includes(",")),
         },
+      ];
+      break;
+
+    case "unit_history":
+      checklist = [
         {
-          field: "radiusMeters",
-          label: "Radio en Metros (Mínimo 10m)",
-          why: "Amplitud del radio de cobertura para disparar la alarma de cruce de perímetro.",
+          field: "unitName",
+          label: "Unidad Satelital",
+          why: "Vehículo específico del cual se descargarán los mensajes y posiciones de Wialon.",
           isRequired: true,
-          isComplete: Boolean(fields.radiusMeters && Number(fields.radiusMeters) >= 10),
+          isComplete: Boolean(fields.unitName && String(fields.unitName).trim().length > 0),
+        },
+        {
+          field: "from",
+          label: "Fecha y Hora de Inicio (Desde)",
+          why: "Momento exacto en que empieza la ventana de tiempo a consultar.",
+          isRequired: true,
+          isComplete: Boolean(fields.from && String(fields.from).trim().length >= 10),
+        },
+        {
+          field: "to",
+          label: "Fecha y Hora de Fin (Hasta)",
+          why: "Momento exacto en que concluye la ventana de tiempo a consultar.",
+          isRequired: true,
+          isComplete: Boolean(fields.to && String(fields.to).trim().length >= 10),
+        },
+      ];
+      break;
+
+    case "wialon_report":
+      checklist = [
+        {
+          field: "unitName",
+          label: "Unidad para el Reporte",
+          why: "Unidad sobre la cual se consolidará la información de velocidad, sensores y kilometraje.",
+          isRequired: true,
+          isComplete: Boolean(fields.unitName && String(fields.unitName).trim().length > 0),
+        },
+        {
+          field: "from",
+          label: "Periodo Desde",
+          why: "Inicio de la fecha de corte para extraer datos de telemetría.",
+          isRequired: true,
+          isComplete: Boolean(fields.from && String(fields.from).trim().length >= 10),
+        },
+        {
+          field: "to",
+          label: "Periodo Hasta",
+          why: "Fin de la fecha de corte para el cálculo.",
+          isRequired: true,
+          isComplete: Boolean(fields.to && String(fields.to).trim().length >= 10),
+        },
+        {
+          field: "template",
+          label: "Plantilla de Reporte Excel",
+          why: "Formato y columnas a estructurar (ej. Solo tabla de posiciones y sensores, viajes, combustible).",
+          isRequired: false,
+          isComplete: Boolean(fields.template && String(fields.template).trim().length > 0),
         },
       ];
       break;
@@ -866,28 +1097,103 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
     };
   }
 
-  // 5. Geocerca
+  // 5. Planificador Inteligente de Rutas
+  if (lower.includes("planifi") || (lower.includes("ruta") && (lower.includes("optimi") || lower.includes("salida") || lower.includes("destino") || lower.includes("punto")))) {
+    const values = {
+      creationMethod: "Direcciones escritas",
+      originAddress: "",
+      destinations: "",
+      returnToOrigin: "true",
+      routeName: "",
+    };
+
+    const analysis = analyzeProcessRequirements("smart_route", values);
+    return {
+      reply: "He preparado el **Planificador Inteligente de Rutas**. Puedes ingresar tu punto de partida y destinos para trazar y optimizar el recorrido en Wialon:",
+      process: {
+        id: "smart_route",
+        title: "Planificador Inteligente de Rutas",
+        description: "Optimiza trayectos, calcula kilometraje y traza paradas en Wialon.",
+        readyToSubmit: analysis.isReady,
+        fields: values,
+        fieldDefinitions: getFieldDefinitions("smart_route", values),
+        requirementsAnalysis: analysis,
+        missingPrompt: "Indica el punto de salida y al menos una dirección de destino.",
+      },
+    };
+  }
+
+  // 6. Geocercas por Cliente / Recurso
   if (lower.includes("geocerca") || lower.includes("zona") || lower.includes("perímetro") || lower.includes("perimetro")) {
     const values = {
       name: "",
+      resourceName: "AlfredoRetana",
       type: "circle",
       radiusMeters: 150,
       centerCoordinates: "20.6736, -103.3440",
-      color: "#06b6d4",
     };
 
     const analysis = analyzeProcessRequirements("geofence", values);
     return {
-      reply: "Las geocercas te notifican de inmediato cada vez que un vehículo entra o sale de un punto de interés. Aquí tienes el análisis de parámetros para la zona satelital:",
+      reply: "He abierto el formulario para **Crear Geocerca en Wialon**. Permite delimitar perímetros circulares o polígonos y asignarlos a un cliente/recurso:",
       process: {
         id: "geofence",
-        title: "Creación de Geocerca Satelital",
-        description: "Zona de control perimetral para alertas automáticas.",
+        title: "Nueva Geocerca en Wialon",
+        description: "Crea y sincroniza zonas de control perimetral en la cuenta del cliente.",
         readyToSubmit: analysis.isReady,
         fields: values,
         fieldDefinitions: getFieldDefinitions("geofence", values),
         requirementsAnalysis: analysis,
-        missingPrompt: "¿Cómo se llamará la geocerca y en qué coordenadas o dirección se encuentra?",
+        missingPrompt: "¿Cuál es el nombre de la geocerca y en qué coordenadas o dirección se ubica?",
+      },
+    };
+  }
+
+  // 7. Historial de Recorridos
+  if (lower.includes("historial") || lower.includes("recorrido") || lower.includes("viaje") || lower.includes("donde anduvo")) {
+    const values = {
+      unitName: "",
+      from: new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 16),
+      to: new Date().toISOString().slice(0, 16),
+    };
+
+    const analysis = analyzeProcessRequirements("unit_history", values);
+    return {
+      reply: "He preparado la consulta de **Historial de Recorridos**. Indica qué unidad satelital y el intervalo de fechas que necesitas trazar en el mapa:",
+      process: {
+        id: "unit_history",
+        title: "Historial de Recorridos por Unidad",
+        description: "Recupera puntos satelitales, velocidad y paradas del vehículo.",
+        readyToSubmit: analysis.isReady,
+        fields: values,
+        fieldDefinitions: getFieldDefinitions("unit_history", values),
+        requirementsAnalysis: analysis,
+        missingPrompt: "¿De qué unidad deseas consultar el recorrido y qué fechas abarcará?",
+      },
+    };
+  }
+
+  // 8. Reportes y Gráficas para Excel
+  if (lower.includes("reporte") || lower.includes("excel") || lower.includes("grafica") || lower.includes("sensores") || lower.includes("combustible")) {
+    const values = {
+      unitName: "",
+      from: new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 16),
+      to: new Date().toISOString().slice(0, 16),
+      template: "Solo tabla de posiciones y sensores",
+    };
+
+    const analysis = analyzeProcessRequirements("wialon_report", values);
+    return {
+      reply: "He preparado el generador de **Reportes para Excel**. Puedes consolidar posiciones, sensores de telemetría y descargas tabulares:",
+      process: {
+        id: "wialon_report",
+        title: "Reportes y Gráficas para Excel",
+        description: "Genera tablas de sensores, kilometraje y velocidad exportables.",
+        readyToSubmit: analysis.isReady,
+        fields: values,
+        fieldDefinitions: getFieldDefinitions("wialon_report", values),
+        requirementsAnalysis: analysis,
+        missingPrompt: "¿Para qué unidad deseas generar el reporte?",
       },
     };
   }
@@ -1011,10 +1317,20 @@ export async function processAssistantMessage(
                 durationHours: { type: Type.STRING },
                 clientNotes: { type: Type.STRING },
                 name: { type: Type.STRING },
+                resourceName: { type: Type.STRING },
                 type: { type: Type.STRING },
                 radiusMeters: { type: Type.NUMBER },
                 centerCoordinates: { type: Type.STRING },
                 color: { type: Type.STRING },
+                creationMethod: { type: Type.STRING },
+                originAddress: { type: Type.STRING },
+                destinations: { type: Type.STRING },
+                returnToOrigin: { type: Type.STRING },
+                routeName: { type: Type.STRING },
+                from: { type: Type.STRING },
+                to: { type: Type.STRING },
+                unitName: { type: Type.STRING },
+                template: { type: Type.STRING },
                 equipmentType: { type: Type.STRING },
                 quantity: { type: Type.NUMBER },
                 contactName: { type: Type.STRING },
@@ -1040,7 +1356,10 @@ export async function processAssistantMessage(
       "crm_customer",
       "demo_request",
       "route_share",
+      "smart_route",
       "geofence",
+      "unit_history",
+      "wialon_report",
       "quick_quote",
     ];
 
