@@ -1,0 +1,16 @@
+<!-- DEPRECATED: This file is kept for reference only.
+     TanStack Start SSR handles HTML generation via src/routes/__root.tsx
+     Delete this file if you have backups elsewhere.
+-->
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ORB-LITE | Rastreo GPS Satelital</title>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
