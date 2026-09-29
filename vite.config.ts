@@ -1,47 +1,26 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - TanStack devtools (dev-only, first), tanstackStart, viteReact, tailwindcss, tsConfigPaths,
-//   - React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
-import path from "node:path";
-import { loadEnv } from "vite";
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
-
-// Server routes need non-VITE_ env vars (e.g. LOVABLE_API_KEY); load them into
-// process.env for server-side code only. Never expose these via envDefine.
-const serverEnv = loadEnv(process.env["NODE_ENV"] ?? "development", process.cwd(), "");
-Object.assign(process.env, serverEnv);
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { TanStackStartVite } from '@tanstack/start-plugin'
+import path from 'path'
 
 export default defineConfig({
-  tanstackStart: {
-    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
-    // nitro/vite builds from this
-    server: { entry: "server" },
+  plugins: [
+    TanStackStartVite({
+      deployment: {
+        preset: 'vercel',
+      },
+    }),
+    react(),
+  ],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
   },
   nitro: {
-    preset: "vercel",
-  },
-  vite: {
-    server: {
-      host: "0.0.0.0",
-      port: 3000,
-      allowedHosts: true,
-      hmr: process.env["DISABLE_HMR"] !== "true",
-      watch: process.env["DISABLE_HMR"] === "true" ? null : {},
-    },
-    resolve: {
-      alias: {
-        // React Email requires entities v4.5.0; bypass nested newer copies.
-        "entities/lib/decode.js": path.resolve(
-          process.cwd(),
-          "node_modules/entities/lib/decode.js",
-        ),
-        "entities/lib/encode.js": path.resolve(
-          process.cwd(),
-          "node_modules/entities/lib/encode.js",
-        ),
-        entities: path.resolve(process.cwd(), "node_modules/entities"),
-      },
+    preset: 'vercel',
+    output: {
+      publicDir: '.vercel/output/static',
     },
   },
-});
+})
