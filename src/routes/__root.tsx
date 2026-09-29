@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteHeader, SiteFooter } from "../components/site-chrome";
 import { Toaster } from "../components/ui/sonner";
+import { AssistantChat } from "../components/assistant/assistant-chat";
 
 function NotFoundComponent() {
   return (
@@ -139,6 +140,7 @@ function RootComponent() {
         <Outlet />
         <SiteFooter />
         <Toaster position="top-center" />
+        <AssistantChat />
       </div>
     </QueryClientProvider>
   );
