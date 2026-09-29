@@ -15,6 +15,7 @@ import { Route as AccesoCrmRouteImport } from './routes/acceso-crm'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ContactoRouteImport } from './routes/contacto'
 import { Route as DemoRouteImport } from './routes/demo'
+import { Route as PlataformaRouteImport } from './routes/plataforma'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as TiendaRouteImport } from './routes/tienda'
@@ -66,6 +67,11 @@ const ContactoRoute = ContactoRouteImport.update({
 const DemoRoute = DemoRouteImport.update({
   id: '/demo',
   path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlataformaRoute = PlataformaRouteImport.update({
+  id: '/plataforma',
+  path: '/plataforma',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ServiciosRoute = ServiciosRouteImport.update({
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/contacto': typeof ContactoRoute
   '/demo': typeof DemoRoute
+  '/plataforma': typeof PlataformaRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/contacto': typeof ContactoRoute
   '/demo': typeof DemoRoute
+  '/plataforma': typeof PlataformaRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
@@ -255,6 +263,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/contacto': typeof ContactoRoute
   '/demo': typeof DemoRoute
+  '/plataforma': typeof PlataformaRoute
   '/servicios': typeof ServiciosRoute
   '/terminos': typeof TerminosRoute
   '/tienda': typeof TiendaRoute
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contacto'
     | '/demo'
+    | '/plataforma'
     | '/servicios'
     | '/terminos'
     | '/tienda'
@@ -317,6 +327,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contacto'
     | '/demo'
+    | '/plataforma'
     | '/servicios'
     | '/terminos'
     | '/tienda'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/contacto'
     | '/demo'
+    | '/plataforma'
     | '/servicios'
     | '/terminos'
     | '/tienda'
@@ -379,6 +391,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ContactoRoute: typeof ContactoRoute
   DemoRoute: typeof DemoRoute
+  PlataformaRoute: typeof PlataformaRoute
   ServiciosRoute: typeof ServiciosRoute
   TerminosRoute: typeof TerminosRoute
   TiendaRoute: typeof TiendaRoute
@@ -433,6 +446,13 @@ declare module '@tanstack/react-router' {
       path: '/demo'
       fullPath: '/demo'
       preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plataforma': {
+      id: '/plataforma'
+      path: '/plataforma'
+      fullPath: '/plataforma'
+      preLoaderRoute: typeof PlataformaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/servicios': {
@@ -650,6 +670,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   ContactoRoute: ContactoRoute,
   DemoRoute: DemoRoute,
+  PlataformaRoute: PlataformaRoute,
   ServiciosRoute: ServiciosRoute,
   TerminosRoute: TerminosRoute,
   TiendaRoute: TiendaRoute,

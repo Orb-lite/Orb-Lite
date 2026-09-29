@@ -1,57 +1,40 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
-import path from 'path'
+// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
+// or the app will break with duplicate plugins:
+//   - TanStack devtools (dev-only, first), tanstackStart, viteReact, tailwindcss, tsConfigPaths,
+//     nitro (build-only using cloudflare as a default target), VITE_* env injection, @ path alias,
+//     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
+// You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 
-// Intercepta módulos de servidor y sustituye async_hooks en el cliente
-const tanstackManifestFallback = () => ({
-  name: 'tanstack-manifest-fallback',
-  resolveId(id: string) {
-    if (id.startsWith('tanstack-start-manifest:')) {
-      return id
-    }
-    if (id === 'node:async_hooks' || id === 'async_hooks') {
-      return '\0virtual:async_hooks'
-    }
-  },
-  load(id: string) {
-    if (id.startsWith('tanstack-start-manifest:')) {
-      return 'export default {};'
-    }
-    if (id === '\0virtual:async_hooks') {
-      return `
-        export class AsyncLocalStorage {
-          disable() {}
-          getStore() { return undefined; }
-          run(store, callback, ...args) { return callback(...args); }
-          exit(callback, ...args) { return callback(...args); }
-          enterWith() {}
-        }
-      `
-    }
-  },
-})
+import path from "node:path";
+import { loadEnv } from "vite";
+import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+
+// Server routes need non-VITE_ env vars (e.g. LOVABLE_API_KEY); load them into
+// process.env for server-side code only. Never expose these via envDefine.
+const serverEnv = loadEnv(process.env["NODE_ENV"] ?? "development", process.cwd(), "");
+Object.assign(process.env, serverEnv);
 
 export default defineConfig({
-  plugins: [
-    tailwindcss(),
-    tanstackManifestFallback(),
-    TanStackRouterVite(),
-    react(),
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      '#tanstack-start-entry': path.resolve(__dirname, './src/main.tsx'),
-      '#tanstack-router-entry': path.resolve(__dirname, './src/main.tsx'),
-      'async_hooks': '\0virtual:async_hooks',
-      'node:async_hooks': '\0virtual:async_hooks',
+  tanstackStart: {
+    // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
+    // nitro/vite builds from this
+    server: { entry: "server" },
+  },
+  vite: {
+    resolve: {
+      alias: {
+        // React Email requires entities v4.5.0; bypass nested newer copies.
+        "entities/lib/decode.js": path.resolve(
+          process.cwd(),
+          "node_modules/entities/lib/decode.js",
+        ),
+        "entities/lib/encode.js": path.resolve(
+          process.cwd(),
+          "node_modules/entities/lib/encode.js",
+        ),
+        entities: path.resolve(process.cwd(), "node_modules/entities"),
+      },
     },
   },
-  build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
-    emptyOutDir: true,
-  },
-})
+});
+
