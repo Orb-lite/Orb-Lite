@@ -22,9 +22,6 @@ export default defineConfig({
   },
   vite: {
     base: "/",
-    build: {
-      outDir: "dist",
-    },
     resolve: {
       alias: {
         // React Email requires entities v4.5.0; bypass nested newer copies.
