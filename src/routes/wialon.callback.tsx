@@ -9,7 +9,7 @@ function WialonCallbackComponent() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Extrae el token de la URL que regresa Wialon
+    // Extrae el token que envía Wialon en la URL
     const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'))
     const searchParams = new URLSearchParams(window.location.search)
     
@@ -17,8 +17,15 @@ function WialonCallbackComponent() {
 
     if (token) {
       localStorage.setItem('wialon_token', token)
-      // Cambia '/plataforma' por la ruta a donde quieras mandar al usuario tras loguearse
-      navigate({ to: '/plataforma' }) 
+      
+      // Redirige al panel dinámico usando el token obtenido
+      navigate({ 
+        to: '/panel/$token', 
+        params: { token } 
+      })
+    } else {
+      // Si no hay token en parámetros, redirige al índice de wialon
+      navigate({ to: '/wialon' })
     }
   }, [navigate])
 
