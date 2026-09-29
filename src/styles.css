@@ -1,6 +1,7 @@
 @import "tailwindcss" source(none);
-@source "../src";
 @import "tw-animate-css";
+
+@source "../src";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -107,7 +108,6 @@
   --font-display: var(--font-display);
   --font-body: var(--font-body);
 }
-
 
 .dark {
   --background: oklch(0.129 0.042 264.695);
