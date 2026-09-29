@@ -25,10 +25,12 @@ import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/cr
 import { Route as AuthenticatedRenovacionesRouteImport } from './routes/_authenticated/renovaciones'
 import { Route as ApiLogsRouteImport } from './routes/api/logs'
 import { Route as PanelTokenRouteImport } from './routes/panel.$token'
+import { Route as RastreoTokenRouteImport } from './routes/rastreo.$token'
 import { Route as RutaTokenRouteImport } from './routes/ruta.$token'
 import { Route as WialonIndexRouteImport } from './routes/wialon.index'
 import { Route as WialonCallbackRouteImport } from './routes/wialon.callback'
 import { Route as WialonCmsRouteImport } from './routes/wialon.cms'
+import { Route as WialonCompartirRouteImport } from './routes/wialon.compartir'
 import { Route as WialonGeocercasRouteImport } from './routes/wialon.geocercas'
 import { Route as WialonHistorialRouteImport } from './routes/wialon.historial'
 import { Route as WialonMapaRouteImport } from './routes/wialon.mapa'
@@ -120,6 +122,11 @@ const PanelTokenRoute = PanelTokenRouteImport.update({
   path: '/panel/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RastreoTokenRoute = RastreoTokenRouteImport.update({
+  id: '/rastreo/$token',
+  path: '/rastreo/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RutaTokenRoute = RutaTokenRouteImport.update({
   id: '/ruta/$token',
   path: '/ruta/$token',
@@ -138,6 +145,11 @@ const WialonCallbackRoute = WialonCallbackRouteImport.update({
 const WialonCmsRoute = WialonCmsRouteImport.update({
   id: '/cms',
   path: '/cms',
+  getParentRoute: () => WialonRoute,
+} as any)
+const WialonCompartirRoute = WialonCompartirRouteImport.update({
+  id: '/compartir',
+  path: '/compartir',
   getParentRoute: () => WialonRoute,
 } as any)
 const WialonGeocercasRoute = WialonGeocercasRouteImport.update({
@@ -210,9 +222,11 @@ export interface FileRoutesByFullPath {
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/api/logs': typeof ApiLogsRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/rastreo/$token': typeof RastreoTokenRoute
   '/ruta/$token': typeof RutaTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/compartir': typeof WialonCompartirRoute
   '/wialon/geocercas': typeof WialonGeocercasRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
@@ -240,9 +254,11 @@ export interface FileRoutesByTo {
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/api/logs': typeof ApiLogsRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/rastreo/$token': typeof RastreoTokenRoute
   '/ruta/$token': typeof RutaTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/compartir': typeof WialonCompartirRoute
   '/wialon/geocercas': typeof WialonGeocercasRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
@@ -273,9 +289,11 @@ export interface FileRoutesById {
   '/_authenticated/renovaciones': typeof AuthenticatedRenovacionesRoute
   '/api/logs': typeof ApiLogsRoute
   '/panel/$token': typeof PanelTokenRoute
+  '/rastreo/$token': typeof RastreoTokenRoute
   '/ruta/$token': typeof RutaTokenRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/compartir': typeof WialonCompartirRoute
   '/wialon/geocercas': typeof WialonGeocercasRoute
   '/wialon/historial': typeof WialonHistorialRoute
   '/wialon/mapa': typeof WialonMapaRoute
@@ -306,9 +324,11 @@ export interface FileRouteTypes {
     | '/renovaciones'
     | '/api/logs'
     | '/panel/$token'
+    | '/rastreo/$token'
     | '/ruta/$token'
     | '/wialon/callback'
     | '/wialon/cms'
+    | '/wialon/compartir'
     | '/wialon/geocercas'
     | '/wialon/historial'
     | '/wialon/mapa'
@@ -336,9 +356,11 @@ export interface FileRouteTypes {
     | '/renovaciones'
     | '/api/logs'
     | '/panel/$token'
+    | '/rastreo/$token'
     | '/ruta/$token'
     | '/wialon/callback'
     | '/wialon/cms'
+    | '/wialon/compartir'
     | '/wialon/geocercas'
     | '/wialon/historial'
     | '/wialon/mapa'
@@ -368,9 +390,11 @@ export interface FileRouteTypes {
     | '/_authenticated/renovaciones'
     | '/api/logs'
     | '/panel/$token'
+    | '/rastreo/$token'
     | '/ruta/$token'
     | '/wialon/callback'
     | '/wialon/cms'
+    | '/wialon/compartir'
     | '/wialon/geocercas'
     | '/wialon/historial'
     | '/wialon/mapa'
@@ -398,6 +422,7 @@ export interface RootRouteChildren {
   WialonRoute: typeof WialonRouteWithChildren
   ApiLogsRoute: typeof ApiLogsRoute
   PanelTokenRoute: typeof PanelTokenRoute
+  RastreoTokenRoute: typeof RastreoTokenRoute
   RutaTokenRoute: typeof RutaTokenRoute
   ApiPublicCronAvisosRenovacionRoute: typeof ApiPublicCronAvisosRenovacionRoute
   ApiPublicCronResumenPendientesRoute: typeof ApiPublicCronResumenPendientesRoute
@@ -518,6 +543,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PanelTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rastreo/$token': {
+      id: '/rastreo/$token'
+      path: '/rastreo/$token'
+      fullPath: '/rastreo/$token'
+      preLoaderRoute: typeof RastreoTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/ruta/$token': {
       id: '/ruta/$token'
       path: '/ruta/$token'
@@ -544,6 +576,13 @@ declare module '@tanstack/react-router' {
       path: '/cms'
       fullPath: '/wialon/cms'
       preLoaderRoute: typeof WialonCmsRouteImport
+      parentRoute: typeof WialonRoute
+    }
+    '/wialon/compartir': {
+      id: '/wialon/compartir'
+      path: '/compartir'
+      fullPath: '/wialon/compartir'
+      preLoaderRoute: typeof WialonCompartirRouteImport
       parentRoute: typeof WialonRoute
     }
     '/wialon/geocercas': {
@@ -637,6 +676,7 @@ const AuthenticatedRouteRouteWithChildren =
 interface WialonRouteChildren {
   WialonCallbackRoute: typeof WialonCallbackRoute
   WialonCmsRoute: typeof WialonCmsRoute
+  WialonCompartirRoute: typeof WialonCompartirRoute
   WialonGeocercasRoute: typeof WialonGeocercasRoute
   WialonHistorialRoute: typeof WialonHistorialRoute
   WialonMapaRoute: typeof WialonMapaRoute
@@ -650,6 +690,7 @@ interface WialonRouteChildren {
 const WialonRouteChildren: WialonRouteChildren = {
   WialonCallbackRoute: WialonCallbackRoute,
   WialonCmsRoute: WialonCmsRoute,
+  WialonCompartirRoute: WialonCompartirRoute,
   WialonGeocercasRoute: WialonGeocercasRoute,
   WialonHistorialRoute: WialonHistorialRoute,
   WialonMapaRoute: WialonMapaRoute,
@@ -677,6 +718,7 @@ const rootRouteChildren: RootRouteChildren = {
   WialonRoute: WialonRouteWithChildren,
   ApiLogsRoute: ApiLogsRoute,
   PanelTokenRoute: PanelTokenRoute,
+  RastreoTokenRoute: RastreoTokenRoute,
   RutaTokenRoute: RutaTokenRoute,
   ApiPublicCronAvisosRenovacionRoute: ApiPublicCronAvisosRenovacionRoute,
   ApiPublicCronResumenPendientesRoute: ApiPublicCronResumenPendientesRoute,

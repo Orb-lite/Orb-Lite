@@ -195,67 +195,63 @@ export const assistantExecuteProcess = createServerFn({ method: "POST" })
           throw new Error("Faltan datos obligatorios: Nombre de la unidad y correo de reporte.");
         }
 
-        const token = crypto.randomUUID().replaceAll("-", "");
-        const link = `/ruta/${token}`;
         const durationHours = Number(fields.durationHours || 24);
-
+        const { createSharedUnitLink } = await import("./unit-share.server");
         const { saveUserRouteToStorage, setRouteShare } = await import("./user-routes.server");
 
-        // Coordenadas para la unidad compartida (ej. Guadalajara / zona metropolitana)
-        const baseLat = 20.6736;
-        const baseLon = -103.3440;
-
-        const stops = [
-          {
-            label: `Base de Operaciones (${fields.unitName})`,
-            lat: baseLat,
-            lon: baseLon,
-          },
-          {
-            label: `Punto de Entrega / Supervisión (${fields.unitName})`,
-            lat: baseLat + 0.035,
-            lon: baseLon - 0.025,
-          },
-        ];
-
-        const points = [
-          { lat: baseLat, lon: baseLon, radius: 100 },
-          { lat: baseLat + 0.015, lon: baseLon - 0.01, radius: 100 },
-          { lat: baseLat + 0.035, lon: baseLon - 0.025, radius: 100 },
-        ];
-
-        const savedRoute = await saveUserRouteToStorage({
-          userId: 1,
-          userName: "Operaciones ORB-LITE",
-          name: `Rastreo Compartido - ${fields.unitName}`,
-          color: "#92d700",
-          points,
-          origin: `Base de Operaciones (${fields.unitName})`,
-          addresses: [
-            `Base de Operaciones (${fields.unitName})`,
-            `Punto de Entrega / Supervisión (${fields.unitName})`,
-          ],
-          distanceMeters: 4800,
-          durationSeconds: 900,
-          shareToken: token,
-          stops,
-          reportEmail: String(fields.reportEmail).trim(),
+        // Crear el enlace compartido de unidad
+        const sharedUnit = await createSharedUnitLink({
+          unitId: 1000 + Math.floor(Math.random() * 9000),
+          unitName: fields.unitName,
+          clientEmail: fields.reportEmail,
+          clientName: fields.clientName || null,
+          clientPhone: fields.clientPhone || null,
+          durationHours,
+          host: "lite",
+          notes: fields.notes || `Rastreo solicitado para ${fields.unitName}`,
         });
 
-        await setRouteShare(1, savedRoute.id, token, stops, String(fields.reportEmail).trim());
+        const token = sharedUnit.token;
+        const link = `/rastreo/${token}`;
+
+        // También registrar en user-routes para compatibilidad con paradas
+        try {
+          const stops = [
+            { label: `Base de Operaciones (${fields.unitName})`, lat: 20.6736, lon: -103.3440 },
+            { label: `Punto de Entrega / Supervisión (${fields.unitName})`, lat: 20.7086, lon: -103.3690 },
+          ];
+          const savedRoute = await saveUserRouteToStorage({
+            userId: 1,
+            userName: "Operaciones ORB-LITE",
+            name: `Rastreo Compartido - ${fields.unitName}`,
+            color: "#92d700",
+            points: [
+              { lat: 20.6736, lon: -103.3440, radius: 100 },
+              { lat: 20.7086, lon: -103.3690, radius: 100 },
+            ],
+            origin: `Base (${fields.unitName})`,
+            addresses: [`Base (${fields.unitName})`, `Destino (${fields.unitName})`],
+            shareToken: token,
+            stops,
+            reportEmail: String(fields.reportEmail).trim(),
+          });
+          await setRouteShare(1, savedRoute.id, token, stops, String(fields.reportEmail).trim());
+        } catch {
+          // continuar con sharedUnit
+        }
 
         return {
           ok: true,
           processTitle: "Enlace de Rastreo Compartido Registrado",
           id: token,
-          message: `Enlace temporal de rastreo generado y registrado con éxito para "${fields.unitName}". Válido por ${durationHours} horas. Los operadores o supervisores pueden abrirlo de inmediato sin iniciar sesión.`,
+          message: `Enlace temporal de rastreo generado y registrado con éxito para "${fields.unitName}". Válido por ${durationHours} horas. Los clientes o supervisores pueden abrir el mapa en vivo de inmediato sin necesidad de iniciar sesión.`,
           link,
           summary: {
             "Unidad": fields.unitName,
             "Destinatario": fields.reportEmail,
             "Vigencia": `${durationHours} horas`,
-            "Estado": "Activo y registrado en el sistema",
-            "Enlace Directo": `/ruta/${token}`,
+            "Estado": "Activo y con mapa en vivo",
+            "Enlace en Vivo": `/rastreo/${token}`,
           },
         };
       }
