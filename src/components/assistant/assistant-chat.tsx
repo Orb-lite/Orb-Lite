@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useRouterState } from "@tanstack/react-router";
 import {
   X,
   Send,
@@ -34,28 +35,30 @@ export function GreenDotAvatar({
   size?: "sm" | "md" | "lg";
   className?: string;
 }) {
-  const containerSize =
-    size === "sm" ? "h-6 w-6" : size === "lg" ? "h-10 w-10" : "h-8 w-8";
-  const coreSize =
-    size === "sm" ? "h-2 w-2" : size === "lg" ? "h-3.5 w-3.5" : "h-2.5 w-2.5";
-  const haloSize =
-    size === "sm" ? "h-4 w-4" : size === "lg" ? "h-7 w-7" : "h-5 w-5";
+  // Dimensiones del dot estilo Google Maps (punto verde con borde blanco nítido y radar pulsante, sin fondo negro)
+  const dotDimensions =
+    size === "sm"
+      ? { box: "h-5 w-5", dot: "h-3.5 w-3.5 border-2", pulse: "h-5 w-5" }
+      : size === "lg"
+        ? { box: "h-9 w-9", dot: "h-5 w-5 border-[2.5px]", pulse: "h-9 w-9" }
+        : { box: "h-7 w-7", dot: "h-4 w-4 border-2", pulse: "h-7 w-7" };
 
   return (
     <div
-      className={`relative flex shrink-0 items-center justify-center rounded-full border border-emerald-500/40 bg-slate-950 shadow-[0_0_15px_rgba(16,185,129,0.35)] ${containerSize} ${className}`}
+      className={`relative inline-flex shrink-0 items-center justify-center ${dotDimensions.box} ${className}`}
     >
-      {/* Halo de radar con animación suave */}
+      {/* Halo de radar difuso estilo Google Maps (onda pulsante continua) */}
       <span
-        className={`absolute inline-flex rounded-full bg-emerald-500/30 animate-ping ${haloSize}`}
+        className={`absolute rounded-full bg-emerald-400/40 animate-ping ${dotDimensions.pulse}`}
+        style={{ animationDuration: "2s" }}
       />
-      {/* Anillo de pulso interno */}
+      {/* Halo de radio de precisión semitransparente */}
       <span
-        className={`absolute inline-flex rounded-full border border-emerald-400/50 bg-emerald-500/20 ${coreSize} scale-150`}
+        className={`absolute rounded-full bg-emerald-500/20 ${dotDimensions.pulse}`}
       />
-      {/* Dot verde central brillante */}
+      {/* Punto verde sólido con borde blanco impecable (idéntico a Google Maps) */}
       <span
-        className={`relative inline-flex rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] ${coreSize}`}
+        className={`relative z-10 rounded-full border-white bg-emerald-500 shadow-[0_2px_8px_rgba(0,0,0,0.35),0_0_14px_rgba(16,185,129,0.85)] ${dotDimensions.dot}`}
       />
     </div>
   );
@@ -76,28 +79,92 @@ type Message = {
   } | null;
 };
 
-const INITIAL_MESSAGE: Message = {
-  id: "welcome",
-  role: "assistant",
-  content:
-    "¡Hola! Soy tu **Copilot de Operaciones de ORB-LITE**.\n\nPuedo guiarte en cualquier proceso de la plataforma, analizar los datos que exige cada trámite, generar el formulario listo y mandarlo directamente a las APIs del sistema.",
-};
-
-const QUICK_ACTIONS = [
-  { label: "⚡ Renovación GPS", prompt: "Quiero registrar una renovación de GPS" },
-  { label: "👤 Nuevo Cliente CRM", prompt: "Dar de alta un nuevo cliente en el CRM" },
-  { label: "🚀 Solicitar Demo", prompt: "Quiero solicitar una demo de la plataforma" },
-  { label: "📍 Crear Geocerca", prompt: "Ayúdame a crear una geocerca para un patio" },
-  { label: "🔗 Compartir Rastreo", prompt: "Generar un enlace temporal para compartir una unidad" },
-  { label: "📦 Cotizar Equipos", prompt: "Quiero cotizar equipos GPS FMB920" },
-];
-
 export function AssistantChat() {
+  const routerState = useRouterState();
+  const pathname = routerState?.location?.pathname ?? "/";
+
+  // Determinar el contexto actual: CRM, Plataforma GPS o Sitio Público
+  const isCrm =
+    pathname.startsWith("/crm") ||
+    pathname.startsWith("/clientes") ||
+    pathname.startsWith("/renovaciones") ||
+    pathname.startsWith("/panel") ||
+    pathname.startsWith("/acceso-crm");
+
+  const isPlatform =
+    pathname.startsWith("/wialon") ||
+    pathname.startsWith("/plataforma") ||
+    pathname.startsWith("/ruta");
+
+  const contextInfo = React.useMemo(() => {
+    if (isCrm) {
+      return {
+        type: "crm" as const,
+        badge: "CRM / Ventas",
+        badgeColor: "border-purple-500/40 bg-purple-500/20 text-purple-300",
+        welcome:
+          "¡Hola! Estás en el **Módulo CRM y Control**. Puedo ayudarte a registrar renovaciones de GPS, dar de alta clientes, gestionar cobranza y ejecutar operaciones directamente en la base de datos.",
+        actions: [
+          { label: "⚡ Registrar Renovación", prompt: "Quiero registrar una renovación de servicio satelital" },
+          { label: "👤 Nuevo Cliente CRM", prompt: "Dar de alta un nuevo cliente o lead en el CRM" },
+          { label: "📦 Cotizar Flotilla", prompt: "Preparar cotización de equipos GPS para un cliente" },
+          { label: "🔍 Consultar Cliente", prompt: "¿Cómo consultar el expediente y número de cliente?" },
+          { label: "📋 Estado de Cobranza", prompt: "¿Cómo gestionar los recordatorios y adeudos de renovación?" },
+        ],
+      };
+    }
+
+    if (isPlatform) {
+      return {
+        type: "platform" as const,
+        badge: "Plataforma Satelital",
+        badgeColor: "border-cyan-500/40 bg-cyan-500/20 text-cyan-300",
+        welcome:
+          "¡Hola! Estás en la **Plataforma de Monitoreo Satelital**. Puedo ayudarte a crear geocercas perimetrales, generar enlaces temporales de seguimiento, renovar unidades y resolver consultas de telemetría.",
+        actions: [
+          { label: "📍 Crear Geocerca", prompt: "Ayúdame a crear una geocerca perimetral para un patio" },
+          { label: "🔗 Compartir Rastreo", prompt: "Generar un enlace temporal para compartir una unidad con un cliente" },
+          { label: "⚡ Renovar Unidad", prompt: "Registrar la renovación de servicio para un vehículo monitoreado" },
+          { label: "🛑 Apagado de Motor", prompt: "¿Cómo enviar comandos de paro de motor a las unidades?" },
+          { label: "🗺️ Historial de Viajes", prompt: "¿Cómo consultar el recorrido y paradas de una unidad?" },
+          { label: "📊 Exportar Reportes", prompt: "¿Cómo generar reportes de kilometraje y viajes?" },
+        ],
+      };
+    }
+
+    return {
+      type: "public" as const,
+      badge: "Portal Oficial",
+      badgeColor: "border-emerald-500/40 bg-emerald-500/20 text-emerald-300",
+      welcome:
+        "¡Bienvenido a **ORB-LITE**! Puedo ayudarte a solicitar una demo oficial gratuita, cotizar equipos GPS con instalación, renovar tu plan o responder dudas de nuestros servicios.",
+      actions: [
+        { label: "🚀 Solicitar Demo", prompt: "Quiero solicitar una cuenta demo para probar la plataforma" },
+        { label: "📦 Cotizar Equipos GPS", prompt: "Quiero cotizar equipos GPS Teltonika FMB920" },
+        { label: "⚡ Renovar mi Servicio", prompt: "Quiero renovar mi plan mensual o anual de rastreo GPS" },
+        { label: "🛒 Comprar en Tienda", prompt: "¿Qué equipos GPS y chips multicarrier tienen en venta?" },
+        { label: "🔑 Acceder a Plataforma", prompt: "¿Cómo inicio sesión en mi cuenta de rastreo GPS?" },
+        { label: "📞 Asesoría Técnica", prompt: "¿Qué soluciones tienen para control de combustible y seguridad?" },
+      ],
+    };
+  }, [isCrm, isPlatform]);
+
   const [isOpen, setIsOpen] = React.useState(false);
   const [input, setInput] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
-  const [messages, setMessages] = React.useState<Message[]>([INITIAL_MESSAGE]);
+  const [messages, setMessages] = React.useState<Message[]>([]);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Inicializar o resetear mensaje de bienvenida contextual
+  React.useEffect(() => {
+    setMessages([
+      {
+        id: "welcome-" + contextInfo.type,
+        role: "assistant",
+        content: contextInfo.welcome,
+      },
+    ]);
+  }, [contextInfo.type, contextInfo.welcome]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -259,8 +326,10 @@ export function AssistantChat() {
                   <h3 className="text-sm font-bold text-slate-100">
                     ORB-LITE Copilot
                   </h3>
-                  <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/30">
-                    En línea
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold border ${contextInfo.badgeColor}`}
+                  >
+                    {contextInfo.badge}
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-400">
@@ -271,7 +340,15 @@ export function AssistantChat() {
 
             <div className="flex items-center gap-1">
               <button
-                onClick={() => setMessages([INITIAL_MESSAGE])}
+                onClick={() =>
+                  setMessages([
+                    {
+                      id: "welcome-" + contextInfo.type,
+                      role: "assistant",
+                      content: contextInfo.welcome,
+                    },
+                  ])
+                }
                 title="Reiniciar conversación"
                 className="rounded p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200"
               >
@@ -287,9 +364,9 @@ export function AssistantChat() {
             </div>
           </div>
 
-          {/* Quick Actions Bar */}
+          {/* Quick Actions Bar Contextual */}
           <div className="flex gap-1.5 overflow-x-auto border-b border-slate-800/60 bg-slate-900/40 p-2 scrollbar-none">
-            {QUICK_ACTIONS.map((qa) => (
+            {contextInfo.actions.map((qa) => (
               <button
                 key={qa.label}
                 onClick={() => handleSend(qa.prompt)}
