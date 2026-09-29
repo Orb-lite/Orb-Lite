@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '#tanstack-start-entry': path.resolve(__dirname, './src/main.tsx'),
     },
   },
   build: {
