@@ -102,7 +102,7 @@ export function UsuariosDemoSection() {
               id="demo-nombre"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="Juan Pérez"
+              placeholder="John Doe"
               required
             />
           </div>
@@ -150,7 +150,7 @@ export function UsuariosDemoSection() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="cliente@correo.com — si lo dejas vacío se usa el del cliente registrado"
+              placeholder="john.doe@example.com — si lo dejas vacío se usa el del cliente registrado"
             />
           </div>
           <div className="space-y-2 sm:col-span-2">
