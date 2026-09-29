@@ -21,6 +21,10 @@ export default defineConfig({
     server: { entry: "server" },
   },
   vite: {
+    base: "/",
+    build: {
+      outDir: "dist",
+    },
     resolve: {
       alias: {
         // React Email requires entities v4.5.0; bypass nested newer copies.
@@ -37,4 +41,3 @@ export default defineConfig({
     },
   },
 });
-
