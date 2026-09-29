@@ -1,6 +1,33 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Route as WialonRoute } from './wialon.index'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useEffect } from 'react'
 
-export const Route = createFileRoute('/plataforma')({
-  component: WialonRoute.options.component,
+export const Route = createFileRoute('/wialon/callback')({
+  component: WialonCallbackComponent,
 })
+
+function WialonCallbackComponent() {
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'))
+    const searchParams = new URLSearchParams(window.location.search)
+    
+    const token = hashParams.get('access_token') || searchParams.get('access_token')
+
+    if (token) {
+      localStorage.setItem('wialon_token', token)
+      
+      // Redirección directa a /plataforma
+      navigate({ to: '/plataforma' })
+    } else {
+      navigate({ to: '/auth' })
+    }
+  }, [navigate])
+
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center p-4 text-center">
+      <h2 className="text-xl font-bold text-white">Cargando plataforma...</h2>
+      <p className="mt-2 text-sm text-gray-400">Por favor espera un momento.</p>
+    </div>
+  )
+}
