@@ -545,14 +545,15 @@ export async function downloadExcelWorkbook({
     let row = image.row;
     if (image.cell) {
       const match = image.cell.toUpperCase().match(/^([A-Z]+)(\d+)$/);
-      if (match) {
-        const letters = match[1];
+      const letters = match?.[1];
+      const digits = match?.[2];
+      if (letters && digits) {
         let colNum = 0;
         for (let i = 0; i < letters.length; i++) {
           colNum = colNum * 26 + (letters.charCodeAt(i) - 64);
         }
         column = colNum - 1; // 0-indexed: A=0, B=1, ... G=6
-        row = parseInt(match[2], 10) - 1; // 0-indexed: row 1=0, row 6=5
+        row = parseInt(digits, 10) - 1; // 0-indexed: row 1=0, row 6=5
       }
     }
 
