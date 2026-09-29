@@ -1,15 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { TanStackStartVite } from '@tanstack/start-plugin'
+import { TanStackStartVite } from '@tanstack/start/vite'
 import path from 'path'
 
 export default defineConfig({
   plugins: [
-    TanStackStartVite({
-      deployment: {
-        preset: 'vercel',
-      },
-    }),
+    TanStackStartVite(),
     react(),
   ],
   resolve: {
@@ -19,8 +15,5 @@ export default defineConfig({
   },
   nitro: {
     preset: 'vercel',
-    output: {
-      publicDir: '.vercel/output/static',
-    },
   },
 })
