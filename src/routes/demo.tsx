@@ -109,7 +109,7 @@ function DemoPage() {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   className={inputClass}
-                  placeholder="Emiliano"
+                  placeholder="John"
                 />
               </label>
               <label className="text-sm">
@@ -120,7 +120,7 @@ function DemoPage() {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   className={inputClass}
-                  placeholder="Gómez Estrada"
+                  placeholder="Doe"
                 />
               </label>
               <label className="text-sm">
@@ -144,7 +144,7 @@ function DemoPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={inputClass}
-                  placeholder="tucorreo@dominio.com"
+                  placeholder="john.doe@example.com"
                 />
               </label>
               <label className="text-sm">
