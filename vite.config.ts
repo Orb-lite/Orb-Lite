@@ -1,11 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { TanStackStartVite } from '@tanstack/start/vite'
+import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import path from 'path'
 
 export default defineConfig({
   plugins: [
-    TanStackStartVite(),
+    TanStackRouterVite(),
     react(),
   ],
   resolve: {
@@ -13,7 +13,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  nitro: {
-    preset: 'vercel',
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
   },
 })
