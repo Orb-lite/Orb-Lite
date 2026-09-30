@@ -49,7 +49,7 @@ export const createUnitShare = createServerFn({ method: "POST" })
         clientPhone: z.string().trim().max(30).optional().nullable(),
         clientEmail: z.string().trim().email().optional().nullable().or(z.literal("")),
         notes: z.string().trim().max(250).optional().nullable(),
-        durationHours: z.number().min(0.5).max(720).default(24),
+        durationHours: z.number().min(0.5).max(876000).default(24),
         host: z.enum(["lite", "full"]).default("lite"),
         sid: z.string().optional().nullable(),
         initialPosition: z
@@ -165,12 +165,12 @@ export const getPublicUnitTracking = createServerFn({ method: "GET" })
 
     // Si está activa, intentar refrescar la posición en vivo desde Wialon
     let currentPos = link.lastPosition ?? {
-      lat: 20.6736,
-      lon: -103.3440,
+      lat: 0.0,
+      lon: -0.0,
       speed: 0,
       course: 0,
       time: Math.floor(now / 1000),
-      address: "Zona Metropolitana de Guadalajara, Jal.",
+      address: "",
     };
 
     if (!isExpired && !isRevoked && link.sid && link.unitId) {
