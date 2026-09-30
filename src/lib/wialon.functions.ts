@@ -9,6 +9,7 @@ import { createServerFn } from "@tanstack/react-start";
 export const wialonLogin = createServerFn({ method: "POST" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async ({ data }) => {
+<<<<<<< HEAD
     const token = (data?.token as string) || (data?.eid as string) || "demo_wialon_token_12345";
     const user = {
       id: data?.id || 1,
@@ -18,11 +19,24 @@ export const wialonLogin = createServerFn({ method: "POST" })
       access_token: token,
       eid: token,
       host: "https://hosting.wialon.com",
+=======
+    const sid = (data?.sid as string) || (data?.token as string) || (data?.eid as string) || "demo_sid_12345";
+    const host = (data?.host as "lite" | "full") || "full";
+    const userId = Number(data?.userId || data?.id || 1);
+    const userName = String(data?.userName || data?.user || data?.nm || "Usuario Wialon");
+
+    const session = {
+      sid,
+      host,
+      userId,
+      userName,
+>>>>>>> 8f061e2 (Fix: Format wialonLogin response to strictly match WialonSession type)
     };
 
     return {
       success: true,
       authenticated: true,
+<<<<<<< HEAD
       token,
       access_token: token,
       eid: token,
@@ -34,6 +48,18 @@ export const wialonLogin = createServerFn({ method: "POST" })
         user,
         host: "https://hosting.wialon.com",
       }
+=======
+      sid,
+      host,
+      userId,
+      userName,
+      session,
+      // Compatibilidad adicional
+      token: sid,
+      access_token: sid,
+      eid: sid,
+      user: { id: userId, name: userName }
+>>>>>>> 8f061e2 (Fix: Format wialonLogin response to strictly match WialonSession type)
     };
   });
 
@@ -49,8 +75,12 @@ export const wialonPing = createServerFn({ method: "GET" })
     return { 
       active: true, 
       authenticated: true, 
+<<<<<<< HEAD
       status: "ok",
       user: { name: "Usuario Wialon" }
+=======
+      status: "ok"
+>>>>>>> 8f061e2 (Fix: Format wialonLogin response to strictly match WialonSession type)
     };
   });
 
