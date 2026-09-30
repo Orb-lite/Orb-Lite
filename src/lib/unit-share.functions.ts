@@ -35,6 +35,17 @@ export type PublicUnitTracking = {
     isMoving: boolean;
   };
   trail: Array<{ lat: number; lon: number; time: number; speed?: number }>;
+  unitsData?: Array<{
+    unitId: number;
+    unitName: string;
+    position?: {
+      lat: number;
+      lon: number;
+      speed?: number;
+      course?: number;
+      time?: number;
+    };
+  }>;
 };
 
 /** Crea un nuevo enlace temporal para compartir una unidad. */
@@ -47,7 +58,13 @@ export const createUnitShare = createServerFn({ method: "POST" })
         imei: z.string().trim().optional().nullable(),
         clientName: z.string().trim().max(100).optional().nullable(),
         clientPhone: z.string().trim().max(30).optional().nullable(),
-        clientEmail: z.string().trim().email().optional().nullable().or(z.literal("")),
+        clientEmail: z
+          .string()
+          .trim()
+          .email()
+          .optional()
+          .nullable()
+          .or(z.literal("")),
         notes: z.string().trim().max(250).optional().nullable(),
         durationHours: z.number().min(0.5).max(876000).default(24),
         host: z.enum(["lite", "full"]).default("lite"),
@@ -63,8 +80,25 @@ export const createUnitShare = createServerFn({ method: "POST" })
           })
           .optional()
           .nullable(),
+        unitsData: z
+          .array(
+            z.object({
+              unitId: z.number(),
+              unitName: z.string(),
+              position: z
+                .object({
+                  lat: z.number(),
+                  lon: z.number(),
+                  speed: z.number().optional(),
+                  course: z.number().optional(),
+                  time: z.number().optional(),
+                })
+                .optional(),
+            })
+          )
+          .optional(),
       })
-      .parse(input),
+      .parse(input)
   )
   .handler(async ({ data }) => {
     const link = await createSharedUnitLink({
@@ -79,6 +113,7 @@ export const createUnitShare = createServerFn({ method: "POST" })
       host: data.host,
       sid: data.sid,
       initialPosition: data.initialPosition,
+      unitsData: data.unitsData,
     });
 
     return {
@@ -98,7 +133,7 @@ export const listUnitShares = createServerFn({ method: "POST" })
       })
       .optional()
       .default({})
-      .parse(input),
+      .parse(input)
   )
   .handler(async ({ data }) => {
     const links = await getSharedUnitLinks(data);
@@ -108,7 +143,7 @@ export const listUnitShares = createServerFn({ method: "POST" })
 /** Revoca / invalida un enlace temporal. */
 export const revokeUnitShare = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({ token: z.string().min(16) }).parse(input),
+    z.object({ token: z.string().min(16) }).parse(input)
   )
   .handler(async ({ data }) => {
     const ok = await revokeSharedUnitLink(data.token);
@@ -123,7 +158,7 @@ export const extendUnitShare = createServerFn({ method: "POST" })
         token: z.string().min(16),
         hours: z.number().min(1).max(168),
       })
-      .parse(input),
+      .parse(input)
   )
   .handler(async ({ data }) => {
     const updated = await extendSharedUnitLink(data.token, data.hours);
@@ -133,7 +168,7 @@ export const extendUnitShare = createServerFn({ method: "POST" })
 /** Elimina un enlace temporal del historial. */
 export const deleteUnitShare = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({ token: z.string().min(16) }).parse(input),
+    z.object({ token: z.string().min(16) }).parse(input)
   )
   .handler(async ({ data }) => {
     const ok = await deleteSharedUnitLink(data.token);
@@ -146,7 +181,7 @@ export const deleteUnitShare = createServerFn({ method: "POST" })
  */
 export const getPublicUnitTracking = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) =>
-    z.object({ token: z.string().min(16) }).parse(input),
+    z.object({ token: z.string().min(16) }).parse(input)
   )
   .handler(async ({ data }): Promise<PublicUnitTracking> => {
     const link = await getSharedUnitByToken(data.token);
@@ -154,7 +189,6 @@ export const getPublicUnitTracking = createServerFn({ method: "GET" })
       throw new Error("El enlace de rastreo no existe o fue eliminado.");
     }
 
-    // Registrar visita
     await recordSharedUnitView(data.token);
 
     const now = Date.now();
@@ -163,7 +197,6 @@ export const getPublicUnitTracking = createServerFn({ method: "GET" })
     const isExpired = remainingSeconds <= 0 || link.status === "expired";
     const isRevoked = link.status === "revoked";
 
-    // Si está activa, intentar refrescar la posición en vivo desde Wialon
     let currentPos = link.lastPosition ?? {
       lat: 0.0,
       lon: -0.0,
@@ -182,8 +215,8 @@ export const getPublicUnitTracking = createServerFn({ method: "GET" })
         }>(
           link.host as WialonHost,
           "core/search_item",
-          { id: link.unitId, flags: 0x401 }, // Datos básicos + pos actual
-          link.sid,
+          { id: link.unitId, flags: 0x401 },
+          link.sid
         );
 
         const pos = itemRes.item?.pos;
@@ -196,11 +229,10 @@ export const getPublicUnitTracking = createServerFn({ method: "GET" })
             time: pos.t ?? Math.floor(now / 1000),
             address: currentPos.address || "En recorrido",
           };
-          // Actualizar posición y añadir al trail en memoria
           await updateSharedUnitPosition(data.token, currentPos);
         }
       } catch {
-        // Si la sesión de Wialon ya caducó o no responde, conservamos la última posición registrada
+        // Mantiene la última posición conocida en caso de fallo
       }
     }
 
@@ -231,5 +263,9 @@ export const getPublicUnitTracking = createServerFn({ method: "GET" })
           speed: currentPos.speed,
         },
       ],
+      unitsData: link.unitsData,
     };
   });
+
+// Exporta también como alias para resolver cualquier importación legacy
+export { getPublicUnitTracking as getPublicUnitShare };
