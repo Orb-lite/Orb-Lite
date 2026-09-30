@@ -125,7 +125,7 @@ export function useWialonSession() {
       setIsLoading(true);
       setError(null);
       try {
-        const { data, error: invokeError } = await supabase.functions.invoke<ProxyLoginResponse>(
+        const { data, error: invokeError } = await (supabase.functions.invoke as any)(
           "wialon-proxy",
           {
             body: {

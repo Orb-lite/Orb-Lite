@@ -99,7 +99,7 @@ export const redeemCrmAccessCode = createServerFn({ method: "POST" })
       perPage: 200,
     });
     if (listError) throw new Error(listError.message);
-    const existing = listed.users.find((u) => (u.email ?? "").toLowerCase() === CRM_EMAIL);
+    const existing = listed.users.find((u: any) => (u.email ?? "").toLowerCase() === CRM_EMAIL);
 
     if (existing) {
       const { error } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
