@@ -1,50 +1,82 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getPublicUnitTracking } from "@/lib/unit-share.functions";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
-// Registra la ruta dinámica /rastreo/$token en TanStack Router
+// Registro obligatorio de la ruta en TanStack Router
 export const Route = createFileRoute("/rastreo/$token")({
   component: PublicTrackingPage,
 });
 
 function PublicTrackingPage() {
   const { token } = Route.useParams();
+  const fetchPublicTracking = useServerFn(getPublicUnitTracking);
 
-  return (
-    <div className="min-h-screen bg-[#0b0f19] text-white">
-      {/* Pasa el token directamente a la vista */}
-      <PublicTrackingView linkData={{ token }} />
-    </div>
-  );
+  const { data: linkData, isLoading, error } = useQuery({
+    queryKey: ["public-tracking", token],
+    queryFn: () => fetchPublicTracking({ data: { token } }),
+    refetchInterval: 10000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0b0f19] text-white">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="size-8 animate-spin text-cyan-400" />
+          <p className="text-sm font-semibold tracking-wide text-slate-400">
+            Cargando rastreo en vivo...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !linkData || linkData.isExpired || linkData.isRevoked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0b0f19] p-4 text-white">
+        <div className="max-w-md w-full rounded-2xl border border-red-500/20 bg-slate-900 p-6 text-center space-y-4">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-red-500/10 text-red-400">
+            <AlertCircle className="size-6" />
+          </div>
+          <h2 className="text-lg font-bold text-white">Enlace Inválido o Expirado</h2>
+          <p className="text-xs text-slate-400">
+            El enlace de rastreo compartido no está disponible o ha sido revocado.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <PublicTrackingView linkData={linkData} />;
 }
 
 export function PublicTrackingView({ linkData }: { linkData: any }) {
-  // Arreglo de unidades adjuntas al enlace
   const units =
     linkData?.unitsData && linkData.unitsData.length > 0
       ? linkData.unitsData
       : [
           {
-            unitId: linkData?.unitId ?? 1,
-            unitName: linkData?.unitName ?? "Unidad de Rastreo",
-            position: linkData?.initialPosition ?? { lat: 0, lon: 0, speed: 0, course: 0 },
+            unitId: 1,
+            unitName: linkData?.unitName ?? "Vehículo",
+            position: linkData?.position,
           },
         ];
 
-  // Estado para la unidad seleccionada actualmente
   const [selectedUnitId, setSelectedUnitId] = React.useState<number>(
     units[0]?.unitId
   );
 
-  // Obtener los datos dinámicos de la unidad activa
   const activeUnit = React.useMemo(() => {
     return units.find((u: any) => u.unitId === selectedUnitId) || units[0];
   }, [units, selectedUnitId]);
 
-  const activePos = activeUnit?.position || activeUnit?.initialPosition;
+  const activePos = activeUnit?.position || linkData?.position;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0b0f19] text-white">
-      {/* Selector de Unidades Superior (Pestañas) */}
+      {/* Selector de Unidades Superior */}
       {units.length > 1 && (
         <div className="flex items-center gap-2 p-3 bg-slate-900/80 border-b border-slate-800 overflow-x-auto">
           <span className="text-xs font-bold uppercase text-slate-400 mr-2">
@@ -67,11 +99,11 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
       )}
 
       <div className="flex flex-col lg:flex-row flex-1 p-4 gap-4">
-        {/* Sección del Mapa */}
+        {/* Mapa */}
         <div className="flex-1 relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 min-h-[400px]">
-          {activePos ? (
+          {activePos?.lat && activePos?.lon ? (
             <iframe
-              title={`Mapa ${activeUnit?.unitName}`}
+              title={`Mapa de ${activeUnit?.unitName}`}
               width="100%"
               height="100%"
               style={{ border: 0, minHeight: "400px" }}
@@ -85,7 +117,7 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
           )}
         </div>
 
-        {/* Panel Lateral - Métricas de la unidad seleccionada */}
+        {/* Panel Lateral */}
         <div className="w-full lg:w-80 space-y-4">
           <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-4 space-y-4">
             <div className="flex items-center justify-between">
