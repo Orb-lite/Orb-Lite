@@ -1,93 +1,32 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { getPublicUnitShare } from "@/lib/unit-share.functions";
-import { AlertCircle, RefreshCw } from "lucide-react";
 
-// 🔴 ESTO ES LO QUE LE FALTABA A TU ARCHIVO:
+// Registra la ruta dinámica /rastreo/$token en TanStack Router
 export const Route = createFileRoute("/rastreo/$token")({
   component: PublicTrackingPage,
 });
 
-// Componente puente que obtiene el token de la URL y consulta los datos
 function PublicTrackingPage() {
   const { token } = Route.useParams();
-  const fetchPublicShare = useServerFn(getPublicUnitShare);
 
-  const { data: linkData, isLoading, error } = useQuery({
-    queryKey: ["public-share", token],
-    queryFn: () => fetchPublicShare({ data: { token } }),
-    refetchInterval: 10000,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0b0f19] text-white">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="size-8 animate-spin text-cyan-400" />
-          <p className="text-sm font-semibold text-slate-400">
-            Cargando rastreo en vivo...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !linkData) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0b0f19] p-4 text-white">
-        <div className="max-w-md w-full rounded-2xl border border-red-500/20 bg-slate-900 p-6 text-center space-y-4">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-red-500/10 text-red-400">
-            <AlertCircle className="size-6" />
-          </div>
-          <h2 className="text-lg font-bold">Enlace no encontrado o expirado</h2>
-          <p className="text-xs text-slate-400">
-            El enlace de rastreo compartido no está disponible.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return <PublicTrackingView linkData={linkData} />;
-}
-
-// MapComponent auxiliar (ajústalo según la librería de mapas que uses)
-function MapComponent({
-  lat,
-  lon,
-  unitName,
-}: {
-  lat: number;
-  lon: number;
-  speed?: number;
-  course?: number;
-  unitName: string;
-}) {
   return (
-    <iframe
-      title={`Mapa ${unitName}`}
-      width="100%"
-      height="100%"
-      style={{ border: 0, minHeight: "400px" }}
-      loading="lazy"
-      src={`https://maps.google.com/maps?q=${lat},${lon}&z=15&output=embed`}
-    />
+    <div className="min-h-screen bg-[#0b0f19] text-white">
+      {/* Pasa el token directamente a la vista */}
+      <PublicTrackingView linkData={{ token }} />
+    </div>
   );
 }
 
-// 🟢 TU VISTA TAL CUAL LA TENÍAS:
 export function PublicTrackingView({ linkData }: { linkData: any }) {
   // Arreglo de unidades adjuntas al enlace
   const units =
-    linkData.unitsData && linkData.unitsData.length > 0
+    linkData?.unitsData && linkData.unitsData.length > 0
       ? linkData.unitsData
       : [
           {
-            unitId: linkData.unitId,
-            unitName: linkData.unitName,
-            position: linkData.initialPosition,
+            unitId: linkData?.unitId ?? 1,
+            unitName: linkData?.unitName ?? "Unidad de Rastreo",
+            position: linkData?.initialPosition ?? { lat: 0, lon: 0, speed: 0, course: 0 },
           },
         ];
 
@@ -128,16 +67,16 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
       )}
 
       <div className="flex flex-col lg:flex-row flex-1 p-4 gap-4">
-        {/* Sección del Mapa - Muestra la ubicación de la unidad seleccionada */}
+        {/* Sección del Mapa */}
         <div className="flex-1 relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 min-h-[400px]">
           {activePos ? (
-            <MapComponent
-              key={activeUnit.unitId} // Reinicia el centrado del mapa al cambiar de unidad
-              lat={activePos.lat}
-              lon={activePos.lon}
-              speed={activePos.speed}
-              course={activePos.course}
-              unitName={activeUnit.unitName}
+            <iframe
+              title={`Mapa ${activeUnit?.unitName}`}
+              width="100%"
+              height="100%"
+              style={{ border: 0, minHeight: "400px" }}
+              loading="lazy"
+              src={`https://maps.google.com/maps?q=${activePos.lat},${activePos.lon}&z=15&output=embed`}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-slate-500 text-sm">
@@ -155,7 +94,7 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
                   Vehículo Monitoreado
                 </p>
                 <h3 className="text-lg font-bold text-white mt-0.5">
-                  {activeUnit.unitName}
+                  {activeUnit?.unitName}
                 </h3>
               </div>
               <span
@@ -198,7 +137,7 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
                   Ubicación Detectada
                 </p>
                 <p className="text-xs font-mono text-slate-300">
-                  Lat: {activePos.lat.toFixed(6)}, Lon: {activePos.lon.toFixed(6)}
+                  Lat: {Number(activePos.lat).toFixed(6)}, Lon: {Number(activePos.lon).toFixed(6)}
                 </p>
               </div>
             )}
