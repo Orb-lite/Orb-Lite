@@ -16,7 +16,7 @@ function PublicTrackingPage() {
   const { data: linkData, isLoading, error } = useQuery({
     queryKey: ["public-tracking", token],
     queryFn: () => fetchPublicTracking({ data: { token } }),
-    refetchInterval: 8000, // Actualiza la posición de todas las unidades cada 8 segundos
+    refetchInterval: 8000,
   });
 
   if (isLoading) {
@@ -52,53 +52,65 @@ function PublicTrackingPage() {
 }
 
 export function PublicTrackingView({ linkData }: { linkData: any }) {
-  const units =
-    linkData?.unitsData && linkData.unitsData.length > 0
-      ? linkData.unitsData
-      : [
-          {
-            unitId: 1,
-            unitName: linkData?.unitName ?? "Vehículo",
-            position: linkData?.position,
-          },
-        ];
+  const units = React.useMemo(() => {
+    if (linkData?.unitsData && linkData.unitsData.length > 0) {
+      return linkData.unitsData;
+    }
+    return [
+      {
+        unitId: linkData?.unitId ?? 1,
+        unitName: linkData?.unitName ?? "Vehículo",
+        position: linkData?.position,
+      },
+    ];
+  }, [linkData]);
 
-  const [selectedUnitId, setSelectedUnitId] = React.useState<number>(
+  const [selectedUnitId, setSelectedUnitId] = React.useState<string | number | undefined>(
     units[0]?.unitId
   );
 
+  // Sincroniza la unidad seleccionada si cambian los datos o si el ID inicial estaba indefinido
+  React.useEffect(() => {
+    if (units.length > 0 && (!selectedUnitId || !units.some((u: any) => String(u.unitId) === String(selectedUnitId)))) {
+      setSelectedUnitId(units[0].unitId);
+    }
+  }, [units, selectedUnitId]);
+
   const activeUnit = React.useMemo(() => {
-    return units.find((u: any) => u.unitId === selectedUnitId) || units[0];
+    return units.find((u: any) => String(u.unitId) === String(selectedUnitId)) || units[0];
   }, [units, selectedUnitId]);
 
   const activePos = activeUnit?.position;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0b0f19] text-white">
-      {/* Botones de Selección de Unidad */}
+      {/* Selector de Unidades */}
       {units.length > 1 && (
         <div className="flex items-center gap-2 p-3 bg-slate-900/90 border-b border-slate-800 overflow-x-auto">
           <span className="text-xs font-bold uppercase text-slate-400 mr-2">
             Seleccionar Vehículo:
           </span>
-          {units.map((u: any) => (
-            <button
-              key={u.unitId}
-              onClick={() => setSelectedUnitId(u.unitId)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
-                selectedUnitId === u.unitId
-                  ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-md"
-                  : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
-              }`}
-            >
-              {u.unitName}
-            </button>
-          ))}
+          {units.map((u: any) => {
+            const isSelected = String(selectedUnitId) === String(u.unitId);
+            return (
+              <button
+                key={u.unitId}
+                onClick={() => setSelectedUnitId(u.unitId)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
+                  isSelected
+                    ? "bg-cyan-500 text-slate-950 border-cyan-400 shadow-md"
+                    : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
+                }`}
+              >
+                {u.unitName}
+              </button>
+            );
+          })}
         </div>
       )}
 
       <div className="flex flex-col lg:flex-row flex-1 p-4 gap-4">
-        {/* Mapa con la ubicación actual en vivo de la unidad seleccionada */}
+        {/* Mapa en Vivo */}
         <div className="flex-1 relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 min-h-[400px]">
           {activePos?.lat && activePos?.lon ? (
             <iframe
@@ -117,7 +129,7 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
           )}
         </div>
 
-        {/* Datos en vivo de la unidad seleccionada */}
+        {/* Panel lateral de datos */}
         <div className="w-full lg:w-80 space-y-4">
           <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-4 space-y-4">
             <div className="flex items-center justify-between">
