@@ -67,6 +67,25 @@ function HistorialView({ session }: { session: WialonSession }) {
     e.preventDefault();
     if (!selected) return;
     setError(null);
+
+    // Formatear correctamente el string datetime-local a Date local sin sesgos de zona horaria
+    const fromDate = new Date(from.replace("T", " "));
+    const toDate = new Date(to.replace("T", " "));
+
+    const fromTimestamp = Math.floor(fromDate.getTime() / 1000);
+    const toTimestamp = Math.floor(toDate.getTime() / 1000);
+
+    // Validar rango y formato
+    if (isNaN(fromTimestamp) || isNaN(toTimestamp)) {
+      setError("Por favor ingresa un rango de fechas válido.");
+      return;
+    }
+
+    if (fromTimestamp >= toTimestamp) {
+      setError("La fecha de inicio ('Desde') debe ser anterior a la fecha final ('Hasta').");
+      return;
+    }
+
     setBusy(true);
     try {
       const data = await fetchHistory({
@@ -74,8 +93,8 @@ function HistorialView({ session }: { session: WialonSession }) {
           host: session.host,
           sid: session.sid,
           unitId: selected,
-          timeFrom: Math.floor(new Date(from).getTime() / 1000),
-          timeTo: Math.floor(new Date(to).getTime() / 1000),
+          timeFrom: fromTimestamp,
+          timeTo: toTimestamp,
         },
       });
       setResult(data);
@@ -107,8 +126,8 @@ function HistorialView({ session }: { session: WialonSession }) {
     const summaryRows: Array<Array<string | number | null>> = [
       ["Campo", "Valor"],
       ["Unidad", selectedUnit?.name ?? `Unidad ${selected ?? ""}`],
-      ["Desde", new Date(from).toLocaleString("es-MX")],
-      ["Hasta", new Date(to).toLocaleString("es-MX")],
+      ["Desde", new Date(from.replace("T", " ")).toLocaleString("es-MX")],
+      ["Hasta", new Date(to.replace("T", " ")).toLocaleString("es-MX")],
       ["Mensajes", result.total],
       ["Puntos con ubicación", result.points],
       ["Velocidad máxima (km/h)", Math.round(result.maxSpeed)],
