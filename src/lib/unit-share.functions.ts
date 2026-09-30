@@ -97,7 +97,8 @@ export const listUnitShares = createServerFn({ method: "POST" })
         sid: z.string().optional(),
       })
       .optional()
-      .default({}),
+      .default({})
+      .parse(input),
   )
   .handler(async ({ data }) => {
     const links = await getSharedUnitLinks(data);
