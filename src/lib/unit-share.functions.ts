@@ -44,141 +44,13 @@ export type PublicUnitTracking = {
       speed?: number;
       course?: number;
       time?: number;
+      address?: string;
+      isMoving?: boolean;
     };
   }>;
 };
 
-/** Crea un nuevo enlace temporal para compartir una unidad. */
-export const createUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        unitId: z.number().int(),
-        unitName: z.string().trim().min(1).max(100),
-        imei: z.string().trim().optional().nullable(),
-        clientName: z.string().trim().max(100).optional().nullable(),
-        clientPhone: z.string().trim().max(30).optional().nullable(),
-        clientEmail: z
-          .string()
-          .trim()
-          .email()
-          .optional()
-          .nullable()
-          .or(z.literal("")),
-        notes: z.string().trim().max(250).optional().nullable(),
-        durationHours: z.number().min(0.5).max(876000).default(24),
-        host: z.enum(["lite", "full"]).default("lite"),
-        sid: z.string().optional().nullable(),
-        initialPosition: z
-          .object({
-            lat: z.number(),
-            lon: z.number(),
-            speed: z.number().optional(),
-            course: z.number().optional(),
-            time: z.number().optional(),
-            address: z.string().optional(),
-          })
-          .optional()
-          .nullable(),
-        unitsData: z
-          .array(
-            z.object({
-              unitId: z.number(),
-              unitName: z.string(),
-              position: z
-                .object({
-                  lat: z.number(),
-                  lon: z.number(),
-                  speed: z.number().optional(),
-                  course: z.number().optional(),
-                  time: z.number().optional(),
-                })
-                .optional(),
-            })
-          )
-          .optional(),
-      })
-      .parse(input)
-  )
-  .handler(async ({ data }) => {
-    const link = await createSharedUnitLink({
-      unitId: data.unitId,
-      unitName: data.unitName,
-      imei: data.imei,
-      clientName: data.clientName,
-      clientPhone: data.clientPhone,
-      clientEmail: data.clientEmail || null,
-      notes: data.notes,
-      durationHours: data.durationHours,
-      host: data.host,
-      sid: data.sid,
-      initialPosition: data.initialPosition,
-      unitsData: data.unitsData,
-    });
-
-    return {
-      success: true,
-      link,
-      url: `/rastreo/${link.token}`,
-    };
-  });
-
-/** Lista todos los enlaces temporales creados. */
-export const listUnitShares = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        host: z.enum(["lite", "full"]).optional(),
-        sid: z.string().optional(),
-      })
-      .optional()
-      .default({})
-      .parse(input)
-  )
-  .handler(async ({ data }) => {
-    const links = await getSharedUnitLinks(data);
-    return { links };
-  });
-
-/** Revoca / invalida un enlace temporal. */
-export const revokeUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    z.object({ token: z.string().min(16) }).parse(input)
-  )
-  .handler(async ({ data }) => {
-    const ok = await revokeSharedUnitLink(data.token);
-    return { success: ok };
-  });
-
-/** Extiende la duración de un enlace temporal. */
-export const extendUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        token: z.string().min(16),
-        hours: z.number().min(1).max(168),
-      })
-      .parse(input)
-  )
-  .handler(async ({ data }) => {
-    const updated = await extendSharedUnitLink(data.token, data.hours);
-    return { success: Boolean(updated), link: updated };
-  });
-
-/** Elimina un enlace temporal del historial. */
-export const deleteUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
-    z.object({ token: z.string().min(16) }).parse(input)
-  )
-  .handler(async ({ data }) => {
-    const ok = await deleteSharedUnitLink(data.token);
-    return { success: ok };
-  });
-
-/**
- * Consulta pública de rastreo en vivo de una unidad compartida.
- * No requiere inicio de sesión.
- */
+/** Consulta pública con soporte para MULTI-UNIDAD en vivo */
 export const getPublicUnitTracking = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) =>
     z.object({ token: z.string().min(16) }).parse(input)
@@ -197,44 +69,69 @@ export const getPublicUnitTracking = createServerFn({ method: "GET" })
     const isExpired = remainingSeconds <= 0 || link.status === "expired";
     const isRevoked = link.status === "revoked";
 
-    let currentPos = link.lastPosition ?? {
-      lat: 0.0,
-      lon: -0.0,
+    // 1. Preparar lista de unidades (Soporta enlace multi-unidad o unidad única)
+    let rawUnits = link.unitsData && link.unitsData.length > 0
+      ? link.unitsData
+      : [
+          {
+            unitId: link.unitId,
+            unitName: link.unitName,
+            position: link.lastPosition ?? undefined,
+          },
+        ];
+
+    // 2. Si el enlace está activo y hay sesión Wialon, consultar EN VIVO todas las unidades
+    if (!isExpired && !isRevoked && link.sid) {
+      rawUnits = await Promise.all(
+        rawUnits.map(async (u) => {
+          if (!u.unitId) return u;
+          try {
+            const itemRes = await wialonCall<{
+              item?: {
+                pos?: { y: number; x: number; s: number; c: number; t: number };
+              };
+            }>(
+              link.host as WialonHost,
+              "core/search_item",
+              { id: u.unitId, flags: 0x401 },
+              link.sid
+            );
+
+            const pos = itemRes.item?.pos;
+            if (pos && typeof pos.y === "number" && typeof pos.x === "number") {
+              const livePos = {
+                lat: pos.y,
+                lon: pos.x,
+                speed: Math.round(pos.s ?? 0),
+                course: Math.round(pos.c ?? 0),
+                time: pos.t ?? Math.floor(now / 1000),
+                address: u.position?.address || "En recorrido",
+                isMoving: (pos.s ?? 0) > 3,
+              };
+              return { ...u, position: livePos };
+            }
+          } catch {
+            // Si Wialon falla para esta unidad, conserva su última posición conocida
+          }
+          return u;
+        })
+      );
+
+      // Guardar última posición conocida de la unidad principal en BD
+      if (rawUnits[0]?.position) {
+        await updateSharedUnitPosition(data.token, rawUnits[0].position);
+      }
+    }
+
+    const mainPos = rawUnits[0]?.position ?? {
+      lat: 0,
+      lon: 0,
       speed: 0,
       course: 0,
       time: Math.floor(now / 1000),
-      address: "",
+      address: "Sin datos",
+      isMoving: false,
     };
-
-    if (!isExpired && !isRevoked && link.sid && link.unitId) {
-      try {
-        const itemRes = await wialonCall<{
-          item?: {
-            pos?: { y: number; x: number; s: number; c: number; t: number };
-          };
-        }>(
-          link.host as WialonHost,
-          "core/search_item",
-          { id: link.unitId, flags: 0x401 },
-          link.sid
-        );
-
-        const pos = itemRes.item?.pos;
-        if (pos && typeof pos.y === "number" && typeof pos.x === "number") {
-          currentPos = {
-            lat: pos.y,
-            lon: pos.x,
-            speed: Math.round(pos.s ?? 0),
-            course: Math.round(pos.c ?? 0),
-            time: pos.t ?? Math.floor(now / 1000),
-            address: currentPos.address || "En recorrido",
-          };
-          await updateSharedUnitPosition(data.token, currentPos);
-        }
-      } catch {
-        // Mantiene la última posición conocida en caso de fallo
-      }
-    }
 
     return {
       token: link.token,
@@ -247,25 +144,24 @@ export const getPublicUnitTracking = createServerFn({ method: "GET" })
       isRevoked,
       status: isRevoked ? "revoked" : isExpired ? "expired" : "active",
       position: {
-        lat: currentPos.lat,
-        lon: currentPos.lon,
-        speed: currentPos.speed,
-        course: currentPos.course,
-        time: currentPos.time,
-        address: currentPos.address || "Coordenadas registradas",
-        isMoving: (currentPos.speed ?? 0) > 3,
+        lat: mainPos.lat,
+        lon: mainPos.lon,
+        speed: mainPos.speed ?? 0,
+        course: mainPos.course ?? 0,
+        time: mainPos.time ?? Math.floor(now / 1000),
+        address: mainPos.address || "Coordenadas registradas",
+        isMoving: (mainPos.speed ?? 0) > 3,
       },
       trail: link.trail ?? [
         {
-          lat: currentPos.lat,
-          lon: currentPos.lon,
-          time: currentPos.time,
-          speed: currentPos.speed,
+          lat: mainPos.lat,
+          lon: mainPos.lon,
+          time: mainPos.time,
+          speed: mainPos.speed,
         },
       ],
-      unitsData: link.unitsData,
+      unitsData: rawUnits,
     };
   });
 
-// Exporta también como alias para resolver cualquier importación legacy
 export { getPublicUnitTracking as getPublicUnitShare };
