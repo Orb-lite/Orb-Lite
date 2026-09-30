@@ -166,18 +166,25 @@ function WialonSharePage({ session }: { session: WialonSession }) {
     try {
       const selectedUnitsData = selectedUnitIds
         .map((id) => {
-          const found = units.find((u) => u.id === id);
+          const found: any = units.find((u) => u.id === id);
           if (!found) return null;
+
+          const lat = found.lat ?? found.pos?.y ?? found.position?.lat ?? null;
+          const lon = found.lon ?? found.pos?.x ?? found.position?.lon ?? null;
+          const speed = found.speed ?? found.pos?.s ?? found.position?.speed ?? 0;
+          const course = found.course ?? found.pos?.c ?? found.position?.course ?? 0;
+          const time = found.lastMessage ?? found.pos?.t ?? found.position?.time ?? Math.floor(Date.now() / 1000);
+
           return {
             unitId: found.id,
             unitName: found.name,
             imei: found.imei ?? null,
-            initialPosition: found.lat && found.lon ? {
-              lat: found.lat,
-              lon: found.lon,
-              speed: found.speed ?? 0,
-              course: found.course ?? 0,
-              time: found.lastMessage ?? Math.floor(Date.now() / 1000),
+            initialPosition: (lat !== null && lon !== null) ? {
+              lat: Number(lat),
+              lon: Number(lon),
+              speed: Number(speed),
+              course: Number(course),
+              time: Number(time),
             } : null,
           };
         })
@@ -332,7 +339,6 @@ function WialonSharePage({ session }: { session: WialonSession }) {
         <div className="grid gap-4">
           {filteredShares.map((link) => {
             const isExpired = link.status === "expired" || new Date(link.expiresAt).getTime() <= Date.now();
-            const isRevoked = link.status === "revoked";
             const isActive = link.status === "active" && !isExpired;
 
             return (
