@@ -19,6 +19,10 @@ import {
   RefreshCw,
   Search,
   AlertCircle,
+  Infinity as InfinityIcon,
+  CheckSquare,
+  Square,
+  ChevronDown,
 } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { type WialonSession } from "@/lib/wialon-session";
@@ -60,6 +64,7 @@ const PRESET_DURATIONS = [
   { label: "24 horas", hours: 24 },
   { label: "48 horas", hours: 48 },
   { label: "72 horas", hours: 72 },
+  { label: "Sin Límite", hours: 876000 }, // ~100 años (Permanente)
 ];
 
 function WialonSharePage({ session }: { session: WialonSession }) {
@@ -72,12 +77,12 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   const deleteShareFn = useServerFn(deleteUnitShare);
 
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
-  const [successLink, setSuccessLink] = React.useState<SharedUnitLink | null>(null);
+  const [successLinks, setSuccessLinks] = React.useState<SharedUnitLink[]>([]);
   const [copiedToken, setCopiedToken] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
 
-  // Form State
-  const [selectedUnitId, setSelectedUnitId] = React.useState<number | "custom">("custom");
+  // Form State (Soporte Multi-Selección)
+  const [selectedUnitIds, setSelectedUnitIds] = React.useState<(number | "custom")[]>([]);
   const [customUnitName, setCustomUnitName] = React.useState("");
   const [durationHours, setDurationHours] = React.useState<number>(24);
   const [clientName, setClientName] = React.useState("");
@@ -85,6 +90,19 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   const [clientEmail, setClientEmail] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [formError, setFormError] = React.useState<string | null>(null);
+  const [dropdownOpen, setDropdownOpen] = React.useState(false);
+
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Queries
   const unitsQuery = useQuery({
@@ -105,44 +123,39 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   // Mutations
   const createMutation = useMutation({
     mutationFn: createShareFn,
-    onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
-      setSuccessLink(res.link);
-      setCreateDialogOpen(false);
-      // Reset form
-      setClientName("");
-      setClientPhone("");
-      setClientEmail("");
-      setNotes("");
-      setFormError(null);
-    },
-    onError: (err: any) => {
-      setFormError(err.message || "Error al generar enlace.");
-    },
   });
 
   const revokeMutation = useMutation({
     mutationFn: revokeShareFn,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["unit-shares"] }),
   });
 
   const extendMutation = useMutation({
     mutationFn: extendShareFn,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["unit-shares"] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteShareFn,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["unit-shares"] }),
   });
 
-  // Calculate statistics
+  // Toggle selection
+  const toggleUnitSelection = (id: number | "custom") => {
+    setSelectedUnitIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUnitIds.length === units.length) {
+      setSelectedUnitIds([]);
+    } else {
+      setSelectedUnitIds(units.map((u) => u.id));
+    }
+  };
+
+  // Statistics
   const activeCount = shares.filter((s) => s.status === "active").length;
   const expiredCount = shares.filter((s) => s.status !== "active").length;
   const totalViews = shares.reduce((acc, s) => acc + (s.viewCount || 0), 0);
@@ -154,55 +167,81 @@ function WialonSharePage({ session }: { session: WialonSession }) {
       (s) =>
         s.unitName.toLowerCase().includes(q) ||
         (s.clientName && s.clientName.toLowerCase().includes(q)) ||
-        (s.notes && s.notes.toLowerCase().includes(q)),
+        (s.notes && s.notes.toLowerCase().includes(q))
     );
   }, [shares, search]);
 
-  function handleCreateSubmit(e: React.FormEvent) {
+  async function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
 
-    let unitName = customUnitName.trim();
-    let imei: string | null = null;
-    let initialPos: any = null;
-
-    if (selectedUnitId !== "custom") {
-      const found = units.find((u) => u.id === selectedUnitId);
-      if (found) {
-        unitName = found.name;
-        imei = found.imei;
-        if (found.lat && found.lon) {
-          initialPos = {
-            lat: found.lat,
-            lon: found.lon,
-            speed: found.speed ?? 0,
-            course: found.course ?? 0,
-            time: found.lastMessage ?? Math.floor(Date.now() / 1000),
-          };
-        }
-      }
-    }
-
-    if (!unitName) {
-      setFormError("Debes seleccionar una unidad o escribir su nombre.");
+    if (selectedUnitIds.length === 0) {
+      setFormError("Debes seleccionar al menos una unidad o escribir su nombre.");
       return;
     }
 
-    createMutation.mutate({
-      data: {
-        unitId: typeof selectedUnitId === "number" ? selectedUnitId : Math.floor(10000 + Math.random() * 90000),
-        unitName,
-        imei,
-        clientName: clientName.trim() || null,
-        clientPhone: clientPhone.trim() || null,
-        clientEmail: clientEmail.trim() || null,
-        notes: notes.trim() || null,
-        durationHours,
-        host: session.host,
-        sid: session.sid,
-        initialPosition: initialPos,
-      },
-    });
+    try {
+      const createdLinks: SharedUnitLink[] = [];
+
+      for (const unitId of selectedUnitIds) {
+        let unitName = customUnitName.trim();
+        let imei: string | null = null;
+        let initialPos: any = null;
+
+        if (unitId !== "custom") {
+          const found = units.find((u) => u.id === unitId);
+          if (found) {
+            unitName = found.name;
+            imei = found.imei;
+            if (found.lat && found.lon) {
+              initialPos = {
+                lat: found.lat,
+                lon: found.lon,
+                speed: found.speed ?? 0,
+                course: found.course ?? 0,
+                time: found.lastMessage ?? Math.floor(Date.now() / 1000),
+              };
+            }
+          }
+        }
+
+        if (!unitName) continue;
+
+        const res = await createMutation.mutateAsync({
+          data: {
+            unitId: typeof unitId === "number" ? unitId : Math.floor(10000 + Math.random() * 90000),
+            unitName,
+            imei,
+            clientName: clientName.trim() || null,
+            clientPhone: clientPhone.trim() || null,
+            clientEmail: clientEmail.trim() || null,
+            notes: notes.trim() || null,
+            durationHours,
+            host: session.host,
+            sid: session.sid,
+            initialPosition: initialPos,
+          },
+        });
+
+        if (res?.link) {
+          createdLinks.push(res.link);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
+      setSuccessLinks(createdLinks);
+      setCreateDialogOpen(false);
+
+      // Reset Form
+      setSelectedUnitIds([]);
+      setCustomUnitName("");
+      setClientName("");
+      setClientPhone("");
+      setClientEmail("");
+      setNotes("");
+    } catch (err: any) {
+      setFormError(err.message || "Error al generar enlaces.");
+    }
   }
 
   function copyShareUrl(token: string) {
@@ -253,12 +292,8 @@ function WialonSharePage({ session }: { session: WialonSession }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Enlaces Activos
-            </p>
-            <p className="mt-1 font-mono text-2xl font-bold text-primary">
-              {activeCount}
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Enlaces Activos</p>
+            <p className="mt-1 font-mono text-2xl font-bold text-primary">{activeCount}</p>
           </div>
           <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
             <ShieldCheck className="size-5" />
@@ -267,12 +302,8 @@ function WialonSharePage({ session }: { session: WialonSession }) {
 
         <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Enlaces Expirados / Revocados
-            </p>
-            <p className="mt-1 font-mono text-2xl font-bold text-muted-foreground">
-              {expiredCount}
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Enlaces Expirados / Revocados</p>
+            <p className="mt-1 font-mono text-2xl font-bold text-muted-foreground">{expiredCount}</p>
           </div>
           <div className="size-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
             <Clock className="size-5" />
@@ -281,12 +312,8 @@ function WialonSharePage({ session }: { session: WialonSession }) {
 
         <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Total Visualizaciones
-            </p>
-            <p className="mt-1 font-mono text-2xl font-bold text-cyan-400">
-              {totalViews}
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total Visualizaciones</p>
+            <p className="mt-1 font-mono text-2xl font-bold text-cyan-400">{totalViews}</p>
           </div>
           <div className="size-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400">
             <Eye className="size-5" />
@@ -347,6 +374,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
             const isExpired = link.status === "expired" || new Date(link.expiresAt).getTime() <= Date.now();
             const isRevoked = link.status === "revoked";
             const isActive = link.status === "active" && !isExpired;
+            const isPermanent = link.durationHours >= 800000;
 
             return (
               <div
@@ -358,7 +386,6 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                 }`}
               >
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  {/* Left: Unit & Info */}
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex flex-wrap items-center gap-2.5">
                       <span className="font-display text-base font-bold text-foreground flex items-center gap-2">
@@ -399,21 +426,21 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                         </p>
                       ) : null}
                       <p>
-                        <strong className="text-foreground">Vigencia:</strong> {link.durationHours}h
-                        (expira {new Date(link.expiresAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })})
+                        <strong className="text-foreground">Vigencia:</strong>{" "}
+                        {isPermanent ? (
+                          <span className="text-primary font-bold">Sin Límite (Permanente)</span>
+                        ) : (
+                          `${link.durationHours}h (expira ${new Date(link.expiresAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })})`
+                        )}
                       </p>
                     </div>
 
                     {link.notes ? (
-                      <p className="text-xs text-muted-foreground italic line-clamp-1">
-                        &ldquo;{link.notes}&rdquo;
-                      </p>
+                      <p className="text-xs text-muted-foreground italic line-clamp-1">&ldquo;{link.notes}&rdquo;</p>
                     ) : null}
                   </div>
 
-                  {/* Right: Actions */}
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    {/* Copy Link Button */}
                     <button
                       onClick={() => copyShareUrl(link.token)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-wider text-foreground hover:border-primary hover:text-primary transition-colors"
@@ -431,19 +458,16 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                       )}
                     </button>
 
-                    {/* WhatsApp Button */}
                     <a
                       href={getWhatsAppUrl(link.token, link.unitName, link.clientName, link.clientPhone)}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-emerald-300 transition-colors"
-                      title="Enviar por WhatsApp"
                     >
                       <MessageCircle className="size-3.5" />
                       <span className="hidden sm:inline">WhatsApp</span>
                     </a>
 
-                    {/* Open Tracking Page */}
                     <a
                       href={`/rastreo/${link.token}`}
                       target="_blank"
@@ -454,8 +478,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                       <span>Ver Mapa</span>
                     </a>
 
-                    {/* Extend Duration */}
-                    {isActive ? (
+                    {isActive && !isPermanent ? (
                       <button
                         onClick={() => extendMutation.mutate({ data: { token: link.token, hours: 4 } })}
                         disabled={extendMutation.isPending}
@@ -466,7 +489,6 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                       </button>
                     ) : null}
 
-                    {/* Revoke */}
                     {isActive ? (
                       <button
                         onClick={() => {
@@ -476,13 +498,11 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                         }}
                         disabled={revokeMutation.isPending}
                         className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs font-medium text-amber-400 hover:bg-amber-500/20 transition-colors"
-                        title="Revocar enlace ahora"
                       >
                         Revocar
                       </button>
                     ) : null}
 
-                    {/* Delete */}
                     <button
                       onClick={() => {
                         if (confirm(`¿Eliminar este enlace del registro?`)) {
@@ -491,7 +511,6 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                       }}
                       disabled={deleteMutation.isPending}
                       className="rounded-lg border border-red-500/20 p-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
-                      title="Eliminar registro"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -524,37 +543,73 @@ function WialonSharePage({ session }: { session: WialonSession }) {
               </div>
             ) : null}
 
-            {/* Select Unit */}
-            <div>
+            {/* Select Units (Multi-select dropdown) */}
+            <div className="space-y-1.5 relative" ref={dropdownRef}>
               <label className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                Selecciona la Unidad *
+                Selecciona la(s) Unidad(es) * {selectedUnitIds.length > 0 && `(${selectedUnitIds.length} seleccionadas)`}
               </label>
-              <select
-                value={selectedUnitId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedUnitId(val === "custom" ? "custom" : Number(val));
-                }}
-                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+
+              <div
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center justify-between w-full rounded-md border border-input bg-background px-3 py-2 text-xs cursor-pointer hover:border-primary"
               >
-                {units.length > 0 ? (
-                  <optgroup label="Unidades de tu cuenta">
-                    {units.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name} {u.online ? "(En línea)" : "(Última conexión)"}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-                <option value="custom">+ Escribir nombre de unidad manualmente</option>
-              </select>
+                <span className="truncate text-foreground font-medium">
+                  {selectedUnitIds.length === 0
+                    ? "-- Selecciona una o varias unidades --"
+                    : selectedUnitIds.length === units.length
+                    ? "Todas las unidades seleccionadas"
+                    : selectedUnitIds
+                        .map((id) => (id === "custom" ? "Personalizada" : units.find((u) => u.id === id)?.name))
+                        .filter(Boolean)
+                        .join(", ")}
+                </span>
+                <ChevronDown className="size-4 text-muted-foreground" />
+              </div>
+
+              {dropdownOpen && (
+                <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-lg border border-border bg-card p-2 shadow-2xl space-y-1">
+                  <div
+                    onClick={toggleSelectAll}
+                    className="flex items-center gap-2 px-2 py-1.5 text-xs text-primary font-bold cursor-pointer hover:bg-muted rounded"
+                  >
+                    {selectedUnitIds.length === units.length ? <CheckSquare className="size-4" /> : <Square className="size-4" />}
+                    <span>SELECCIONAR TODAS</span>
+                  </div>
+                  <hr className="border-border my-1" />
+                  {units.map((u) => {
+                    const isSelected = selectedUnitIds.includes(u.id);
+                    return (
+                      <div
+                        key={u.id}
+                        onClick={() => toggleUnitSelection(u.id)}
+                        className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer transition ${
+                          isSelected ? "bg-primary/10 text-primary font-semibold" : "text-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {isSelected ? <CheckSquare className="size-4 text-primary" /> : <Square className="size-4 text-muted-foreground" />}
+                        <span>{u.name} {u.online ? "(En línea)" : "(Última conexión)"}</span>
+                      </div>
+                    );
+                  })}
+                  <hr className="border-border my-1" />
+                  <div
+                    onClick={() => toggleUnitSelection("custom")}
+                    className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer transition ${
+                      selectedUnitIds.includes("custom") ? "bg-primary/10 text-primary font-semibold" : "text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {selectedUnitIds.includes("custom") ? <CheckSquare className="size-4 text-primary" /> : <Square className="size-4 text-muted-foreground" />}
+                    <span>+ Nombre manual de unidad</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Custom unit name if selected */}
-            {selectedUnitId === "custom" ? (
+            {selectedUnitIds.includes("custom") ? (
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                  Nombre o Placa del Vehículo *
+                  Nombre o Placa del Vehículo Manual *
                 </label>
                 <input
                   type="text"
@@ -573,30 +628,33 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                 <Clock className="size-3.5 text-primary" />
                 Vigencia del Enlace *
               </label>
-              <div className="grid grid-cols-4 gap-2 mt-2">
-                {PRESET_DURATIONS.map((preset) => (
-                  <button
-                    key={preset.hours}
-                    type="button"
-                    onClick={() => setDurationHours(preset.hours)}
-                    className={`rounded-lg border px-2 py-2 text-xs font-bold uppercase transition-all ${
-                      durationHours === preset.hours
-                        ? "border-primary bg-primary/10 text-primary shadow-sm"
-                        : "border-border text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
+              <div className="grid grid-cols-3 sm:grid-cols-3 gap-2 mt-2">
+                {PRESET_DURATIONS.map((preset) => {
+                  const isSelected = durationHours === preset.hours;
+                  const isPermanent = preset.hours >= 800000;
+                  return (
+                    <button
+                      key={preset.hours}
+                      type="button"
+                      onClick={() => setDurationHours(preset.hours)}
+                      className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-bold uppercase transition-all ${
+                        isSelected
+                          ? "border-primary bg-primary/10 text-primary shadow-sm"
+                          : "border-border text-muted-foreground hover:bg-muted"
+                      } ${isPermanent ? "col-span-3 sm:col-span-1 bg-primary/5" : ""}`}
+                    >
+                      {isPermanent && <InfinityIcon className="size-3.5 text-primary" />}
+                      <span>{preset.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* Client / Destination info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
-                <label className="text-xs font-medium text-foreground">
-                  Nombre del Cliente / Destinatario
-                </label>
+                <label className="text-xs font-medium text-foreground">Nombre del Cliente / Destinatario</label>
                 <input
                   type="text"
                   value={clientName}
@@ -607,9 +665,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
               </div>
 
               <div>
-                <label className="text-xs font-medium text-foreground">
-                  WhatsApp / Teléfono (opcional)
-                </label>
+                <label className="text-xs font-medium text-foreground">WhatsApp / Teléfono (opcional)</label>
                 <input
                   type="tel"
                   value={clientPhone}
@@ -622,9 +678,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
 
             {/* Notes */}
             <div>
-              <label className="text-xs font-medium text-foreground">
-                Motivo / Instrucciones de Monitoreo
-              </label>
+              <label className="text-xs font-medium text-foreground">Motivo / Instrucciones de Monitoreo</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -644,7 +698,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
               </button>
               <button
                 type="submit"
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || selectedUnitIds.length === 0}
                 className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 font-display text-xs font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90 disabled:opacity-50"
               >
                 {createMutation.isPending ? (
@@ -664,80 +718,54 @@ function WialonSharePage({ session }: { session: WialonSession }) {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Success Result with Direct Link */}
-      <Dialog open={Boolean(successLink)} onOpenChange={() => setSuccessLink(null)}>
+      {/* Dialog: Success Result */}
+      <Dialog open={successLinks.length > 0} onOpenChange={() => setSuccessLinks([])}>
         <DialogContent className="max-w-md bg-card text-foreground border-border text-center">
           <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-primary/40 bg-primary/10 text-primary shadow-[0_0_25px_rgba(146,215,0,0.2)]">
             <Check className="size-7" />
           </div>
 
           <DialogTitle className="font-display text-xl font-bold uppercase tracking-wide text-foreground mt-3">
-            ¡Enlace Generado con Éxito!
+            ¡{successLinks.length > 1 ? `${successLinks.length} Enlaces Generados` : "Enlace Generado con Éxito"}!
           </DialogTitle>
 
           <DialogDescription className="text-xs text-muted-foreground mt-1">
-            El enlace temporal de rastreo para <strong>{successLink?.unitName}</strong> ya está activo y disponible.
+            Los enlaces de rastreo temporal se encuentran activos y disponibles.
           </DialogDescription>
 
-          {successLink ? (
-            <div className="space-y-4 mt-4 text-left">
-              <div className="rounded-xl border border-border/80 bg-background p-3 text-xs">
+          <div className="space-y-3 mt-4 text-left max-h-60 overflow-y-auto p-1">
+            {successLinks.map((link) => (
+              <div key={link.id} className="rounded-xl border border-border/80 bg-background p-3 text-xs space-y-2">
+                <p className="font-bold text-foreground flex items-center gap-1.5">
+                  <Car className="size-3.5 text-primary" /> {link.unitName}
+                </p>
                 <p className="font-mono break-all text-primary select-all">
-                  {typeof window !== "undefined" ? `${window.location.origin}/rastreo/${successLink.token}` : ""}
+                  {typeof window !== "undefined" ? `${window.location.origin}/rastreo/${link.token}` : ""}
                 </p>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => copyShareUrl(link.token)}
+                    className="flex-1 flex items-center justify-center gap-1 rounded bg-primary py-1.5 px-2 font-display text-[11px] font-bold uppercase text-primary-foreground"
+                  >
+                    {copiedToken === link.token ? <Check className="size-3" /> : <Copy className="size-3" />}
+                    <span>{copiedToken === link.token ? "Copiado" : "Copiar Enlace"}</span>
+                  </button>
+
+                  <a
+                    href={getWhatsAppUrl(link.token, link.unitName, link.clientName, link.clientPhone)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 py-1.5 px-2 text-[11px] font-semibold uppercase"
+                  >
+                    <MessageCircle className="size-3" />
+                    <span>WhatsApp</span>
+                  </a>
+                </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                <p>
-                  <strong>Vigencia:</strong> {successLink.durationHours} horas
-                </p>
-                <p>
-                  <strong>Expira:</strong>{" "}
-                  {new Date(successLink.expiresAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => copyShareUrl(successLink.token)}
-                  className="flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 px-3 font-display text-xs font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90"
-                >
-                  {copiedToken === successLink.token ? (
-                    <>
-                      <Check className="size-4" />
-                      <span>¡Copiado!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="size-4" />
-                      <span>Copiar Enlace</span>
-                    </>
-                  )}
-                </button>
-
-                <a
-                  href={getWhatsAppUrl(successLink.token, successLink.unitName, successLink.clientName, successLink.clientPhone)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 py-2.5 px-3 text-xs font-semibold uppercase tracking-wider text-emerald-300"
-                >
-                  <MessageCircle className="size-4" />
-                  <span>Mandar por WhatsApp</span>
-                </a>
-              </div>
-
-              <a
-                href={`/rastreo/${successLink.token}`}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center justify-center gap-1.5 text-xs text-cyan-400 hover:underline pt-1"
-              >
-                <span>Probar y abrir vista de cliente</span>
-                <ExternalLink className="size-3" />
-              </a>
-            </div>
-          ) : null}
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
