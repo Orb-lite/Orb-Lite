@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Copy, Check, Clock, Mail, ShieldAlert, Send, Infinity as InfinityIcon } from "lucide-react";
+import { Copy, Check, Clock, Mail, ShieldAlert, Send, Infinity as InfinityIcon, CheckSquare, Square } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { PlatformHeader } from "@/components/wialon/PlatformHeader";
 import { wialonUnits } from "@/lib/wialon.functions";
@@ -11,8 +11,8 @@ import type { WialonSession } from "@/lib/wialon-session";
 export const Route = createFileRoute("/wialon/compartir")({
   head: () => ({
     meta: [
-      { title: "Compartir Ubicación | Plataforma ORB-LITE" },
-      { name: "description", content: "Genera enlaces de rastreo público temporales o permanentes." },
+      { title: "Compartir Ubicación Multi-unidad | Plataforma ORB-LITE" },
+      { name: "description", content: "Genera enlaces de rastreo público para una o varias unidades." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -28,16 +28,29 @@ function CompartirView({ session }: { session: WialonSession }) {
   });
   const units = unitsQuery.data?.units ?? [];
 
-  const [unitId, setUnitId] = React.useState<number | null>(null);
+  const [selectedUnits, setSelectedUnits] = React.useState<number[]>([]);
   const [email, setEmail] = React.useState("");
-  const [duration, setDuration] = React.useState("never"); // "never" por defecto o en horas
+  const [duration, setDuration] = React.useState("never");
   const [reference, setReference] = React.useState("");
   const [generatedUrl, setGeneratedUrl] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
 
-  const selectedUnit = unitId ?? units[0]?.id ?? null;
-  const isFormValid = Boolean(selectedUnit && email.trim() && duration);
+  const isFormValid = Boolean(selectedUnits.length > 0 && email.trim() && duration);
+
+  const toggleUnit = (id: number) => {
+    setSelectedUnits((prev) =>
+      prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]
+    );
+  };
+
+  const selectAllUnits = () => {
+    if (selectedUnits.length === units.length) {
+      setSelectedUnits([]);
+    } else {
+      setSelectedUnits(units.map((u) => u.id));
+    }
+  };
 
   async function handleGenerateLink(e: React.FormEvent) {
     e.preventDefault();
@@ -46,10 +59,12 @@ function CompartirView({ session }: { session: WialonSession }) {
     setBusy(true);
     try {
       const token = crypto.randomUUID();
-      // Si la vigencia es "never", pasamos exp=0 o omitimos la fecha límite
       const expiresAt = duration === "never" ? 0 : Date.now() + Number(duration) * 3600 * 1000;
       
-      const publicLink = `${window.location.origin}/rastreo-publico?token=${token}&unit=${selectedUnit}${
+      // Separamos los IDs de las unidades seleccionadas por comas
+      const unitsParam = selectedUnits.join(",");
+      
+      const publicLink = `${window.location.origin}/rastreo-publico?token=${token}&units=${unitsParam}${
         expiresAt > 0 ? `&exp=${expiresAt}` : "&perm=1"
       }`;
 
@@ -109,56 +124,85 @@ function CompartirView({ session }: { session: WialonSession }) {
             Formulario Generado para la API
           </h2>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-muted-foreground">
-              Nombre o placa de la unidad a compartir <span className="text-destructive">*</span>
-              <select
-                className={inputClass}
-                value={selectedUnit ?? ""}
-                onChange={(e) => setUnitId(Number(e.target.value))}
-              >
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="space-y-4">
+            {/* Selección múltiple de unidades */}
+            <div className="text-xs font-semibold text-muted-foreground space-y-2">
+              <div className="flex items-center justify-between">
+                <span>
+                  Unidades a compartir ({selectedUnits.length} seleccionada{selectedUnits.length !== 1 ? "s" : ""}) <span className="text-destructive">*</span>
+                </span>
+                {units.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={selectAllUnits}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {selectedUnits.length === units.length ? "Desmarcar todas" : "Seleccionar todas"}
+                  </button>
+                )}
+              </div>
 
-            <label className="text-xs font-semibold text-muted-foreground">
-              Correo del destinatario (notificaciones) <span className="text-destructive">*</span>
-              <input
-                type="email"
-                placeholder="logistica@cliente.com"
-                className={inputClass}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </label>
+              <div className="max-h-48 overflow-y-auto rounded-md border border-input bg-background/80 p-2 space-y-1">
+                {units.map((u) => {
+                  const isSelected = selectedUnits.includes(u.id);
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => toggleUnit(u.id)}
+                      className={`flex items-center gap-2.5 rounded px-2.5 py-2 text-xs cursor-pointer transition ${
+                        isSelected
+                          ? "bg-primary/15 text-primary font-bold"
+                          : "hover:bg-muted text-foreground"
+                      }`}
+                    >
+                      {isSelected ? (
+                        <CheckSquare className="size-4 text-primary shrink-0" />
+                      ) : (
+                        <Square className="size-4 text-muted-foreground shrink-0" />
+                      )}
+                      <span className="truncate">{u.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
-            <label className="text-xs font-semibold text-muted-foreground">
-              Vigencia del enlace <span className="text-destructive">*</span>
-              <select
-                className={inputClass}
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-              >
-                <option value="never">Sin expiración (Permanente)</option>
-                <option value="1">1 hora</option>
-                <option value="4">4 horas</option>
-                <option value="12">12 horas</option>
-                <option value="24">24 horas (1 día)</option>
-                <option value="48">48 horas (2 días)</option>
-                <option value="168">7 días</option>
-              </select>
-            </label>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-muted-foreground">
+                Correo del destinatario (notificaciones) <span className="text-destructive">*</span>
+                <input
+                  type="email"
+                  placeholder="logistica@cliente.com"
+                  className={inputClass}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </label>
 
-            <label className="text-xs font-semibold text-muted-foreground">
+              <label className="text-xs font-semibold text-muted-foreground">
+                Vigencia del enlace <span className="text-destructive">*</span>
+                <select
+                  className={inputClass}
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                >
+                  <option value="never">Sin expiración (Permanente)</option>
+                  <option value="1">1 hora</option>
+                  <option value="4">4 horas</option>
+                  <option value="12">12 horas</option>
+                  <option value="24">24 horas (1 día)</option>
+                  <option value="48">48 horas (2 días)</option>
+                  <option value="168">7 días</option>
+                </select>
+              </label>
+            </div>
+
+            <label className="block text-xs font-semibold text-muted-foreground">
               Referencia o nota para el cliente
               <input
                 type="text"
-                placeholder="Entrega de pedido #8491"
+                placeholder="Monitoreo de convoy / Pedido #8491"
                 className={inputClass}
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
@@ -174,7 +218,7 @@ function CompartirView({ session }: { session: WialonSession }) {
             {!isFormValid ? (
               <>
                 <ShieldAlert className="size-4" />
-                Completa los datos obligatorios para mandar
+                Selecciona al menos una unidad y completa los campos
               </>
             ) : busy ? (
               "Generando Enlace Seguro…"
@@ -191,7 +235,7 @@ function CompartirView({ session }: { session: WialonSession }) {
         {generatedUrl && (
           <div className="rounded-lg border border-primary/40 bg-primary/10 p-5 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-primary">Enlace Público Listo</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-primary">Enlace Público Listo ({selectedUnits.length} Unidades)</span>
               <span className="text-xs text-muted-foreground">
                 {duration === "never" ? "Sin fecha de expiración" : `Expira en ${duration} horas`}
               </span>
