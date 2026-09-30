@@ -79,7 +79,6 @@ function headerStyle(cell: import("exceljs").Cell) {
 
 // Cobertura completa de la cuadrícula: triples letras de columnas (hasta columna 702 / ZZ) y miles de filas
 const EXTENDED_MAX_COLS = 702; // Cubre hasta la columna 'ZZ' (inicio de triples letras / más de 700 columnas a la derecha)
-const EXTENDED_MIN_ROWS = 1000; // Cubre hasta los miles de filas hacia abajo
 
 /**
  * Fondo azul marino en toda la hoja y letras plateadas en los datos;
