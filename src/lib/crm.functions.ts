@@ -118,7 +118,7 @@ export const crmListCustomers = createServerFn({ method: "POST" })
     }
 
     return {
-      rows: (rows ?? []).map((r) => {
+      rows: (rows ?? []).map((r: any) => {
         const a = agg.get(Number(r.customer_number));
         return {
           ...r,

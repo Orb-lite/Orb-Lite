@@ -86,7 +86,7 @@ export const setCrmPassword = createServerFn({ method: "POST" })
     });
     if (listError) throw new Error(listError.message);
 
-    const existing = listed.users.find((u) => (u.email ?? "").toLowerCase() === email);
+    const existing = listed.users.find((u: any) => (u.email ?? "").toLowerCase() === email);
 
     if (existing) {
       const { error } = await supabaseAdmin.auth.admin.updateUserById(existing.id, {
