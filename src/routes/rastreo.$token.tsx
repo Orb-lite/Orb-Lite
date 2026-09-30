@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { getPublicUnitTracking } from "@/lib/unit-share.functions";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
-// Registro obligatorio de la ruta en TanStack Router
 export const Route = createFileRoute("/rastreo/$token")({
   component: PublicTrackingPage,
 });
@@ -17,7 +16,7 @@ function PublicTrackingPage() {
   const { data: linkData, isLoading, error } = useQuery({
     queryKey: ["public-tracking", token],
     queryFn: () => fetchPublicTracking({ data: { token } }),
-    refetchInterval: 10000,
+    refetchInterval: 8000, // Actualiza la posición de todas las unidades cada 8 segundos
   });
 
   if (isLoading) {
@@ -72,15 +71,15 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
     return units.find((u: any) => u.unitId === selectedUnitId) || units[0];
   }, [units, selectedUnitId]);
 
-  const activePos = activeUnit?.position || linkData?.position;
+  const activePos = activeUnit?.position;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0b0f19] text-white">
-      {/* Selector de Unidades Superior */}
+      {/* Botones de Selección de Unidad */}
       {units.length > 1 && (
-        <div className="flex items-center gap-2 p-3 bg-slate-900/80 border-b border-slate-800 overflow-x-auto">
+        <div className="flex items-center gap-2 p-3 bg-slate-900/90 border-b border-slate-800 overflow-x-auto">
           <span className="text-xs font-bold uppercase text-slate-400 mr-2">
-            Unidad:
+            Seleccionar Vehículo:
           </span>
           {units.map((u: any) => (
             <button
@@ -99,10 +98,11 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
       )}
 
       <div className="flex flex-col lg:flex-row flex-1 p-4 gap-4">
-        {/* Mapa */}
+        {/* Mapa con la ubicación actual en vivo de la unidad seleccionada */}
         <div className="flex-1 relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 min-h-[400px]">
           {activePos?.lat && activePos?.lon ? (
             <iframe
+              key={`${activeUnit?.unitId}-${activePos.lat}-${activePos.lon}`}
               title={`Mapa de ${activeUnit?.unitName}`}
               width="100%"
               height="100%"
@@ -112,18 +112,18 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
             />
           ) : (
             <div className="flex h-full items-center justify-center text-slate-500 text-sm">
-              Sin coordenadas disponibles para esta unidad.
+              Obteniendo coordenadas en vivo para {activeUnit?.unitName}...
             </div>
           )}
         </div>
 
-        {/* Panel Lateral */}
+        {/* Datos en vivo de la unidad seleccionada */}
         <div className="w-full lg:w-80 space-y-4">
           <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Vehículo Monitoreado
+                  Vehículo Seleccionado
                 </p>
                 <h3 className="text-lg font-bold text-white mt-0.5">
                   {activeUnit?.unitName}
@@ -163,7 +163,7 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
               </div>
             </div>
 
-            {activePos && (
+            {activePos?.lat && activePos?.lon && (
               <div className="rounded-lg bg-slate-950/60 p-3 border border-slate-800/80 space-y-1">
                 <p className="text-[10px] text-slate-400 uppercase font-semibold">
                   Ubicación Detectada
