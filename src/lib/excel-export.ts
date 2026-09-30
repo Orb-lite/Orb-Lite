@@ -157,19 +157,16 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   sheet.addImage(logo.id, logo.range);
 
   const header = sheet.getRow(5);
-  // Toda la fila 5 en verde lima extendida hasta las columnas de triples letras
-  for (let col = 1; col <= fillEndCol; col += 1) {
-    if (col <= columnCount) {
-      headerStyle(header.getCell(col));
-    } else {
-      const emptyHeaderCell = header.getCell(col);
-      emptyHeaderCell.fill = limeFill();
-      emptyHeaderCell.border = {
-        top: { style: "thin", color: { argb: BRAND.navy } },
-        bottom: { style: "thin", color: { argb: BRAND.navy } },
-      };
-    }
+  // Encabezados con datos estilizados celda por celda; el resto de la fila 5
+  // queda en verde lima con el estilo de fila (sin crear cientos de celdas).
+  for (let col = 1; col <= columnCount; col += 1) {
+    headerStyle(header.getCell(col));
   }
+  header.fill = limeFill();
+  header.border = {
+    top: { style: "thin", color: { argb: BRAND.navy } },
+    bottom: { style: "thin", color: { argb: BRAND.navy } },
+  };
   sheet.getRow(5).height = 28;
 
   for (let index = 1; index <= columnCount; index += 1) {
