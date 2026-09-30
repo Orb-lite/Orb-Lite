@@ -6,14 +6,26 @@ import { createServerFn } from "@tanstack/react-start";
 export const wialonLogin = createServerFn({ method: "POST" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async ({ data }) => {
-    const token = (data?.token as string) || (data?.eid as string) || "session-token";
+    const token = (data?.token as string) || (data?.eid as string) || "demo_wialon_token_12345";
+    const user = {
+      id: data?.id || 1,
+      name: data?.nm || data?.user || "Usuario Wialon",
+      token: token,
+      access_token: token,
+      eid: token,
+    };
+
     return {
       success: true,
+      authenticated: true,
       token,
-      user: {
-        id: data?.id || 1,
-        name: data?.nm || data?.user || "Usuario Wialon",
-      },
+      access_token: token,
+      eid: token,
+      user,
+      session: {
+        id: token,
+        user,
+      }
     };
   });
 
@@ -26,13 +38,13 @@ export const wialonLogout = createServerFn({ method: "POST" })
 export const wialonPing = createServerFn({ method: "GET" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { active: true, authenticated: true };
+    return { active: true, authenticated: true, status: "ok" };
   });
 
 export const wialonUnits = createServerFn({ method: "GET" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { units: [] };
+    return { units: [], items: [] };
   });
 
 export const wialonUnitDetail = createServerFn({ method: "GET" })
@@ -50,7 +62,7 @@ export const wialonSendCommand = createServerFn({ method: "POST" })
 export const wialonHistory = createServerFn({ method: "POST" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { history: [] };
+    return { history: [], items: [] };
   });
 
 // --- REPORTES ---
@@ -63,13 +75,13 @@ export const wialonExecReport = createServerFn({ method: "POST" })
 export const wialonReportData = createServerFn({ method: "GET" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { data: [] };
+    return { data: [], rows: [] };
   });
 
 export const wialonReportTemplates = createServerFn({ method: "GET" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { templates: [] };
+    return { templates: [], items: [] };
   });
 
 // --- VIDEO ---
@@ -82,7 +94,7 @@ export const wialonVideoSettings = createServerFn({ method: "GET" })
 export const wialonVideoUnits = createServerFn({ method: "GET" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { units: [] };
+    return { units: [], items: [] };
   });
 
 // --- GEOCERCAS ---
@@ -101,14 +113,14 @@ export const wialonDeleteGeofence = createServerFn({ method: "POST" })
 export const wialonGeofences = createServerFn({ method: "GET" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { geofences: [] };
+    return { geofences: [], items: [] };
   });
 
 // --- RUTAS Y LOGÍSTICA ---
 export const getUserRoutes = createServerFn({ method: "GET" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { routes: [] };
+    return { routes: [], items: [] };
   });
 
 export const saveUserRoute = createServerFn({ method: "POST" })
@@ -144,5 +156,5 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
 export const wialonLogisticsRoutes = createServerFn({ method: "GET" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { routes: [] };
+    return { routes: [], items: [] };
   });
