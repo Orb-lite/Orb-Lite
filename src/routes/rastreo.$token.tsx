@@ -1,13 +1,100 @@
 import * as React from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getPublicUnitShare } from "@/lib/unit-share.functions";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
+// 🔴 ESTO ES LO QUE LE FALTABA A TU ARCHIVO:
+export const Route = createFileRoute("/rastreo/$token")({
+  component: PublicTrackingPage,
+});
+
+// Componente puente que obtiene el token de la URL y consulta los datos
+function PublicTrackingPage() {
+  const { token } = Route.useParams();
+  const fetchPublicShare = useServerFn(getPublicUnitShare);
+
+  const { data: linkData, isLoading, error } = useQuery({
+    queryKey: ["public-share", token],
+    queryFn: () => fetchPublicShare({ data: { token } }),
+    refetchInterval: 10000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0b0f19] text-white">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="size-8 animate-spin text-cyan-400" />
+          <p className="text-sm font-semibold text-slate-400">
+            Cargando rastreo en vivo...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !linkData) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#0b0f19] p-4 text-white">
+        <div className="max-w-md w-full rounded-2xl border border-red-500/20 bg-slate-900 p-6 text-center space-y-4">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-red-500/10 text-red-400">
+            <AlertCircle className="size-6" />
+          </div>
+          <h2 className="text-lg font-bold">Enlace no encontrado o expirado</h2>
+          <p className="text-xs text-slate-400">
+            El enlace de rastreo compartido no está disponible.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <PublicTrackingView linkData={linkData} />;
+}
+
+// MapComponent auxiliar (ajústalo según la librería de mapas que uses)
+function MapComponent({
+  lat,
+  lon,
+  unitName,
+}: {
+  lat: number;
+  lon: number;
+  speed?: number;
+  course?: number;
+  unitName: string;
+}) {
+  return (
+    <iframe
+      title={`Mapa ${unitName}`}
+      width="100%"
+      height="100%"
+      style={{ border: 0, minHeight: "400px" }}
+      loading="lazy"
+      src={`https://maps.google.com/maps?q=${lat},${lon}&z=15&output=embed`}
+    />
+  );
+}
+
+// 🟢 TU VISTA TAL CUAL LA TENÍAS:
 export function PublicTrackingView({ linkData }: { linkData: any }) {
   // Arreglo de unidades adjuntas al enlace
-  const units = linkData.unitsData && linkData.unitsData.length > 0 
-    ? linkData.unitsData 
-    : [{ unitId: linkData.unitId, unitName: linkData.unitName, position: linkData.initialPosition }];
+  const units =
+    linkData.unitsData && linkData.unitsData.length > 0
+      ? linkData.unitsData
+      : [
+          {
+            unitId: linkData.unitId,
+            unitName: linkData.unitName,
+            position: linkData.initialPosition,
+          },
+        ];
 
   // Estado para la unidad seleccionada actualmente
-  const [selectedUnitId, setSelectedUnitId] = React.useState<number>(units[0]?.unitId);
+  const [selectedUnitId, setSelectedUnitId] = React.useState<number>(
+    units[0]?.unitId
+  );
 
   // Obtener los datos dinámicos de la unidad activa
   const activeUnit = React.useMemo(() => {
@@ -21,7 +108,9 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
       {/* Selector de Unidades Superior (Pestañas) */}
       {units.length > 1 && (
         <div className="flex items-center gap-2 p-3 bg-slate-900/80 border-b border-slate-800 overflow-x-auto">
-          <span className="text-xs font-bold uppercase text-slate-400 mr-2">Unidad:</span>
+          <span className="text-xs font-bold uppercase text-slate-400 mr-2">
+            Unidad:
+          </span>
           {units.map((u: any) => (
             <button
               key={u.unitId}
@@ -62,26 +151,41 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
           <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Vehículo Monitoreado</p>
-                <h3 className="text-lg font-bold text-white mt-0.5">{activeUnit.unitName}</h3>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Vehículo Monitoreado
+                </p>
+                <h3 className="text-lg font-bold text-white mt-0.5">
+                  {activeUnit.unitName}
+                </h3>
               </div>
-              <span className={`px-2.5 py-1 text-[10px] font-bold rounded uppercase ${
-                (activePos?.speed ?? 0) > 0 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-slate-800 text-slate-400"
-              }`}>
+              <span
+                className={`px-2.5 py-1 text-[10px] font-bold rounded uppercase ${
+                  (activePos?.speed ?? 0) > 0
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                    : "bg-slate-800 text-slate-400"
+                }`}
+              >
                 {(activePos?.speed ?? 0) > 0 ? "En Movimiento" : "Detenido"}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-slate-950/60 p-3 border border-slate-800/80">
-                <p className="text-[10px] text-slate-400 uppercase font-semibold">Velocidad</p>
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">
+                  Velocidad
+                </p>
                 <p className="text-lg font-bold font-mono text-cyan-400 mt-1">
-                  {activePos?.speed ?? 0} <span className="text-xs font-normal text-slate-400">km/h</span>
+                  {activePos?.speed ?? 0}{" "}
+                  <span className="text-xs font-normal text-slate-400">
+                    km/h
+                  </span>
                 </p>
               </div>
 
               <div className="rounded-lg bg-slate-950/60 p-3 border border-slate-800/80">
-                <p className="text-[10px] text-slate-400 uppercase font-semibold">Rumbo</p>
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">
+                  Rumbo
+                </p>
                 <p className="text-lg font-bold font-mono text-cyan-400 mt-1">
                   {activePos?.course ?? 0}°
                 </p>
@@ -90,7 +194,9 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
 
             {activePos && (
               <div className="rounded-lg bg-slate-950/60 p-3 border border-slate-800/80 space-y-1">
-                <p className="text-[10px] text-slate-400 uppercase font-semibold">Ubicación Detectada</p>
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">
+                  Ubicación Detectada
+                </p>
                 <p className="text-xs font-mono text-slate-300">
                   Lat: {activePos.lat.toFixed(6)}, Lon: {activePos.lon.toFixed(6)}
                 </p>
