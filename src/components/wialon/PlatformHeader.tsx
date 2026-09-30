@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Route as RouteIcon, Layers, History, LogOut, Radio } from "lucide-react";
+import { Route as RouteIcon, Layers, History, Share2, LogOut, Radio } from "lucide-react";
 import { setStoredWialonSession, type WialonSession } from "@/lib/wialon-session";
 import { useServerFn } from "@tanstack/react-start";
 import { wialonLogout } from "@/lib/wialon.functions";
@@ -33,6 +33,7 @@ export function PlatformHeader({ session }: PlatformHeaderProps) {
     { to: "/wialon/rutas", label: "Rutas", icon: RouteIcon },
     { to: "/wialon/geocercas", label: "Geocercas", icon: Layers },
     { to: "/wialon/historial", label: "Historial", icon: History },
+    { to: "/wialon/compartir", label: "Compartir", icon: Share2 },
   ];
 
   return (
