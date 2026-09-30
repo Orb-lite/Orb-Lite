@@ -1,8 +1,8 @@
 import * as React from "react";
-import { createFileRoute, ClientOnly } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Link2, Copy, Check, Clock, Mail, ShieldAlert, Send } from "lucide-react";
+import { Copy, Check, Clock, Mail, ShieldAlert, Send, Infinity as InfinityIcon } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { PlatformHeader } from "@/components/wialon/PlatformHeader";
 import { wialonUnits } from "@/lib/wialon.functions";
@@ -11,8 +11,8 @@ import type { WialonSession } from "@/lib/wialon-session";
 export const Route = createFileRoute("/wialon/compartir")({
   head: () => ({
     meta: [
-      { title: "Compartir Ubicación Temporal | Plataforma ORB-LITE" },
-      { name: "description", content: "Genera enlaces de rastreo público con vigencia limitada." },
+      { title: "Compartir Ubicación | Plataforma ORB-LITE" },
+      { name: "description", content: "Genera enlaces de rastreo público temporales o permanentes." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -30,7 +30,7 @@ function CompartirView({ session }: { session: WialonSession }) {
 
   const [unitId, setUnitId] = React.useState<number | null>(null);
   const [email, setEmail] = React.useState("");
-  const [duration, setDuration] = React.useState("24"); // horas
+  const [duration, setDuration] = React.useState("never"); // "never" por defecto o en horas
   const [reference, setReference] = React.useState("");
   const [generatedUrl, setGeneratedUrl] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
@@ -45,14 +45,14 @@ function CompartirView({ session }: { session: WialonSession }) {
 
     setBusy(true);
     try {
-      // Generar token/enlace único (ejemplo de token temporal seguro)
       const token = crypto.randomUUID();
-      const expiresAt = Date.now() + Number(duration) * 3600 * 1000;
+      // Si la vigencia es "never", pasamos exp=0 o omitimos la fecha límite
+      const expiresAt = duration === "never" ? 0 : Date.now() + Number(duration) * 3600 * 1000;
       
-      // Construir la URL pública de rastreo en vivo
-      const publicLink = `${window.location.origin}/rastreo-publico?token=${token}&unit=${selectedUnit}&exp=${expiresAt}`;
+      const publicLink = `${window.location.origin}/rastreo-publico?token=${token}&unit=${selectedUnit}${
+        expiresAt > 0 ? `&exp=${expiresAt}` : "&perm=1"
+      }`;
 
-      // TODO: Guardar en Supabase o enviar notificación vía API/Resend con email y reference
       setGeneratedUrl(publicLink);
     } catch (err) {
       console.error("Error al generar el enlace:", err);
@@ -87,10 +87,18 @@ function CompartirView({ session }: { session: WialonSession }) {
           </div>
 
           <div className="flex items-start gap-3">
-            <Clock className="mt-0.5 size-5 text-emerald-400 shrink-0" />
+            {duration === "never" ? (
+              <InfinityIcon className="mt-0.5 size-5 text-primary shrink-0" />
+            ) : (
+              <Clock className="mt-0.5 size-5 text-emerald-400 shrink-0" />
+            )}
             <div className="text-xs space-y-1">
-              <p className="font-bold text-foreground">Vigencia del Enlace Temporal <span className="text-destructive">*obligatorio</span></p>
-              <p className="text-muted-foreground">Medida estricta de seguridad: el enlace expira tras cumplirse el tiempo elegido.</p>
+              <p className="font-bold text-foreground">Vigencia del Enlace <span className="text-destructive">*obligatorio</span></p>
+              <p className="text-muted-foreground">
+                {duration === "never"
+                  ? "El enlace permanente estará activo indefinidamente hasta que lo revoques manualmente."
+                  : "Medida estricta de seguridad: el enlace expira tras cumplirse el tiempo elegido."}
+              </p>
             </div>
           </div>
         </div>
@@ -136,6 +144,7 @@ function CompartirView({ session }: { session: WialonSession }) {
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
               >
+                <option value="never">Sin expiración (Permanente)</option>
                 <option value="1">1 hora</option>
                 <option value="4">4 horas</option>
                 <option value="12">12 horas</option>
@@ -172,18 +181,20 @@ function CompartirView({ session }: { session: WialonSession }) {
             ) : (
               <>
                 <Send className="size-4" />
-                Generar y Enviar Enlace Temporal
+                {duration === "never" ? "Generar Enlace Permanente" : "Generar y Enviar Enlace Temporal"}
               </>
             )}
           </button>
         </form>
 
-        {/* Modal/Caja con el enlace generado */}
+        {/* Caja con el enlace generado */}
         {generatedUrl && (
           <div className="rounded-lg border border-primary/40 bg-primary/10 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-primary">Enlace Público Listo</span>
-              <span className="text-xs text-muted-foreground">Expira en {duration} horas</span>
+              <span className="text-xs text-muted-foreground">
+                {duration === "never" ? "Sin fecha de expiración" : `Expira en ${duration} horas`}
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
