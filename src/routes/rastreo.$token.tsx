@@ -5,18 +5,23 @@ import { useServerFn } from "@tanstack/react-start";
 import { getPublicUnitTracking } from "@/lib/unit-share.functions";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
+// Registro obligatorio de la ruta en TanStack Router
 export const Route = createFileRoute("/rastreo/$token")({
   component: PublicTrackingPage,
 });
 
 function PublicTrackingPage() {
-  const { token } = Route.useParams();
+  const params = Route.useParams() as { token: string };
   const fetchPublicTracking = useServerFn(getPublicUnitTracking);
 
-  const { data: linkData, isLoading, error } = useQuery({
-    queryKey: ["public-tracking", token],
-    queryFn: () => fetchPublicTracking({ data: { token } }),
-    refetchInterval: 8000,
+  const {
+    data: linkData,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["public-tracking", params.token],
+    queryFn: () => fetchPublicTracking({ data: { token: params.token } }),
+    refetchInterval: 10000,
   });
 
   if (isLoading) {
@@ -24,9 +29,7 @@ function PublicTrackingPage() {
       <div className="flex min-h-screen items-center justify-center bg-[#0b0f19] text-white">
         <div className="flex flex-col items-center gap-3">
           <RefreshCw className="size-8 animate-spin text-cyan-400" />
-          <p className="text-sm font-semibold tracking-wide text-slate-400">
-            Cargando rastreo en vivo...
-          </p>
+          <p className="text-sm font-semibold tracking-wide text-slate-400">Cargando rastreo en vivo...</p>
         </div>
       </div>
     );
@@ -53,7 +56,7 @@ function PublicTrackingPage() {
 
 export function PublicTrackingView({ linkData }: { linkData: any }) {
   const units = React.useMemo(() => {
-    if (linkData?.unitsData && linkData.unitsData.length > 0) {
+    if (linkData?.unitsData && Array.isArray(linkData.unitsData) && linkData.unitsData.length > 0) {
       return linkData.unitsData;
     }
     return [
@@ -65,11 +68,9 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
     ];
   }, [linkData]);
 
-  const [selectedUnitId, setSelectedUnitId] = React.useState<string | number | undefined>(
-    units[0]?.unitId
-  );
+  const [selectedUnitId, setSelectedUnitId] = React.useState<string | number | undefined>(units[0]?.unitId);
 
-  // Sincroniza la unidad seleccionada si cambian los datos o si el ID inicial estaba indefinido
+  // Mantiene sincronizado el selector si cambia la respuesta del servidor
   React.useEffect(() => {
     if (units.length > 0 && (!selectedUnitId || !units.some((u: any) => String(u.unitId) === String(selectedUnitId)))) {
       setSelectedUnitId(units[0].unitId);
@@ -80,16 +81,14 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
     return units.find((u: any) => String(u.unitId) === String(selectedUnitId)) || units[0];
   }, [units, selectedUnitId]);
 
-  const activePos = activeUnit?.position;
+  const activePos = activeUnit?.position || linkData?.position;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0b0f19] text-white">
-      {/* Selector de Unidades */}
+      {/* Selector de Unidades Superior */}
       {units.length > 1 && (
-        <div className="flex items-center gap-2 p-3 bg-slate-900/90 border-b border-slate-800 overflow-x-auto">
-          <span className="text-xs font-bold uppercase text-slate-400 mr-2">
-            Seleccionar Vehículo:
-          </span>
+        <div className="flex items-center gap-2 p-3 bg-slate-900/80 border-b border-slate-800 overflow-x-auto">
+          <span className="text-xs font-bold uppercase text-slate-400 mr-2">Unidad:</span>
           {units.map((u: any) => {
             const isSelected = String(selectedUnitId) === String(u.unitId);
             return (
@@ -110,7 +109,7 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
       )}
 
       <div className="flex flex-col lg:flex-row flex-1 p-4 gap-4">
-        {/* Mapa en Vivo */}
+        {/* Mapa */}
         <div className="flex-1 relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 min-h-[400px]">
           {activePos?.lat && activePos?.lon ? (
             <iframe
@@ -124,22 +123,18 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
             />
           ) : (
             <div className="flex h-full items-center justify-center text-slate-500 text-sm">
-              Obteniendo coordenadas en vivo para {activeUnit?.unitName}...
+              Sin coordenadas disponibles para esta unidad.
             </div>
           )}
         </div>
 
-        {/* Panel lateral de datos */}
+        {/* Panel Lateral */}
         <div className="w-full lg:w-80 space-y-4">
           <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-4 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Vehículo Seleccionado
-                </p>
-                <h3 className="text-lg font-bold text-white mt-0.5">
-                  {activeUnit?.unitName}
-                </h3>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Vehículo Monitoreado</p>
+                <h3 className="text-lg font-bold text-white mt-0.5">{activeUnit?.unitName}</h3>
               </div>
               <span
                 className={`px-2.5 py-1 text-[10px] font-bold rounded uppercase ${
@@ -154,32 +149,21 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
 
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-slate-950/60 p-3 border border-slate-800/80">
-                <p className="text-[10px] text-slate-400 uppercase font-semibold">
-                  Velocidad
-                </p>
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">Velocidad</p>
                 <p className="text-lg font-bold font-mono text-cyan-400 mt-1">
-                  {activePos?.speed ?? 0}{" "}
-                  <span className="text-xs font-normal text-slate-400">
-                    km/h
-                  </span>
+                  {activePos?.speed ?? 0} <span className="text-xs font-normal text-slate-400">km/h</span>
                 </p>
               </div>
 
               <div className="rounded-lg bg-slate-950/60 p-3 border border-slate-800/80">
-                <p className="text-[10px] text-slate-400 uppercase font-semibold">
-                  Rumbo
-                </p>
-                <p className="text-lg font-bold font-mono text-cyan-400 mt-1">
-                  {activePos?.course ?? 0}°
-                </p>
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">Rumbo</p>
+                <p className="text-lg font-bold font-mono text-cyan-400 mt-1">{activePos?.course ?? 0}°</p>
               </div>
             </div>
 
             {activePos?.lat && activePos?.lon && (
               <div className="rounded-lg bg-slate-950/60 p-3 border border-slate-800/80 space-y-1">
-                <p className="text-[10px] text-slate-400 uppercase font-semibold">
-                  Ubicación Detectada
-                </p>
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">Ubicación Detectada</p>
                 <p className="text-xs font-mono text-slate-300">
                   Lat: {Number(activePos.lat).toFixed(6)}, Lon: {Number(activePos.lon).toFixed(6)}
                 </p>
@@ -191,3 +175,6 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
     </div>
   );
 }
+
+// Exportación por defecto obligatoria para el enrutador
+export default PublicTrackingPage;
