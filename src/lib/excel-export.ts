@@ -128,8 +128,9 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   sheet.getRow(2).height = 30;
   sheet.getRow(4).height = 24;
 
-  const fillEndCol = Math.max(bandEnd, EXTENDED_MAX_COLS);
-  for (let col = 1; col <= fillEndCol; col += 1) {
+  // Las filas 1-4 solo se pintan hasta el final de la banda; el resto de la
+  // cuadrícula lo cubre el fondo azul marino a nivel de columna (stripeDataRows).
+  for (let col = 1; col <= bandEnd; col += 1) {
     sheet.getCell(1, col).fill = navyFill();
     sheet.getCell(2, col).fill = navyFill();
     sheet.getCell(3, col).fill = navyFill();
