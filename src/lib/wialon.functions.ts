@@ -6,7 +6,15 @@ import { createServerFn } from "@tanstack/react-start";
 export const wialonLogin = createServerFn({ method: "POST" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async ({ data }) => {
-    return { success: true, token: "sample-token", user: data };
+    const token = (data?.token as string) || (data?.eid as string) || "session-token";
+    return {
+      success: true,
+      token,
+      user: {
+        id: data?.id || 1,
+        name: data?.nm || data?.user || "Usuario Wialon",
+      },
+    };
   });
 
 export const wialonLogout = createServerFn({ method: "POST" })
@@ -18,7 +26,7 @@ export const wialonLogout = createServerFn({ method: "POST" })
 export const wialonPing = createServerFn({ method: "GET" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { active: true };
+    return { active: true, authenticated: true };
   });
 
 export const wialonUnits = createServerFn({ method: "GET" })
