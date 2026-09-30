@@ -1,4 +1,7 @@
-﻿'use server';
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
+@'
+'use server';
 
 import { createServerFn } from "@tanstack/react-start";
 
@@ -10,9 +13,11 @@ export const wialonLogin = createServerFn({ method: "POST" })
     const user = {
       id: data?.id || 1,
       name: data?.nm || data?.user || "Usuario Wialon",
+      user: data?.nm || data?.user || "Usuario Wialon",
       token: token,
       access_token: token,
       eid: token,
+      host: "https://hosting.wialon.com",
     };
 
     return {
@@ -24,7 +29,10 @@ export const wialonLogin = createServerFn({ method: "POST" })
       user,
       session: {
         id: token,
+        token,
+        eid: token,
         user,
+        host: "https://hosting.wialon.com",
       }
     };
   });
@@ -38,7 +46,12 @@ export const wialonLogout = createServerFn({ method: "POST" })
 export const wialonPing = createServerFn({ method: "GET" })
   .validator((data: Record<string, unknown>) => data)
   .handler(async () => {
-    return { active: true, authenticated: true, status: "ok" };
+    return { 
+      active: true, 
+      authenticated: true, 
+      status: "ok",
+      user: { name: "Usuario Wialon" }
+    };
   });
 
 export const wialonUnits = createServerFn({ method: "GET" })
@@ -158,3 +171,9 @@ export const wialonLogisticsRoutes = createServerFn({ method: "GET" })
   .handler(async () => {
     return { routes: [], items: [] };
   });
+'@ | Set-Content -Encoding UTF8 src/lib/wialon.functions.ts
+
+# Sincronizar con GitHub para Lovable
+git add .
+git commit -m "Fix: Align wialonLogin payload with wialon-session expectations"
+git push origin main
