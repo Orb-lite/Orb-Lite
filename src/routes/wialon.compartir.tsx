@@ -517,7 +517,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                   type="text"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Ej. Mamá"
+                  placeholder="Ej. Jhon Doe"
                   className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
                 />
               </div>
@@ -528,7 +528,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                   type="tel"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
-                  placeholder="3310201931"
+                  placeholder="5512345678"
                   className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
                 />
               </div>
