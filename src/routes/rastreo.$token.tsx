@@ -5,13 +5,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { getPublicUnitTracking } from "@/lib/unit-share.functions";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
-// Registro obligatorio de la ruta en TanStack Router
 export const Route = createFileRoute("/rastreo/$token")({
   component: PublicTrackingPage,
 });
 
 function PublicTrackingPage() {
-  const params = Route.useParams() as { token: string };
+  const { token } = Route.useParams();
   const fetchPublicTracking = useServerFn(getPublicUnitTracking);
 
   const {
@@ -19,8 +18,8 @@ function PublicTrackingPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["public-tracking", params.token],
-    queryFn: () => fetchPublicTracking({ data: { token: params.token } }),
+    queryKey: ["public-tracking", token],
+    queryFn: () => fetchPublicTracking({ data: { token } }),
     refetchInterval: 10000,
   });
 
@@ -70,7 +69,6 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
 
   const [selectedUnitId, setSelectedUnitId] = React.useState<string | number | undefined>(units[0]?.unitId);
 
-  // Mantiene sincronizado el selector si cambia la respuesta del servidor
   React.useEffect(() => {
     if (units.length > 0 && (!selectedUnitId || !units.some((u: any) => String(u.unitId) === String(selectedUnitId)))) {
       setSelectedUnitId(units[0].unitId);
@@ -85,7 +83,6 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#0b0f19] text-white">
-      {/* Selector de Unidades Superior */}
       {units.length > 1 && (
         <div className="flex items-center gap-2 p-3 bg-slate-900/80 border-b border-slate-800 overflow-x-auto">
           <span className="text-xs font-bold uppercase text-slate-400 mr-2">Unidad:</span>
@@ -109,7 +106,6 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
       )}
 
       <div className="flex flex-col lg:flex-row flex-1 p-4 gap-4">
-        {/* Mapa */}
         <div className="flex-1 relative rounded-xl overflow-hidden border border-slate-800 bg-slate-900 min-h-[400px]">
           {activePos?.lat && activePos?.lon ? (
             <iframe
@@ -128,7 +124,6 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
           )}
         </div>
 
-        {/* Panel Lateral */}
         <div className="w-full lg:w-80 space-y-4">
           <div className="rounded-xl border border-slate-800 bg-slate-900/90 p-4 space-y-4">
             <div className="flex items-center justify-between">
@@ -176,5 +171,4 @@ export function PublicTrackingView({ linkData }: { linkData: any }) {
   );
 }
 
-// Exportación por defecto obligatoria para el enrutador
 export default PublicTrackingPage;
