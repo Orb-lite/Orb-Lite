@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { type WialonSession } from "@/lib/wialon-session";
-import { wialonUnits } from "@/lib/wialon.functions";
+import { wialonUnits, type WialonUnit } from "@/lib/wialon.functions";
 import {
   createUnitShare,
   listUnitShares,
@@ -62,7 +62,7 @@ const PRESET_DURATIONS = [
   { label: "24 horas", hours: 24 },
   { label: "48 horas", hours: 48 },
   { label: "72 horas", hours: 72 },
-  { label: "Sin Límite", hours: 720 }, // 30 días límite según backend
+  { label: "Sin Límite", hours: 720 },
 ];
 
 function WialonSharePage({ session }: { session: WialonSession }) {
@@ -71,7 +71,6 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   const fetchShares = useServerFn(listUnitShares);
   const createShareFn = useServerFn(createUnitShare);
   const revokeShareFn = useServerFn(revokeUnitShare);
-  const extendShareFn = useServerFn(extendUnitShare);
   const deleteShareFn = useServerFn(deleteUnitShare);
 
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
@@ -80,6 +79,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   const [search, setSearch] = React.useState("");
 
   const [selectedUnitIds, setSelectedUnitIds] = React.useState<number[]>([]);
+  const [unitFilterSearch, setUnitFilterSearch] = React.useState("");
   const [durationHours, setDurationHours] = React.useState<number>(24);
   const [clientName, setClientName] = React.useState("");
   const [clientPhone, setClientPhone] = React.useState("");
@@ -112,7 +112,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
     refetchInterval: 15000,
   });
 
-  const units = unitsQuery.data?.units ?? [];
+  const units: WialonUnit[] = unitsQuery.data?.units ?? [];
   const shares = sharesQuery.data?.links ?? [];
 
   const createMutation = useMutation({ mutationFn: createShareFn });
@@ -154,6 +154,12 @@ function WialonSharePage({ session }: { session: WialonSession }) {
     );
   }, [shares, search]);
 
+  const filteredUnitsForDropdown = React.useMemo(() => {
+    const q = unitFilterSearch.toLowerCase().trim();
+    if (!q) return units;
+    return units.filter((u) => u.name.toLowerCase().includes(q));
+  }, [units, unitFilterSearch]);
+
   async function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
@@ -166,26 +172,29 @@ function WialonSharePage({ session }: { session: WialonSession }) {
     try {
       const selectedUnitsData = selectedUnitIds
         .map((id) => {
-          const found: any = units.find((u) => u.id === id);
+          const found = units.find((u) => u.id === id);
           if (!found) return null;
 
-          const lat = found.lat ?? found.pos?.y ?? found.position?.lat ?? null;
-          const lon = found.lon ?? found.pos?.x ?? found.position?.lon ?? null;
-          const speed = found.speed ?? found.pos?.s ?? found.position?.speed ?? 0;
-          const course = found.course ?? found.pos?.c ?? found.position?.course ?? 0;
-          const time = found.lastMessage ?? found.pos?.t ?? found.position?.time ?? Math.floor(Date.now() / 1000);
+          const lat = found.lat ?? null;
+          const lon = found.lon ?? null;
+          const speed = found.speed ?? 0;
+          const course = found.course ?? 0;
+          const time = found.lastMessage ?? Math.floor(Date.now() / 1000);
 
           return {
             unitId: found.id,
             unitName: found.name,
             imei: found.imei ?? null,
-            initialPosition: (lat !== null && lon !== null) ? {
-              lat: Number(lat),
-              lon: Number(lon),
-              speed: Number(speed),
-              course: Number(course),
-              time: Number(time),
-            } : null,
+            initialPosition:
+              lat !== null && lon !== null
+                ? {
+                    lat: Number(lat),
+                    lon: Number(lon),
+                    speed: Number(speed),
+                    course: Number(course),
+                    time: Number(time),
+                  }
+                : null,
           };
         })
         .filter(Boolean);
@@ -221,6 +230,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
         setClientPhone("");
         setClientEmail("");
         setNotes("");
+        setUnitFilterSearch("");
       }
     } catch (err: any) {
       setFormError(err.message || "Error al generar el enlace compartido.");
@@ -460,7 +470,16 @@ function WialonSharePage({ session }: { session: WialonSession }) {
               </div>
 
               {dropdownOpen && (
-                <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-lg border border-border bg-card p-2 shadow-2xl space-y-1">
+                <div className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-border bg-card p-2 shadow-2xl space-y-1">
+                  <div className="px-1 pb-1">
+                    <input
+                      type="text"
+                      value={unitFilterSearch}
+                      onChange={(e) => setUnitFilterSearch(e.target.value)}
+                      placeholder="Filtrar unidades..."
+                      className="w-full rounded border border-input bg-background px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
                   <div
                     onClick={toggleSelectAll}
                     className="flex items-center gap-2 px-2 py-1.5 text-xs text-primary font-bold cursor-pointer hover:bg-muted rounded"
@@ -469,12 +488,15 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                     <span>SELECCIONAR TODAS</span>
                   </div>
                   <hr className="border-border my-1" />
-                  {units.map((u) => {
+                  {filteredUnitsForDropdown.map((u) => {
                     const isSelected = selectedUnitIds.includes(u.id);
                     return (
                       <div
                         key={u.id}
-                        onClick={() => toggleUnitSelection(u.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleUnitSelection(u.id);
+                        }}
                         className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer ${
                           isSelected ? "bg-primary/10 text-primary font-semibold" : "text-foreground hover:bg-muted"
                         }`}
