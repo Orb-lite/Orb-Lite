@@ -87,9 +87,13 @@ const EXTENDED_MIN_ROWS = 1000; // Cubre hasta los miles de filas hacia abajo
  * Extiende la colorimetría azul marino hasta los miles de filas y hasta las
  * columnas de triples letras para que toda la hoja visible sea completamente inmersiva.
  */
-function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number, bandEnd: number) {
-  const fillEndCol = Math.max(bandEnd, EXTENDED_MAX_COLS);
-  const lastRow = Math.max(6 + rowCount, EXTENDED_MIN_ROWS);
+function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number) {
+  // Fondo azul marino de toda la cuadrícula a nivel de columna (barato: un estilo
+  // por columna en vez de cientos de miles de celdas). Excel lo aplica a las celdas
+  // vacías, por lo que la hoja se ve inmersiva sin inflar el archivo.
+  for (let col = 1; col <= EXTENDED_MAX_COLS; col += 1) {
+    sheet.getColumn(col).fill = navyFill();
+  }
   for (let index = 0; index < rowCount; index += 1) {
     const row = sheet.getRow(6 + index);
     for (let col = 1; col <= columnCount; col += 1) {
@@ -100,26 +104,6 @@ function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number,
         fgColor: { argb: index % 2 === 1 ? BRAND.navyAlt : BRAND.navy },
       };
       cell.font = { color: { argb: BRAND.silver } };
-    }
-  }
-  for (let rowNumber = 6; rowNumber <= lastRow; rowNumber += 1) {
-    const row = sheet.getRow(rowNumber);
-    for (let col = columnCount + 1; col <= fillEndCol; col += 1) {
-      row.getCell(col).fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: BRAND.navy },
-      };
-    }
-  }
-  for (let rowNumber = 6 + rowCount; rowNumber <= lastRow; rowNumber += 1) {
-    const row = sheet.getRow(rowNumber);
-    for (let col = 1; col <= fillEndCol; col += 1) {
-      row.getCell(col).fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: BRAND.navy },
-      };
     }
   }
 }
