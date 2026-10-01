@@ -60,7 +60,7 @@ function PanelPage() {
   }
 
   const rows = query.data?.rows ?? [];
-  const totalValue = rows.reduce((s: any, r: any) => s + Number(r.total ?? 0), 0);
+  const totalValue = rows.reduce((s, r) => s + Number(r.total ?? 0), 0);
 
   return (
     <main className="min-h-screen bg-background px-4 py-10">
@@ -98,7 +98,7 @@ function PanelPage() {
               {rows.length} solicitud(es) · {mxn(totalValue)}
             </p>
             <div className="space-y-4">
-              {rows.map((row: any) => (
+              {rows.map((row) => (
                 <SolicitudCard
                   key={row.id}
                   row={row}

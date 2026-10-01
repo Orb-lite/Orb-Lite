@@ -10,21 +10,19 @@ import {
   Copy,
   Check,
   ExternalLink,
+  ShieldAlert,
+  ShieldCheck,
   Eye,
   Trash2,
+  Calendar,
   MessageCircle,
   RefreshCw,
   Search,
   AlertCircle,
-  Infinity as InfinityIcon,
-  CheckSquare,
-  Square,
-  ChevronDown,
-  Layers,
 } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { type WialonSession } from "@/lib/wialon-session";
-import { wialonUnits, type WialonUnit } from "@/lib/wialon.functions";
+import { wialonUnits } from "@/lib/wialon.functions";
 import {
   createUnitShare,
   listUnitShares,
@@ -41,7 +39,7 @@ export const Route = createFileRoute("/wialon/compartir")({
       { title: "Enlaces de Rastreo Compartido | ORB-LITE" },
       {
         name: "description",
-        content: "Comparte temporalmente la ubicación en tiempo real de múltiples unidades satelitales.",
+        content: "Comparte temporalmente la ubicación en tiempo real de cualquier unidad satelital.",
       },
       { property: "og:title", content: "Enlaces de Rastreo Compartido | ORB-LITE" },
     ],
@@ -62,7 +60,6 @@ const PRESET_DURATIONS = [
   { label: "24 horas", hours: 24 },
   { label: "48 horas", hours: 48 },
   { label: "72 horas", hours: 72 },
-  { label: "Sin Límite", hours: 720 },
 ];
 
 function WialonSharePage({ session }: { session: WialonSession }) {
@@ -71,35 +68,25 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   const fetchShares = useServerFn(listUnitShares);
   const createShareFn = useServerFn(createUnitShare);
   const revokeShareFn = useServerFn(revokeUnitShare);
+  const extendShareFn = useServerFn(extendUnitShare);
   const deleteShareFn = useServerFn(deleteUnitShare);
 
   const [createDialogOpen, setCreateDialogOpen] = React.useState(false);
-  const [createdLink, setCreatedLink] = React.useState<SharedUnitLink | null>(null);
+  const [successLink, setSuccessLink] = React.useState<SharedUnitLink | null>(null);
   const [copiedToken, setCopiedToken] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
 
-  const [selectedUnitIds, setSelectedUnitIds] = React.useState<number[]>([]);
-  const [unitFilterSearch, setUnitFilterSearch] = React.useState("");
+  // Form State
+  const [selectedUnitId, setSelectedUnitId] = React.useState<number | "custom">("custom");
+  const [customUnitName, setCustomUnitName] = React.useState("");
   const [durationHours, setDurationHours] = React.useState<number>(24);
   const [clientName, setClientName] = React.useState("");
   const [clientPhone, setClientPhone] = React.useState("");
   const [clientEmail, setClientEmail] = React.useState("");
   const [notes, setNotes] = React.useState("");
   const [formError, setFormError] = React.useState<string | null>(null);
-  const [dropdownOpen, setDropdownOpen] = React.useState(false);
 
-  const dropdownRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
+  // Queries
   const unitsQuery = useQuery({
     queryKey: ["wialon-units", session.sid],
     queryFn: () => fetchUnits({ data: { host: session.host, sid: session.sid } }),
@@ -112,33 +99,50 @@ function WialonSharePage({ session }: { session: WialonSession }) {
     refetchInterval: 15000,
   });
 
-  const units: WialonUnit[] = unitsQuery.data?.units ?? [];
+  const units = unitsQuery.data?.units ?? [];
   const shares = sharesQuery.data?.links ?? [];
 
-  const createMutation = useMutation({ mutationFn: createShareFn });
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: createShareFn,
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
+      setSuccessLink(res.link);
+      setCreateDialogOpen(false);
+      // Reset form
+      setClientName("");
+      setClientPhone("");
+      setClientEmail("");
+      setNotes("");
+      setFormError(null);
+    },
+    onError: (err: any) => {
+      setFormError(err.message || "Error al generar enlace.");
+    },
+  });
+
   const revokeMutation = useMutation({
     mutationFn: revokeShareFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["unit-shares"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
+    },
   });
+
+  const extendMutation = useMutation({
+    mutationFn: extendShareFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: deleteShareFn,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["unit-shares"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
+    },
   });
 
-  const toggleUnitSelection = (id: number) => {
-    setSelectedUnitIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedUnitIds.length === units.length) {
-      setSelectedUnitIds([]);
-    } else {
-      setSelectedUnitIds(units.map((u) => u.id));
-    }
-  };
-
+  // Calculate statistics
   const activeCount = shares.filter((s) => s.status === "active").length;
   const expiredCount = shares.filter((s) => s.status !== "active").length;
   const totalViews = shares.reduce((acc, s) => acc + (s.viewCount || 0), 0);
@@ -150,91 +154,56 @@ function WialonSharePage({ session }: { session: WialonSession }) {
       (s) =>
         s.unitName.toLowerCase().includes(q) ||
         (s.clientName && s.clientName.toLowerCase().includes(q)) ||
-        (s.notes && s.notes.toLowerCase().includes(q))
+        (s.notes && s.notes.toLowerCase().includes(q)),
     );
   }, [shares, search]);
 
-  const filteredUnitsForDropdown = React.useMemo(() => {
-    const q = unitFilterSearch.toLowerCase().trim();
-    if (!q) return units;
-    return units.filter((u) => u.name.toLowerCase().includes(q));
-  }, [units, unitFilterSearch]);
-
-  async function handleCreateSubmit(e: React.FormEvent) {
+  function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
 
-    if (selectedUnitIds.length === 0) {
-      setFormError("Debes seleccionar al menos una unidad.");
+    let unitName = customUnitName.trim();
+    let imei: string | null = null;
+    let initialPos: any = null;
+
+    if (selectedUnitId !== "custom") {
+      const found = units.find((u) => u.id === selectedUnitId);
+      if (found) {
+        unitName = found.name;
+        imei = found.imei;
+        if (found.lat && found.lon) {
+          initialPos = {
+            lat: found.lat,
+            lon: found.lon,
+            speed: found.speed ?? 0,
+            course: found.course ?? 0,
+            time: found.lastMessage ?? Math.floor(Date.now() / 1000),
+          };
+        }
+      }
+    }
+
+    if (!unitName) {
+      setFormError("Debes seleccionar una unidad o escribir su nombre.");
       return;
     }
 
-    try {
-      const selectedUnitsData = selectedUnitIds
-        .map((id) => {
-          const found = units.find((u) => u.id === id);
-          if (!found) return null;
-
-          const lat = found.lat ?? null;
-          const lon = found.lon ?? null;
-          const speed = found.speed ?? 0;
-          const course = found.course ?? 0;
-          const time = found.lastMessage ?? Math.floor(Date.now() / 1000);
-
-          return {
-            unitId: found.id,
-            unitName: found.name,
-            imei: found.imei ?? null,
-            initialPosition:
-              lat !== null && lon !== null
-                ? {
-                    lat: Number(lat),
-                    lon: Number(lon),
-                    speed: Number(speed),
-                    course: Number(course),
-                    time: Number(time),
-                  }
-                : null,
-          };
-        })
-        .filter(Boolean);
-
-      const compositeUnitName = selectedUnitsData.map((u) => u?.unitName).join(", ");
-      const primaryUnit = selectedUnitsData[0];
-
-      const res = await createMutation.mutateAsync({
-        data: {
-          unitId: primaryUnit?.unitId ?? 0,
-          unitName: compositeUnitName,
-          unitIds: selectedUnitIds,
-          unitsData: selectedUnitsData,
-          imei: primaryUnit?.imei ?? null,
-          clientName: clientName.trim() || null,
-          clientPhone: clientPhone.trim() || null,
-          clientEmail: clientEmail.trim() || null,
-          notes: notes.trim() || null,
-          durationHours,
-          host: session.host,
-          sid: session.sid,
-          initialPosition: primaryUnit?.initialPosition ?? null,
-        },
-      });
-
-      if (res?.link) {
-        queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
-        setCreatedLink(res.link);
-        setCreateDialogOpen(false);
-
-        setSelectedUnitIds([]);
-        setClientName("");
-        setClientPhone("");
-        setClientEmail("");
-        setNotes("");
-        setUnitFilterSearch("");
-      }
-    } catch (err: any) {
-      setFormError(err.message || "Error al generar el enlace compartido.");
-    }
+    createMutation.mutate({
+      data: {
+        unitId: typeof selectedUnitId === "number" ? selectedUnitId : Math.floor(10000 + Math.random() * 90000),
+        unitName,
+        imei,
+        clientName: clientName.trim() || null,
+        clientPhone: clientPhone.trim() || null,
+        clientEmail: clientEmail.trim() || null,
+        notes: notes.trim() || null,
+        durationHours,
+        host: session.host,
+        sid: session.sid,
+        wialonToken: typeof window !== "undefined" ? localStorage.getItem("wialon_token") : null,
+        initialPosition: initialPos,
+      },
+    });
   }
 
   function copyShareUrl(token: string) {
@@ -247,7 +216,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   function getWhatsAppUrl(token: string, unitName: string, clientName?: string | null, clientPhone?: string | null) {
     const url = `${window.location.origin}/rastreo/${token}`;
     const greeting = clientName ? `Hola ${clientName}, ` : "Hola, ";
-    const msg = `${greeting}te comparto el enlace multi-mapa para seguir tus unidades (*${unitName}*):\n\n${url}`;
+    const msg = `${greeting}te comparto el enlace para seguir en tiempo real la unidad satelital *${unitName}*:\n\n${url}\n\nEnlace seguro con mapa en vivo y navegación Waze.`;
     const cleanPhone = clientPhone ? clientPhone.replace(/\D/g, "") : "";
     if (cleanPhone) {
       return `https://api.whatsapp.com/send?phone=${cleanPhone.length === 10 ? `52${cleanPhone}` : cleanPhone}&text=${encodeURIComponent(msg)}`;
@@ -257,14 +226,15 @@ function WialonSharePage({ session }: { session: WialonSession }) {
 
   return (
     <div className="space-y-6">
+      {/* Top Banner / Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
         <div>
           <h2 className="font-display text-2xl font-bold uppercase tracking-wide flex items-center gap-2.5 text-foreground">
             <Share2 className="size-6 text-primary" />
-            Rastreo Multi-Mapa Compartido
+            Rastreo Compartido por Tiempo Limitado
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Genera un único enlace que muestra cada unidad seleccionada en su propio mapa independiente o pestaña.
+            Genera enlaces temporales seguros con mapa en vivo para clientes o supervisores sin compartir tus credenciales.
           </p>
         </div>
 
@@ -273,28 +243,37 @@ function WialonSharePage({ session }: { session: WialonSession }) {
             setFormError(null);
             setCreateDialogOpen(true);
           }}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground shadow-lg hover:opacity-90 transition-all shrink-0"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground shadow-lg hover:opacity-90 transition-all active:scale-95 shrink-0"
         >
           <Plus className="size-4" />
-          <span>Nuevo Enlace Compartido</span>
+          <span>Nuevo Enlace Temporal</span>
         </button>
       </div>
 
+      {/* KPI Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Enlaces Activos</p>
-            <p className="mt-1 font-mono text-2xl font-bold text-primary">{activeCount}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Enlaces Activos
+            </p>
+            <p className="mt-1 font-mono text-2xl font-bold text-primary">
+              {activeCount}
+            </p>
           </div>
           <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-            <Layers className="size-5" />
+            <ShieldCheck className="size-5" />
           </div>
         </div>
 
         <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Expirados / Revocados</p>
-            <p className="mt-1 font-mono text-2xl font-bold text-muted-foreground">{expiredCount}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Enlaces Expirados / Revocados
+            </p>
+            <p className="mt-1 font-mono text-2xl font-bold text-muted-foreground">
+              {expiredCount}
+            </p>
           </div>
           <div className="size-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
             <Clock className="size-5" />
@@ -303,8 +282,12 @@ function WialonSharePage({ session }: { session: WialonSession }) {
 
         <div className="rounded-xl border border-border/60 bg-card p-4 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Visualizaciones</p>
-            <p className="mt-1 font-mono text-2xl font-bold text-cyan-400">{totalViews}</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Total Visualizaciones
+            </p>
+            <p className="mt-1 font-mono text-2xl font-bold text-cyan-400">
+              {totalViews}
+            </p>
           </div>
           <div className="size-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400">
             <Eye className="size-5" />
@@ -312,6 +295,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
         </div>
       </div>
 
+      {/* Search & Filter Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -319,7 +303,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por unidades o cliente..."
+            placeholder="Buscar por unidad o cliente..."
             className="w-full rounded-lg border border-input bg-background pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
@@ -327,13 +311,14 @@ function WialonSharePage({ session }: { session: WialonSession }) {
         <button
           onClick={() => queryClient.invalidateQueries({ queryKey: ["unit-shares"] })}
           disabled={sharesQuery.isFetching}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors self-end"
         >
           <RefreshCw className={`size-3.5 ${sharesQuery.isFetching ? "animate-spin text-primary" : ""}`} />
-          <span>Actualizar</span>
+          <span>Actualizar lista</span>
         </button>
       </div>
 
+      {/* Shared Links List */}
       {sharesQuery.isLoading ? (
         <div className="flex min-h-[200px] items-center justify-center rounded-xl border border-border/60 bg-card/40 p-8">
           <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -342,82 +327,172 @@ function WialonSharePage({ session }: { session: WialonSession }) {
         <div className="rounded-xl border border-dashed border-border/80 bg-card/40 p-12 text-center">
           <Share2 className="mx-auto size-12 text-muted-foreground/60" />
           <h3 className="mt-4 font-display text-base font-bold uppercase tracking-wider text-foreground">
-            Sin enlaces registrados
+            No hay enlaces compartidos registrados
           </h3>
+          <p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
+            {search
+              ? "No se encontraron enlaces con ese término de búsqueda."
+              : "Genera un enlace temporal para que tus clientes o supervisores puedan ver la unidad en vivo en el mapa."}
+          </p>
+          <button
+            onClick={() => setCreateDialogOpen(true)}
+            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wider text-primary-foreground hover:opacity-90"
+          >
+            <Plus className="size-4" />
+            <span>Crear Primer Enlace</span>
+          </button>
         </div>
       ) : (
         <div className="grid gap-4">
           {filteredShares.map((link) => {
             const isExpired = link.status === "expired" || new Date(link.expiresAt).getTime() <= Date.now();
+            const isRevoked = link.status === "revoked";
             const isActive = link.status === "active" && !isExpired;
 
             return (
               <div
                 key={link.id}
                 className={`rounded-xl border transition-all p-5 bg-card/90 shadow-sm ${
-                  isActive ? "border-primary/40 hover:border-primary" : "border-border/60 opacity-80"
+                  isActive
+                    ? "border-primary/40 hover:border-primary shadow-[0_0_15px_rgba(146,215,0,0.05)]"
+                    : "border-border/60 opacity-80"
                 }`}
               >
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  {/* Left: Unit & Info */}
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex flex-wrap items-center gap-2.5">
                       <span className="font-display text-base font-bold text-foreground flex items-center gap-2">
                         <Car className="size-4 text-primary" />
                         {link.unitName}
                       </span>
+
+                      {isActive ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Activo
+                        </span>
+                      ) : isRevoked ? (
+                        <span className="rounded-full border border-red-500/40 bg-red-500/10 px-2.5 py-0.5 text-xs font-semibold text-red-400">
+                          Revocado
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-slate-700 bg-slate-800 px-2.5 py-0.5 text-xs font-semibold text-slate-400">
+                          Expirado
+                        </span>
+                      )}
+
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Eye className="size-3.5 text-cyan-400" />
+                        {link.viewCount || 0} visitas
+                      </span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                      {link.clientName && <p><strong className="text-foreground">Cliente:</strong> {link.clientName}</p>}
-                      {link.clientPhone && <p><strong className="text-foreground">Tel:</strong> {link.clientPhone}</p>}
+                      {link.clientName ? (
+                        <p>
+                          <strong className="text-foreground">Cliente:</strong> {link.clientName}
+                        </p>
+                      ) : null}
+                      {link.clientPhone ? (
+                        <p>
+                          <strong className="text-foreground">Tel:</strong> {link.clientPhone}
+                        </p>
+                      ) : null}
+                      <p>
+                        <strong className="text-foreground">Vigencia:</strong> {link.durationHours}h
+                        (expira {new Date(link.expiresAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })})
+                      </p>
                     </div>
+
+                    {link.notes ? (
+                      <p className="text-xs text-muted-foreground italic line-clamp-1">
+                        &ldquo;{link.notes}&rdquo;
+                      </p>
+                    ) : null}
                   </div>
 
+                  {/* Right: Actions */}
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {/* Copy Link Button */}
                     <button
                       onClick={() => copyShareUrl(link.token)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold uppercase text-foreground hover:border-primary"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-wider text-foreground hover:border-primary hover:text-primary transition-colors"
                     >
-                      {copiedToken === link.token ? <Check className="size-3.5 text-primary" /> : <Copy className="size-3.5" />}
-                      <span>{copiedToken === link.token ? "Copiado" : "Copiar Enlace"}</span>
+                      {copiedToken === link.token ? (
+                        <>
+                          <Check className="size-3.5 text-primary" />
+                          <span className="text-primary">Copiado</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="size-3.5" />
+                          <span>Copiar</span>
+                        </>
+                      )}
                     </button>
 
+                    {/* WhatsApp Button */}
                     <a
                       href={getWhatsAppUrl(link.token, link.unitName, link.clientName, link.clientPhone)}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-semibold uppercase text-emerald-300"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-emerald-300 transition-colors"
+                      title="Enviar por WhatsApp"
                     >
                       <MessageCircle className="size-3.5" />
-                      <span>WhatsApp</span>
+                      <span className="hidden sm:inline">WhatsApp</span>
                     </a>
 
+                    {/* Open Tracking Page */}
                     <a
                       href={`/rastreo/${link.token}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 px-3 py-2 text-xs font-semibold uppercase text-white"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-white shadow-sm transition-all"
                     >
                       <ExternalLink className="size-3.5" />
-                      <span>Abrir Multi-Mapa</span>
+                      <span>Ver Mapa</span>
                     </a>
 
-                    {isActive && (
+                    {/* Extend Duration */}
+                    {isActive ? (
+                      <button
+                        onClick={() => extendMutation.mutate({ data: { token: link.token, hours: 4 } })}
+                        disabled={extendMutation.isPending}
+                        className="rounded-lg border border-border bg-background px-2.5 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                        title="Extender 4 horas más"
+                      >
+                        +4h
+                      </button>
+                    ) : null}
+
+                    {/* Revoke */}
+                    {isActive ? (
                       <button
                         onClick={() => {
-                          if (confirm(`¿Deseas revocar el enlace?`)) revokeMutation.mutate({ data: { token: link.token } });
+                          if (confirm(`¿Deseas revocar el enlace de "${link.unitName}" de inmediato?`)) {
+                            revokeMutation.mutate({ data: { token: link.token } });
+                          }
                         }}
-                        className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-400"
+                        disabled={revokeMutation.isPending}
+                        className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs font-medium text-amber-400 hover:bg-amber-500/20 transition-colors"
+                        title="Revocar enlace ahora"
                       >
                         Revocar
                       </button>
-                    )}
+                    ) : null}
 
+                    {/* Delete */}
                     <button
                       onClick={() => {
-                        if (confirm(`¿Eliminar enlace?`)) deleteMutation.mutate({ data: { token: link.token } });
+                        if (confirm(`¿Eliminar este enlace del registro?`)) {
+                          deleteMutation.mutate({ data: { token: link.token } });
+                        }
                       }}
-                      className="rounded-lg border border-red-500/20 p-2 text-xs text-red-400"
+                      disabled={deleteMutation.isPending}
+                      className="rounded-lg border border-red-500/20 p-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                      title="Eliminar registro"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -429,141 +504,134 @@ function WialonSharePage({ session }: { session: WialonSession }) {
         </div>
       )}
 
-      {/* Modal Formulario */}
+      {/* Dialog: Create New Share Link */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="max-w-lg bg-card text-foreground border-border">
           <DialogHeader>
-            <DialogTitle className="font-display text-lg font-bold uppercase text-primary flex items-center gap-2">
+            <DialogTitle className="font-display text-lg font-bold uppercase tracking-wider text-primary flex items-center gap-2">
               <Share2 className="size-5" />
-              Crear Enlace Multi-Mapa
+              Compartir Unidad por Tiempo Limitado
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Las unidades seleccionadas se compartirán mediante 1 solo enlace con un selector de mapas individual.
+              Genera un enlace público y temporal con ubicación en tiempo real para clientes o proveedores.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleCreateSubmit} className="space-y-4 mt-2">
-            {formError && (
+            {formError ? (
               <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive flex items-center gap-2">
                 <AlertCircle className="size-4 shrink-0" />
                 <span>{formError}</span>
               </div>
-            )}
+            ) : null}
 
-            <div className="space-y-1.5 relative" ref={dropdownRef}>
-              <label className="text-xs font-semibold uppercase text-foreground">
-                SELECCIONA LA(S) UNIDAD(ES) * {selectedUnitIds.length > 0 && `(${selectedUnitIds.length} SELECCIONADAS)`}
+            {/* Select Unit */}
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wider text-foreground">
+                Selecciona la Unidad *
               </label>
-
-              <div
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center justify-between w-full rounded-md border border-input bg-background px-3 py-2 text-xs cursor-pointer hover:border-primary"
+              <select
+                value={selectedUnitId}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedUnitId(val === "custom" ? "custom" : Number(val));
+                }}
+                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                <span className="truncate text-foreground font-medium">
-                  {selectedUnitIds.length === 0
-                    ? "-- Selecciona las unidades --"
-                    : selectedUnitIds.length === units.length
-                    ? "Todas las unidades seleccionadas"
-                    : selectedUnitIds.map((id) => units.find((u) => u.id === id)?.name).filter(Boolean).join(", ")}
-                </span>
-                <ChevronDown className="size-4 text-muted-foreground" />
-              </div>
-
-              {dropdownOpen && (
-                <div className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-border bg-card p-2 shadow-2xl space-y-1">
-                  <div className="px-1 pb-1">
-                    <input
-                      type="text"
-                      value={unitFilterSearch}
-                      onChange={(e) => setUnitFilterSearch(e.target.value)}
-                      placeholder="Filtrar unidades..."
-                      className="w-full rounded border border-input bg-background px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                  </div>
-                  <div
-                    onClick={toggleSelectAll}
-                    className="flex items-center gap-2 px-2 py-1.5 text-xs text-primary font-bold cursor-pointer hover:bg-muted rounded"
-                  >
-                    {selectedUnitIds.length === units.length ? <CheckSquare className="size-4" /> : <Square className="size-4" />}
-                    <span>SELECCIONAR TODAS</span>
-                  </div>
-                  <hr className="border-border my-1" />
-                  {filteredUnitsForDropdown.map((u) => {
-                    const isSelected = selectedUnitIds.includes(u.id);
-                    return (
-                      <div
-                        key={u.id}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleUnitSelection(u.id);
-                        }}
-                        className={`flex items-center gap-2 px-2 py-1.5 text-xs rounded cursor-pointer ${
-                          isSelected ? "bg-primary/10 text-primary font-semibold" : "text-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {isSelected ? <CheckSquare className="size-4 text-primary" /> : <Square className="size-4 text-muted-foreground" />}
-                        <span>{u.name}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                {units.length > 0 ? (
+                  <optgroup label="Unidades de tu cuenta">
+                    {units.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name} {u.online ? "(En línea)" : "(Última conexión)"}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                <option value="custom">+ Escribir nombre de unidad manualmente</option>
+              </select>
             </div>
 
+            {/* Custom unit name if selected */}
+            {selectedUnitId === "custom" ? (
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wider text-foreground">
+                  Nombre o Placa del Vehículo *
+                </label>
+                <input
+                  type="text"
+                  value={customUnitName}
+                  onChange={(e) => setCustomUnitName(e.target.value)}
+                  placeholder="Ej. Nissan NP300 - JHL492"
+                  className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  required
+                />
+              </div>
+            ) : null}
+
+            {/* Duration Selector */}
             <div>
-              <label className="text-xs font-semibold uppercase text-foreground flex items-center gap-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-foreground flex items-center gap-1.5">
                 <Clock className="size-3.5 text-primary" />
-                VIGENCIA DEL ENLACE *
+                Vigencia del Enlace *
               </label>
-              <div className="grid grid-cols-3 gap-2 mt-2">
+              <div className="grid grid-cols-4 gap-2 mt-2">
                 {PRESET_DURATIONS.map((preset) => (
                   <button
                     key={preset.hours}
                     type="button"
                     onClick={() => setDurationHours(preset.hours)}
-                    className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-bold uppercase ${
-                      durationHours === preset.hours ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
+                    className={`rounded-lg border px-2 py-2 text-xs font-bold uppercase transition-all ${
+                      durationHours === preset.hours
+                        ? "border-primary bg-primary/10 text-primary shadow-sm"
+                        : "border-border text-muted-foreground hover:bg-muted"
                     }`}
                   >
-                    {preset.hours >= 720 && <InfinityIcon className="size-3.5 text-primary" />}
-                    <span>{preset.label}</span>
+                    {preset.label}
                   </button>
                 ))}
               </div>
             </div>
 
+            {/* Client / Destination info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
-                <label className="text-xs font-medium text-foreground">Nombre del Destinatario</label>
+                <label className="text-xs font-medium text-foreground">
+                  Nombre del Cliente / Destinatario
+                </label>
                 <input
                   type="text"
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
-                  placeholder="Ej. Jhon Doe"
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
+                  placeholder="Ej. Distribuidora López"
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-medium text-foreground">Teléfono</label>
+                <label className="text-xs font-medium text-foreground">
+                  WhatsApp / Teléfono (opcional)
+                </label>
                 <input
                   type="tel"
                   value={clientPhone}
                   onChange={(e) => setClientPhone(e.target.value)}
-                  placeholder="5512345678"
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
+                  placeholder="Ej. 3318359421"
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
             </div>
 
+            {/* Notes */}
             <div>
-              <label className="text-xs font-medium text-foreground">Notas</label>
+              <label className="text-xs font-medium text-foreground">
+                Motivo / Instrucciones de Monitoreo
+              </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Instrucciones o motivo de viaje..."
+                placeholder="Ej. Entrega programada ruta Vallarta - Guadalajara"
                 rows={2}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs"
+                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
 
@@ -571,69 +639,106 @@ function WialonSharePage({ session }: { session: WialonSession }) {
               <button
                 type="button"
                 onClick={() => setCreateDialogOpen(false)}
-                className="rounded-lg border border-border px-4 py-2 text-xs font-semibold uppercase text-muted-foreground"
+                className="rounded-lg border border-border px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                disabled={createMutation.isPending || selectedUnitIds.length === 0}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-xs font-bold uppercase text-primary-foreground"
+                disabled={createMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 font-display text-xs font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90 disabled:opacity-50"
               >
-                {createMutation.isPending ? <RefreshCw className="size-3.5 animate-spin" /> : <Share2 className="size-3.5" />}
-                <span>Crear Enlace Unificado</span>
+                {createMutation.isPending ? (
+                  <>
+                    <RefreshCw className="size-3.5 animate-spin" />
+                    <span>Generando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="size-3.5" />
+                    <span>Crear y Obtener Enlace</span>
+                  </>
+                )}
               </button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Modal Resultado */}
-      <Dialog open={!!createdLink} onOpenChange={() => setCreatedLink(null)}>
+      {/* Dialog: Success Result with Direct Link */}
+      <Dialog open={Boolean(successLink)} onOpenChange={() => setSuccessLink(null)}>
         <DialogContent className="max-w-md bg-card text-foreground border-border text-center">
-          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-primary/40 bg-primary/10 text-primary">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-primary/40 bg-primary/10 text-primary shadow-[0_0_25px_rgba(146,215,0,0.2)]">
             <Check className="size-7" />
           </div>
 
-          <DialogTitle className="font-display text-xl font-bold uppercase mt-3">
-            ¡Enlace Listo!
+          <DialogTitle className="font-display text-xl font-bold uppercase tracking-wide text-foreground mt-3">
+            ¡Enlace Generado con Éxito!
           </DialogTitle>
 
           <DialogDescription className="text-xs text-muted-foreground mt-1">
-            Se generó 1 enlace que incluye mapas separados para todas las unidades seleccionadas.
+            El enlace temporal de rastreo para <strong>{successLink?.unitName}</strong> ya está activo y disponible.
           </DialogDescription>
 
-          {createdLink && (
-            <div className="rounded-xl border border-border/80 bg-background p-4 text-xs space-y-3 mt-3 text-left">
-              <p className="font-bold text-foreground flex items-center gap-1.5">
-                <Car className="size-4 text-primary" /> {createdLink.unitName}
-              </p>
-              <p className="font-mono text-primary select-all break-all bg-card p-2 rounded border border-border">
-                {typeof window !== "undefined" ? `${window.location.origin}/rastreo/${createdLink.token}` : ""}
-              </p>
+          {successLink ? (
+            <div className="space-y-4 mt-4 text-left">
+              <div className="rounded-xl border border-border/80 bg-background p-3 text-xs">
+                <p className="font-mono break-all text-primary select-all">
+                  {typeof window !== "undefined" ? `${window.location.origin}/rastreo/${successLink.token}` : ""}
+                </p>
+              </div>
 
-              <div className="flex gap-2 pt-1">
+              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                <p>
+                  <strong>Vigencia:</strong> {successLink.durationHours} horas
+                </p>
+                <p>
+                  <strong>Expira:</strong>{" "}
+                  {new Date(successLink.expiresAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => copyShareUrl(createdLink.token)}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded bg-primary py-2 px-3 text-xs font-bold uppercase text-primary-foreground"
+                  onClick={() => copyShareUrl(successLink.token)}
+                  className="flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 px-3 font-display text-xs font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90"
                 >
-                  {copiedToken === createdLink.token ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-                  <span>{copiedToken === createdLink.token ? "¡Copiado!" : "Copiar Enlace"}</span>
+                  {copiedToken === successLink.token ? (
+                    <>
+                      <Check className="size-4" />
+                      <span>¡Copiado!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-4" />
+                      <span>Copiar Enlace</span>
+                    </>
+                  )}
                 </button>
 
                 <a
-                  href={getWhatsAppUrl(createdLink.token, createdLink.unitName, createdLink.clientName, createdLink.clientPhone)}
+                  href={getWhatsAppUrl(successLink.token, successLink.unitName, successLink.clientName, successLink.clientPhone)}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 py-2 px-3 text-xs font-semibold uppercase"
+                  className="flex items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 py-2.5 px-3 text-xs font-semibold uppercase tracking-wider text-emerald-300"
                 >
-                  <MessageCircle className="size-3.5" />
-                  <span>WhatsApp</span>
+                  <MessageCircle className="size-4" />
+                  <span>Mandar por WhatsApp</span>
                 </a>
               </div>
+
+              <a
+                href={`/rastreo/${successLink.token}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-center gap-1.5 text-xs text-cyan-400 hover:underline pt-1"
+              >
+                <span>Probar y abrir vista de cliente</span>
+                <ExternalLink className="size-3" />
+              </a>
             </div>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

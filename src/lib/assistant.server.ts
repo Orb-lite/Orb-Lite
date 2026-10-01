@@ -1329,6 +1329,7 @@ export async function processAssistantMessage(
                 routeName: { type: Type.STRING },
                 from: { type: Type.STRING },
                 to: { type: Type.STRING },
+                unitName: { type: Type.STRING },
                 template: { type: Type.STRING },
                 equipmentType: { type: Type.STRING },
                 quantity: { type: Type.NUMBER },

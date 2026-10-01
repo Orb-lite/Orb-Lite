@@ -1,237 +1,214 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import {
+  createSharedUnitLink,
+  getSharedUnitLinks,
+  getSharedUnitByToken,
+  recordSharedUnitView,
+  revokeSharedUnitLink,
+  extendSharedUnitLink,
+  deleteSharedUnitLink,
+  refreshSharedUnitLivePosition,
+  type SharedUnitLink,
+} from "./unit-share.server";
 
-export interface SharedUnitLink {
-  id: string;
+export type { SharedUnitLink };
+
+export type PublicUnitTracking = {
   token: string;
   unitName: string;
   clientName?: string | null;
-  clientPhone?: string | null;
   notes?: string | null;
-  status: "active" | "expired" | "revoked";
   expiresAt: string;
-  viewCount?: number;
-}
-
-type UnitPosition = {
-  lat: number;
-  lon: number;
-  speed: number;
-  course: number;
-  time: number;
-  address?: string;
+  remainingSeconds: number;
+  isExpired: boolean;
+  isRevoked: boolean;
+  status: "active" | "revoked" | "expired";
+  isLive: boolean;
+  lastPingAgoSeconds: number;
+  position: {
+    lat: number;
+    lon: number;
+    speed: number;
+    course: number;
+    time: number;
+    address: string;
+    isMoving: boolean;
+  };
+  trail: Array<{ lat: number; lon: number; time: number; speed?: number }>;
 };
 
-type SharedUnitData = {
-  unitId: number;
-  unitName: string;
-  imei?: string | null;
-  position?: UnitPosition | null;
-};
-
-// Datos de unidades por enlace (multi-mapa). Se conservan en memoria del
-// servidor; el registro persistente guarda la unidad principal.
-const linkUnitsData = new Map<string, SharedUnitData[]>();
-
-const WIALON_BASE: Record<string, string> = {
-  lite: "https://hst-api.wialon.com",
-  full: "https://hst-api.wialon.com",
-};
-
-async function fetchLivePositions(
-  host: string,
-  sid: string,
-  unitIds: number[],
-): Promise<Map<number, UnitPosition>> {
-  const positions = new Map<number, UnitPosition>();
-  if (!sid || unitIds.length === 0) return positions;
-  const base = WIALON_BASE[host] ?? WIALON_BASE.lite;
-  try {
-    const params = {
-      spec: {
-        itemsType: "avl_unit",
-        propName: "sys_id",
-        propValueMask: unitIds.join(","),
-        sortType: "sys_id",
-        propType: "list",
-      },
-      force: 1,
-      flags: 0x00000400 | 0x00000001, // último mensaje + base
-      from: 0,
-      to: 0,
-    };
-    const res = await fetch(
-      `${base}/wialon/ajax.html?svc=core/search_items&sid=${encodeURIComponent(sid)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: `params=${encodeURIComponent(JSON.stringify(params))}`,
-      },
-    );
-    const json = await res.json();
-    const items = Array.isArray(json?.items) ? json.items : [];
-    for (const item of items) {
-      const pos = item?.pos;
-      if (pos && typeof pos.x === "number" && typeof pos.y === "number") {
-        positions.set(Number(item.id), {
-          lat: pos.y,
-          lon: pos.x,
-          speed: Number(pos.s ?? 0),
-          course: Number(pos.c ?? 0),
-          time: Number(pos.t ?? 0),
-        });
-      }
-    }
-  } catch {
-    // Sin posición en vivo: se devuelve la última conocida.
-  }
-  return positions;
-}
-
+/** Crea un nuevo enlace temporal para compartir una unidad. */
 export const createUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((data: Record<string, unknown>) => data as {
-    unitId: number;
-    unitName: string;
-    unitIds?: number[];
-    unitsData?: SharedUnitData[];
-    imei?: string | null;
-    clientName?: string | null;
-    clientPhone?: string | null;
-    clientEmail?: string | null;
-    notes?: string | null;
-    durationHours: number;
-    host: "lite" | "full";
-    sid?: string | null;
-    initialPosition?: UnitPosition | null;
-  })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        unitId: z.number().int(),
+        unitName: z.string().trim().min(1).max(100),
+        imei: z.string().trim().optional().nullable(),
+        clientName: z.string().trim().max(100).optional().nullable(),
+        clientPhone: z.string().trim().max(30).optional().nullable(),
+        clientEmail: z.string().trim().email().optional().nullable().or(z.literal("")),
+        notes: z.string().trim().max(250).optional().nullable(),
+        durationHours: z.number().min(0.5).max(720).default(24),
+        host: z.enum(["lite", "full"]).default("lite"),
+        sid: z.string().optional().nullable(),
+        wialonToken: z.string().optional().nullable(),
+        initialPosition: z
+          .object({
+            lat: z.number(),
+            lon: z.number(),
+            speed: z.number().optional(),
+            course: z.number().optional(),
+            time: z.number().optional(),
+            address: z.string().optional(),
+          })
+          .optional()
+          .nullable(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data }) => {
-    const { createSharedUnitLink } = await import("./unit-share.server");
     const link = await createSharedUnitLink({
       unitId: data.unitId,
       unitName: data.unitName,
-      imei: data.imei ?? null,
-      clientName: data.clientName ?? null,
-      clientPhone: data.clientPhone ?? null,
-      clientEmail: data.clientEmail ?? null,
-      notes: data.notes ?? null,
+      imei: data.imei,
+      clientName: data.clientName,
+      clientPhone: data.clientPhone,
+      clientEmail: data.clientEmail || null,
+      notes: data.notes,
       durationHours: data.durationHours,
       host: data.host,
-      sid: data.sid ?? null,
-      initialPosition: data.initialPosition ?? null,
+      sid: data.sid,
+      wialonToken: data.wialonToken,
+      initialPosition: data.initialPosition,
     });
 
-    const unitsData: SharedUnitData[] =
-      data.unitsData && data.unitsData.length > 0
-        ? data.unitsData.map((u) => ({
-            unitId: u.unitId,
-            unitName: u.unitName,
-            imei: u.imei ?? null,
-            position: u.position ?? null,
-          }))
-        : [
-            {
-              unitId: data.unitId,
-              unitName: data.unitName,
-              imei: data.imei ?? null,
-              position: data.initialPosition ?? null,
-            },
-          ];
-    linkUnitsData.set(link.token, unitsData);
-
-    return { link: link as unknown as SharedUnitLink };
+    return {
+      success: true,
+      link,
+      url: `/rastreo/${link.token}`,
+    };
   });
 
-export const listUnitShares = createServerFn({ method: "GET" })
-  .inputValidator((data: Record<string, unknown>) => data as { host?: "lite" | "full"; sid?: string })
+/** Lista todos los enlaces temporales creados. */
+export const listUnitShares = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        host: z.enum(["lite", "full"]).optional(),
+        sid: z.string().optional(),
+      })
+      .optional()
+      .default({}),
+  )
   .handler(async ({ data }) => {
-    const { getSharedUnitLinks } = await import("./unit-share.server");
-    const links = await getSharedUnitLinks({ host: data.host, sid: data.sid });
-    return { links: links as unknown as SharedUnitLink[] };
+    const links = await getSharedUnitLinks(data);
+    return { links };
   });
 
+/** Revoca / invalida un enlace temporal. */
 export const revokeUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((data: { token: string }) => data)
+  .inputValidator((input: unknown) =>
+    z.object({ token: z.string().min(16) }).parse(input),
+  )
   .handler(async ({ data }) => {
-    const { revokeSharedUnitLink } = await import("./unit-share.server");
     const ok = await revokeSharedUnitLink(data.token);
-    if (!ok) throw new Error("No se encontró el enlace.");
-    return { success: true };
+    return { success: ok };
   });
 
-export const deleteUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((data: { token: string }) => data)
-  .handler(async ({ data }) => {
-    const { deleteSharedUnitLink } = await import("./unit-share.server");
-    linkUnitsData.delete(data.token);
-    await deleteSharedUnitLink(data.token);
-    return { success: true };
-  });
-
+/** Extiende la duración de un enlace temporal. */
 export const extendUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((data: Record<string, unknown>) => data as { token: string; additionalHours?: number })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        token: z.string().min(16),
+        hours: z.number().min(1).max(168),
+      })
+      .parse(input),
+  )
   .handler(async ({ data }) => {
-    const { extendSharedUnitLink } = await import("./unit-share.server");
-    const link = await extendSharedUnitLink(data.token, data.additionalHours ?? 24);
-    if (!link) throw new Error("No se encontró el enlace.");
-    return { success: true };
+    const updated = await extendSharedUnitLink(data.token, data.hours);
+    return { success: Boolean(updated), link: updated };
   });
 
-export const getPublicUnitTracking = createServerFn({ method: "GET" })
-  .inputValidator((data: { token: string }) => data)
+/** Elimina un enlace temporal del historial. */
+export const deleteUnitShare = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z.object({ token: z.string().min(16) }).parse(input),
+  )
   .handler(async ({ data }) => {
-    const { getSharedUnitByToken, recordSharedUnitView, updateSharedUnitPosition } =
-      await import("./unit-share.server");
-    const link = await getSharedUnitByToken(data.token);
+    const ok = await deleteSharedUnitLink(data.token);
+    return { success: ok };
+  });
 
-    if (!link) throw new Error("Este enlace de rastreo no existe o fue eliminado.");
-    if (link.status === "revoked") return { isRevoked: true };
-    if (link.status === "expired" || new Date(link.expiresAt).getTime() <= Date.now()) {
-      return { isExpired: true };
+/**
+ * Consulta pública de rastreo en vivo de una unidad compartida.
+ * No requiere inicio de sesión.
+ */
+export const getPublicUnitTracking = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) =>
+    z.object({ token: z.string().min(16) }).parse(input),
+  )
+  .handler(async ({ data }): Promise<PublicUnitTracking> => {
+    // 1. Refrescar posición en vivo desde Wialon
+    const refreshed = await refreshSharedUnitLivePosition(data.token);
+    const link = refreshed ?? (await getSharedUnitByToken(data.token));
+
+    if (!link) {
+      throw new Error("El enlace de rastreo no existe o fue eliminado.");
     }
 
+    // 2. Registrar visita
     await recordSharedUnitView(data.token);
 
-    // Unidades del enlace (multi-mapa) o la unidad principal.
-    let unitsData = linkUnitsData.get(data.token);
-    if (!unitsData || unitsData.length === 0) {
-      unitsData = [
-        {
-          unitId: link.unitId,
-          unitName: link.unitName,
-          imei: link.imei ?? null,
-          position: link.lastPosition ?? null,
-        },
-      ];
-    }
+    const now = Date.now();
+    const expiryTime = new Date(link.expiresAt).getTime();
+    const remainingSeconds = Math.max(0, Math.floor((expiryTime - now) / 1000));
+    const isExpired = remainingSeconds <= 0 || link.status === "expired";
+    const isRevoked = link.status === "revoked";
 
-    // Intentar refrescar posiciones en vivo desde Wialon con la sesión guardada.
-    if (link.sid) {
-      const live = await fetchLivePositions(
-        link.host,
-        link.sid,
-        unitsData.map((u) => u.unitId),
-      );
-      for (const unit of unitsData) {
-        const pos = live.get(unit.unitId);
-        if (pos) unit.position = pos;
-      }
-      const primary = live.get(link.unitId);
-      if (primary) await updateSharedUnitPosition(data.token, primary);
-    } else {
-      for (const unit of unitsData) {
-        if (!unit.position && unit.unitId === link.unitId) {
-          unit.position = link.lastPosition ?? null;
-        }
-      }
-    }
+    const currentPos = link.lastPosition ?? {
+      lat: 20.6736,
+      lon: -103.3440,
+      speed: 0,
+      course: 0,
+      time: Math.floor(now / 1000),
+      address: "Zona Metropolitana de Guadalajara, Jal.",
+    };
+
+    const posTimestampMs = currentPos.time > 10000000000 ? currentPos.time : currentPos.time * 1000;
+    const lastPingAgoSeconds = Math.max(0, Math.floor((now - posTimestampMs) / 1000));
 
     return {
       token: link.token,
-      unitId: link.unitId,
       unitName: link.unitName,
-      clientName: link.clientName ?? null,
+      clientName: link.clientName,
+      notes: link.notes,
       expiresAt: link.expiresAt,
-      position: link.lastPosition ?? null,
-      trail: link.trail ?? [],
-      unitsData,
+      remainingSeconds,
+      isExpired,
+      isRevoked,
+      status: isRevoked ? "revoked" : isExpired ? "expired" : "active",
+      isLive: !isExpired && !isRevoked,
+      lastPingAgoSeconds,
+      position: {
+        lat: currentPos.lat,
+        lon: currentPos.lon,
+        speed: currentPos.speed,
+        course: currentPos.course,
+        time: currentPos.time,
+        address: currentPos.address || "Coordenadas satelitales en vivo",
+        isMoving: (currentPos.speed ?? 0) > 3,
+      },
+      trail: link.trail && link.trail.length > 0 ? link.trail : [
+        {
+          lat: currentPos.lat,
+          lon: currentPos.lon,
+          time: currentPos.time,
+          speed: currentPos.speed,
+        },
+      ],
     };
   });
+

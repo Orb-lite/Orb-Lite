@@ -79,6 +79,7 @@ function headerStyle(cell: import("exceljs").Cell) {
 
 // Cobertura completa de la cuadrícula: triples letras de columnas (hasta columna 702 / ZZ) y miles de filas
 const EXTENDED_MAX_COLS = 702; // Cubre hasta la columna 'ZZ' (inicio de triples letras / más de 700 columnas a la derecha)
+const EXTENDED_MIN_ROWS = 1000; // Cubre hasta los miles de filas hacia abajo
 
 /**
  * Fondo azul marino en toda la hoja y letras plateadas en los datos;
@@ -86,13 +87,9 @@ const EXTENDED_MAX_COLS = 702; // Cubre hasta la columna 'ZZ' (inicio de triples
  * Extiende la colorimetría azul marino hasta los miles de filas y hasta las
  * columnas de triples letras para que toda la hoja visible sea completamente inmersiva.
  */
-function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number) {
-  // Fondo azul marino de toda la cuadrícula a nivel de columna (barato: un estilo
-  // por columna en vez de cientos de miles de celdas). Excel lo aplica a las celdas
-  // vacías, por lo que la hoja se ve inmersiva sin inflar el archivo.
-  for (let col = 1; col <= EXTENDED_MAX_COLS; col += 1) {
-    sheet.getColumn(col).fill = navyFill();
-  }
+function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number, bandEnd: number) {
+  const fillEndCol = Math.max(bandEnd, EXTENDED_MAX_COLS);
+  const lastRow = Math.max(6 + rowCount, EXTENDED_MIN_ROWS);
   for (let index = 0; index < rowCount; index += 1) {
     const row = sheet.getRow(6 + index);
     for (let col = 1; col <= columnCount; col += 1) {
@@ -103,6 +100,26 @@ function stripeDataRows(sheet: Worksheet, columnCount: number, rowCount: number)
         fgColor: { argb: index % 2 === 1 ? BRAND.navyAlt : BRAND.navy },
       };
       cell.font = { color: { argb: BRAND.silver } };
+    }
+  }
+  for (let rowNumber = 6; rowNumber <= lastRow; rowNumber += 1) {
+    const row = sheet.getRow(rowNumber);
+    for (let col = columnCount + 1; col <= fillEndCol; col += 1) {
+      row.getCell(col).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: BRAND.navy },
+      };
+    }
+  }
+  for (let rowNumber = 6 + rowCount; rowNumber <= lastRow; rowNumber += 1) {
+    const row = sheet.getRow(rowNumber);
+    for (let col = 1; col <= fillEndCol; col += 1) {
+      row.getCell(col).fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: BRAND.navy },
+      };
     }
   }
 }
@@ -127,9 +144,8 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   sheet.getRow(2).height = 30;
   sheet.getRow(4).height = 24;
 
-  // Las filas 1-4 solo se pintan hasta el final de la banda; el resto de la
-  // cuadrícula lo cubre el fondo azul marino a nivel de columna (stripeDataRows).
-  for (let col = 1; col <= bandEnd; col += 1) {
+  const fillEndCol = Math.max(bandEnd, EXTENDED_MAX_COLS);
+  for (let col = 1; col <= fillEndCol; col += 1) {
     sheet.getCell(1, col).fill = navyFill();
     sheet.getCell(2, col).fill = navyFill();
     sheet.getCell(3, col).fill = navyFill();
@@ -156,16 +172,19 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
   sheet.addImage(logo.id, logo.range);
 
   const header = sheet.getRow(5);
-  // Encabezados con datos estilizados celda por celda; el resto de la fila 5
-  // queda en verde lima con el estilo de fila (sin crear cientos de celdas).
-  for (let col = 1; col <= columnCount; col += 1) {
-    headerStyle(header.getCell(col));
+  // Toda la fila 5 en verde lima extendida hasta las columnas de triples letras
+  for (let col = 1; col <= fillEndCol; col += 1) {
+    if (col <= columnCount) {
+      headerStyle(header.getCell(col));
+    } else {
+      const emptyHeaderCell = header.getCell(col);
+      emptyHeaderCell.fill = limeFill();
+      emptyHeaderCell.border = {
+        top: { style: "thin", color: { argb: BRAND.navy } },
+        bottom: { style: "thin", color: { argb: BRAND.navy } },
+      };
+    }
   }
-  header.fill = limeFill();
-  header.border = {
-    top: { style: "thin", color: { argb: BRAND.navy } },
-    bottom: { style: "thin", color: { argb: BRAND.navy } },
-  };
   sheet.getRow(5).height = 28;
 
   for (let index = 1; index <= columnCount; index += 1) {
@@ -175,7 +194,7 @@ function styleSheet(sheet: Worksheet, rows: ExcelCell[][], title: string, logoId
     );
   }
 
-  stripeDataRows(sheet, columnCount, rows.length - 1);
+  stripeDataRows(sheet, columnCount, rows.length - 1, bandEnd);
 
   sheet.autoFilter = {
     from: { row: 5, column: 1 },

@@ -112,7 +112,7 @@ function SharedRoutePage() {
     queryKey: ["shared-route", token],
     queryFn: () => getSharedRoute({ data: { token } }),
     retry: false,
-    refetchInterval: 30000,
+    refetchInterval: 5000,
   });
 
   const route = query.data;
@@ -209,6 +209,7 @@ function SharedRoutePage() {
                 stops={stops.map((s) => ({ ...s, visited: Boolean(s.visitedAt) }))}
                 nextIndex={nextIndex}
                 me={me}
+                liveVehicle={route.liveVehicle}
               />
             </React.Suspense>
           </div>

@@ -51,7 +51,7 @@ async function handle(request: Request) {
   }
 
   const rows = data ?? [];
-  const orders = rows.map((r: any) => ({
+  const orders = rows.map((r) => ({
     orderId: r.order_id,
     createdAt: fmt(r.created_at),
     customerNumber: r.customer_number,
@@ -65,7 +65,7 @@ async function handle(request: Request) {
     status: r.status,
   }));
 
-  const totalPending = orders.reduce((sum: any, o: any) => sum + (o.total ?? 0), 0);
+  const totalPending = orders.reduce((sum, o) => sum + (o.total ?? 0), 0);
   const now = new Date();
   const dateKey = now.toISOString().slice(0, 10);
 

@@ -16,6 +16,13 @@ export type SharedRouteView = {
   }>;
   path: Array<{ lat: number; lon: number }>;
   reportSent: boolean;
+  liveVehicle?: {
+    lat: number;
+    lon: number;
+    speed?: number;
+    course?: number;
+    unitName?: string;
+  } | null;
 };
 
 /** Distancia máxima (m) para aceptar el check de una parada. */
@@ -32,13 +39,16 @@ function distanceMeters(aLat: number, aLon: number, bLat: number, bLon: number) 
   return 2 * r * Math.asin(Math.sqrt(h));
 }
 
-function toView(route: {
-  name: string;
-  points?: Array<{ lat: number; lon: number }>;
-  origin?: string;
-  stops?: SharedRouteStop[];
-  reportSentAt?: string;
-}): SharedRouteView {
+function toView(
+  route: {
+    name: string;
+    points?: Array<{ lat: number; lon: number }>;
+    origin?: string;
+    stops?: SharedRouteStop[];
+    reportSentAt?: string;
+  },
+  liveVehicle?: { lat: number; lon: number; speed?: number; course?: number; unitName?: string } | null,
+): SharedRouteView {
   return {
     name: route.name,
     origin: route.origin ?? null,
@@ -53,6 +63,7 @@ function toView(route: {
     })),
     path: (route.points ?? []).map((p) => ({ lat: p.lat, lon: p.lon })),
     reportSent: Boolean(route.reportSentAt),
+    liveVehicle: liveVehicle ?? null,
   };
 }
 
@@ -139,7 +150,25 @@ export const getSharedRoute = createServerFn({ method: "GET" })
     if (!route || !route.stops?.length) {
       throw new Error("Este enlace de ruta no existe o fue eliminado.");
     }
-    return toView(route);
+
+    let liveVehicle: { lat: number; lon: number; speed?: number; course?: number; unitName?: string } | null = null;
+    try {
+      const { refreshSharedUnitLivePosition, getSharedUnitByToken } = await import("./unit-share.server");
+      const sharedUnit = (await refreshSharedUnitLivePosition(data.token)) ?? (await getSharedUnitByToken(data.token));
+      if (sharedUnit?.lastPosition) {
+        liveVehicle = {
+          lat: sharedUnit.lastPosition.lat,
+          lon: sharedUnit.lastPosition.lon,
+          speed: sharedUnit.lastPosition.speed,
+          course: sharedUnit.lastPosition.course,
+          unitName: sharedUnit.unitName,
+        };
+      }
+    } catch {
+      // Continuar sin telemetría de vehículo si no aplica
+    }
+
+    return toView(route, liveVehicle);
   });
 
 /** Marca o desmarca el check de visita de una parada (público, con el token). */

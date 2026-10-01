@@ -1,4 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { wialonCall, type WialonHost } from "./wialon.server";
+import { smartGeocode } from "./geocoding";
 
 export type SharedUnitLink = {
   id: string;
@@ -18,6 +20,7 @@ export type SharedUnitLink = {
   lastViewedAt?: string | null;
   host: "lite" | "full";
   sid?: string | null;
+  wialonToken?: string | null;
   lastPosition?: {
     lat: number;
     lon: number;
@@ -32,6 +35,15 @@ export type SharedUnitLink = {
 // Store en memoria resiliente que asegura disponibilidad inmediata
 const inMemoryUnitShares = new Map<string, SharedUnitLink>();
 
+// Caché global de sesiones de Wialon activas por host
+const globalActiveSessions = new Map<string, { sid: string; token?: string; timestamp: number }>();
+
+export function registerActiveWialonSession(host: "lite" | "full", sid: string, token?: string) {
+  if (sid) {
+    globalActiveSessions.set(host, { sid, token, timestamp: Date.now() });
+  }
+}
+
 export async function createSharedUnitLink(params: {
   unitId: number;
   unitName: string;
@@ -43,6 +55,7 @@ export async function createSharedUnitLink(params: {
   durationHours: number;
   host: "lite" | "full";
   sid?: string | null;
+  wialonToken?: string | null;
   initialPosition?: {
     lat: number;
     lon: number;
@@ -59,6 +72,10 @@ export async function createSharedUnitLink(params: {
 
   const defaultLat = params.initialPosition?.lat ?? 20.6736;
   const defaultLon = params.initialPosition?.lon ?? -103.3440;
+
+  if (params.sid) {
+    registerActiveWialonSession(params.host, params.sid, params.wialonToken || undefined);
+  }
 
   const linkRecord: SharedUnitLink = {
     id,
@@ -78,6 +95,7 @@ export async function createSharedUnitLink(params: {
     lastViewedAt: null,
     host: params.host,
     sid: params.sid ?? null,
+    wialonToken: params.wialonToken ?? null,
     lastPosition: {
       lat: defaultLat,
       lon: defaultLon,
@@ -292,3 +310,115 @@ export async function updateSharedUnitPosition(
     }
   }
 }
+
+/**
+ * Consulta la posición de la unidad en vivo en Wialon satelital.
+ * Maneja re-conexión automática de token si la sesión expiró.
+ */
+export async function refreshSharedUnitLivePosition(token: string): Promise<SharedUnitLink | null> {
+  const link = await getSharedUnitByToken(token);
+  if (!link) return null;
+
+  const now = Date.now();
+  const isExpired = link.status === "expired" || new Date(link.expiresAt).getTime() <= now;
+  if (isExpired || link.status === "revoked") {
+    return link;
+  }
+
+  const host = link.host as WialonHost;
+  const cached = globalActiveSessions.get(host);
+  let activeSid = link.sid || cached?.sid;
+  const activeToken = link.wialonToken || cached?.token;
+
+  let posFound: { lat: number; lon: number; speed: number; course: number; time: number } | null = null;
+
+  // 1. Intentar consultar Wialon con el SID actual
+  if (link.unitId && activeSid) {
+    try {
+      const itemRes = await wialonCall<{
+        item?: {
+          pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null;
+        };
+      }>(host, "core/search_item", { id: link.unitId, flags: 1025 + 256 + 4 }, activeSid);
+
+      const p = itemRes.item?.pos;
+      if (p && typeof p.y === "number" && typeof p.x === "number") {
+        posFound = {
+          lat: p.y,
+          lon: p.x,
+          speed: Math.round(p.s ?? 0),
+          course: Math.round(p.c ?? 0),
+          time: p.t ?? Math.floor(now / 1000),
+        };
+      }
+    } catch (err: any) {
+      // Si la sesión expiró (código 1 o 7) y tenemos token guardado, renovamos sesión automáticamente
+      const code = err?.code;
+      if ((code === 1 || code === 7) && activeToken) {
+        try {
+          const loginRes = await wialonCall<{ eid?: string }>(
+            host,
+            "token/login",
+            { token: activeToken, fl: 1 },
+          );
+          if (loginRes.eid) {
+            activeSid = loginRes.eid;
+            link.sid = activeSid;
+            registerActiveWialonSession(host, activeSid, activeToken);
+
+            // Reintentar búsqueda con el nuevo SID
+            const retryRes = await wialonCall<{
+              item?: {
+                pos?: { y?: number; x?: number; s?: number; c?: number; t?: number } | null;
+              };
+            }>(host, "core/search_item", { id: link.unitId, flags: 1025 + 256 + 4 }, activeSid);
+
+            const p = retryRes.item?.pos;
+            if (p && typeof p.y === "number" && typeof p.x === "number") {
+              posFound = {
+                lat: p.y,
+                lon: p.x,
+                speed: Math.round(p.s ?? 0),
+                course: Math.round(p.c ?? 0),
+                time: p.t ?? Math.floor(now / 1000),
+              };
+            }
+          }
+        } catch {
+          // Si falla el auto-login, continuamos con la última posición conocida
+        }
+      }
+    }
+  }
+
+  // 2. Si encontramos nueva posición en Wialon, actualizar el registro y geocodificar si es necesario
+  if (posFound) {
+    const prevPos = link.lastPosition;
+    let address = prevPos?.address;
+
+    // Si no tiene dirección o cambió de ubicación significativamente (> 150m)
+    const moved =
+      !prevPos ||
+      Math.abs(prevPos.lat - posFound.lat) > 0.0015 ||
+      Math.abs(prevPos.lon - posFound.lon) > 0.0015;
+
+    if (!address || moved) {
+      try {
+        const geo = await smartGeocode(posFound.lat, posFound.lon);
+        if (geo?.name) {
+          address = geo.name;
+        }
+      } catch {
+        // Fallback geocode
+      }
+    }
+
+    await updateSharedUnitPosition(token, {
+      ...posFound,
+      address: address || "Zona de circulación detectada",
+    });
+  }
+
+  return link;
+}
+
