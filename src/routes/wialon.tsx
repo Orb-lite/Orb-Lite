@@ -48,64 +48,66 @@ function WialonLayout() {
     void navigate({ to: "/wialon" });
   }
 
+  // Si no hay sesión iniciada, mostrar directamente la pantalla de login limpia y enfocada
+  if (!session) {
+    return <Outlet />;
+  }
+
   return (
-    <main className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex items-center gap-4">
+    <main className="mx-auto max-w-6xl px-3 py-4 sm:px-5 sm:py-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-3">
           <img
-            src={session?.host === "full" ? orbFullLogo.url : orbLiteLogo}
-            alt={session ? PLATFORM_LABEL[session.host] : "ORB-LITE"}
-            className="h-14 w-auto"
+            src={session.host === "full" ? orbFullLogo.url : orbLiteLogo}
+            alt={PLATFORM_LABEL[session.host]}
+            className="h-10 sm:h-12 w-auto"
           />
           <div>
-            <h1 className="font-display text-3xl font-bold uppercase tracking-wide">
-              Plataforma de rastreo
+            <h1 className="font-display text-lg sm:text-2xl font-bold uppercase tracking-wide flex items-center gap-2">
+              Plataforma Satelital
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30">
+                {PLATFORM_LABEL[session.host]}
+              </span>
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {session
-                ? `${session.userName} · ${PLATFORM_LABEL[session.host]}`
-                : "Entra con tu cuenta para ver tus unidades en tiempo real."}
+            <p className="text-xs text-muted-foreground">
+              Conectado como <strong className="text-foreground">{session.userName}</strong>
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <PWAInstallButton variant="header" />
-          {session ? (
-            <button
-              onClick={onLogout}
-              className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:border-primary hover:text-primary"
-            >
-              <LogOut className="size-4" /> Salir
-            </button>
-          ) : null}
+          <button
+            onClick={onLogout}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition"
+          >
+            <LogOut className="size-3.5" /> Salir
+          </button>
         </div>
       </div>
 
-      {session ? (
-        <div className="mt-3 mb-2 sm:hidden">
-          <PWAInstallButton variant="mobile-banner" />
-        </div>
-      ) : null}
-      {session ? (
-        <nav className="sticky top-[8rem] z-40 -mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto border-b border-border/60 bg-background/95 px-4 py-3 text-sm font-semibold uppercase tracking-wide shadow-[0_8px_20px_-18px_var(--primary)] backdrop-blur sm:top-24 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-          {tabs
-            .filter((tab) => !tab.fullOnly || session.host === "full")
-            .map((tab) => (
-              <Link
-                key={tab.to}
-                to={tab.to}
-                className="shrink-0 snap-start whitespace-nowrap rounded-md px-3 py-2 text-muted-foreground hover:text-primary"
-                activeProps={{ className: "bg-primary/10 text-primary" }}
-              >
-                {tab.label}
-              </Link>
-            ))}
-        </nav>
-      ) : null}
+      <div className="mt-2 mb-2 sm:hidden">
+        <PWAInstallButton variant="mobile-banner" />
+      </div>
 
-      <div className="mt-8">
+      <nav className="sticky top-0 z-40 -mx-3 flex snap-x snap-mandatory gap-1.5 overflow-x-auto border-b border-border/60 bg-background/95 px-3 py-2.5 text-xs font-bold uppercase tracking-wider shadow-[0_8px_20px_-18px_var(--primary)] backdrop-blur sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:text-sm">
+        {tabs
+          .filter((tab) => !tab.fullOnly || session.host === "full")
+          .map((tab) => (
+            <Link
+              key={tab.to}
+              to={tab.to}
+              className="shrink-0 snap-start whitespace-nowrap rounded-lg px-3 py-2 text-muted-foreground hover:bg-muted/80 hover:text-primary transition"
+              activeProps={{ className: "bg-primary/15 text-primary border border-primary/30" }}
+            >
+              {tab.label}
+            </Link>
+          ))}
+      </nav>
+
+      <div className="mt-4 sm:mt-6">
         <Outlet />
       </div>
     </main>
   );
+}
 }

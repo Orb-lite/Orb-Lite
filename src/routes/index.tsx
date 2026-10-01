@@ -1,3 +1,4 @@
+import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   MapPin,
@@ -163,6 +164,15 @@ const techPillars = [
 ];
 
 function Index() {
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname.toLowerCase();
+      if (host.startsWith("plataforma.") || host.includes("plataforma")) {
+        window.location.replace("/wialon");
+      }
+    }
+  }, []);
+
   return (
     <div className="space-y-20 pb-10">
       {/* HERO SECTION */}

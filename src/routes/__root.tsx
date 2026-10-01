@@ -140,16 +140,41 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const routerState = useRouterState();
+  const pathname = routerState.location.pathname;
+
+  // Detectar si está en el subdominio de la plataforma (plataforma.orb-lite.com)
+  const [isPlatformSubdomain, setIsPlatformSubdomain] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const host = window.location.hostname.toLowerCase();
+      const isPlat = host.startsWith("plataforma.") || host.includes("plataforma");
+      setIsPlatformSubdomain(isPlat);
+      if (isPlat && pathname === "/") {
+        window.location.replace("/wialon");
+      }
+    }
+  }, [pathname]);
+
+  // Si está en el subdominio de plataforma O en una ruta de la plataforma (/wialon, /plataforma, /rastreo):
+  // Ocultar por completo la barra de marketing (SiteHeader) y el pie de página (SiteFooter).
+  const isPlatformRoute =
+    pathname.startsWith("/wialon") ||
+    pathname.startsWith("/plataforma") ||
+    pathname.startsWith("/rastreo");
+
+  const showMarketingChrome = !isPlatformSubdomain && !isPlatformRoute;
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <div className="min-h-screen surface-deep">
-        <SiteHeader />
-        <Outlet />
-        <SiteFooter />
+      <div className="min-h-screen surface-deep flex flex-col">
+        {showMarketingChrome && <SiteHeader />}
+        <div className="flex-1 flex flex-col">
+          <Outlet />
+        </div>
+        {showMarketingChrome && <SiteFooter />}
         <Toaster position="top-center" />
-
       </div>
     </QueryClientProvider>
   );
