@@ -14,6 +14,14 @@ export interface SendTemplateEmailOptions {
   /** Clave de idempotencia para evitar duplicados en reintentos */
   idempotencyKey?: string;
   replyTo?: string;
+  attachments?: Array<{
+    filename: string;
+    content: string | Buffer;
+  }>;
+  tags?: Array<{
+    name: string;
+    value: string;
+  }>;
 }
 
 /**
@@ -70,6 +78,10 @@ export async function sendTemplateEmail(
           html,
           text,
           ...(options.replyTo ? { reply_to: options.replyTo } : {}),
+          ...(options.attachments && options.attachments.length > 0
+            ? { attachments: options.attachments }
+            : {}),
+          ...(options.tags && options.tags.length > 0 ? { tags: options.tags } : {}),
         }),
       });
 
