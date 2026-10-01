@@ -8,6 +8,7 @@
     "build": "vite build && node scripts/prepare-dist.mjs",
     "build:dev": "vite build --mode development",
     "preview": "node .output/server/index.mjs",
+    "start": "node app-server.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
