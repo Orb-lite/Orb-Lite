@@ -34,7 +34,7 @@ function PublicTrackingPage() {
     );
   }
 
-  if (error || !linkData || linkData.isExpired || linkData.isRevoked) {
+  if (error || !linkData || (linkData as any).isExpired || (linkData as any).isRevoked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0b0f19] p-4 text-white">
         <div className="max-w-md w-full rounded-2xl border border-red-500/20 bg-slate-900 p-6 text-center space-y-4">
