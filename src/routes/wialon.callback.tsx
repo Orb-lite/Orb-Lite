@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { writeSession, WialonSession } from "@/lib/wialon-session";
+import { writeSession } from "@/lib/wialon-session";
 import { wialonLogin } from "@/lib/wialon.functions";
 
 export const Route = createFileRoute("/wialon/callback")({
@@ -52,23 +52,15 @@ function WialonCallbackPage() {
       }
 
       try {
-        const result = await login({ host, token, sid: token });
+        const result = await login({ data: { host, token } });
         if (cancelled) return;
 
-        // Formatear sesión estricta según el tipo WialonSession
-        const sessionData: WialonSession = {
-          sid: (result as any)?.sid || token,
-          host: (result as any)?.host || host,
-          userId: Number((result as any)?.userId || 1),
-          userName: String((result as any)?.userName || "Usuario Wialon"),
-        };
-
-        // Guardar en localStorage / sessionStorage
-        writeSession(sessionData);
+        // Guarda la sesión en el almacenamiento local y de sesión
+        writeSession(result);
         localStorage.setItem("wialon_token", token);
 
-        // Forzar redirección al mapa
-        window.location.href = "/wialon/mapa";
+        // Redirige directamente al mapa en vivo de la plataforma
+        void navigate({ to: "/wialon/mapa" });
       } catch (err) {
         if (!cancelled) {
           setError(
@@ -87,28 +79,34 @@ function WialonCallbackPage() {
     };
   }, [login, navigate]);
 
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <div className="max-w-md rounded-lg border border-red-200 bg-red-50 p-6 text-center shadow-sm">
-          <h2 className="mb-2 text-lg font-semibold text-red-800">Error de Autenticación</h2>
-          <p className="mb-4 text-sm text-red-600">{error}</p>
-          <a
-            href="/"
-            className="inline-block rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-          >
-            Volver al Inicio
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="text-center">
-        <div className="mb-4 text-lg font-medium text-slate-700">Conectando con ORB-LITE...</div>
-        <div className="text-sm text-slate-500">Iniciando sesión en la plataforma satelital</div>
+    <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
+      <div className="mx-auto max-w-md rounded-xl border border-border/60 bg-card p-8 shadow-sm">
+        {error ? (
+          <>
+            <h1 className="font-display text-xl font-bold uppercase tracking-wide text-destructive">
+              Error de conexión
+            </h1>
+            <p className="mt-3 text-sm text-muted-foreground">{error}</p>
+            <button
+              type="button"
+              onClick={() => void navigate({ to: "/wialon" })}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground hover:opacity-90"
+            >
+              Volver a intentar
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="mx-auto size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <h1 className="mt-4 font-display text-xl font-bold uppercase tracking-wide text-foreground">
+              Conectando con la plataforma…
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Validando credenciales satelitales y preparando tu panel de rastreo.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
