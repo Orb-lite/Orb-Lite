@@ -1,0 +1,57 @@
+{
+  "id": "/",
+  "name": "ORB-LITE | Rastreo Satelital GPS",
+  "short_name": "ORB-LITE",
+  "description": "Plataforma de monitoreo y rastreo GPS satelital en tiempo real para vehículos, flotas y logística.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "lang": "es-MX",
+  "categories": ["navigation", "business", "utilities"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Monitoreo en Vivo",
+      "short_name": "Mapa GPS",
+      "description": "Acceso directo al mapa satelital de unidades en vivo",
+      "url": "/wialon/mapa",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Planificar Ruta",
+      "short_name": "Rutas",
+      "description": "Planificador inteligente de rutas y paradas",
+      "url": "/wialon/rutas",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Geocercas",
+      "short_name": "Geocercas",
+      "description": "Zonas seguras y alertas de perímetro",
+      "url": "/wialon/geocercas",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

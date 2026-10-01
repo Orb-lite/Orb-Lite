@@ -233,6 +233,20 @@ var Route$28 = createRootRouteWithContext()({
 				href: "https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&display=swap"
 			},
 			{
+				rel: "manifest",
+				href: "/manifest.webmanifest"
+			},
+			{
+				rel: "apple-touch-icon",
+				href: "/apple-touch-icon.png"
+			},
+			{
+				rel: "icon",
+				type: "image/png",
+				sizes: "192x192",
+				href: "/pwa-192x192.png"
+			},
+			{
 				rel: "icon",
 				type: "image/png",
 				href: "/favicon.png"
@@ -295,11 +309,6 @@ function RootComponent() {
 				/* @__PURE__ */ (0, import_jsx_dev_runtime.jsxDEV)(Toaster$1, { position: "top-center" }, void 0, false, {
 					fileName: _jsxFileName,
 					lineNumber: 139,
-					columnNumber: 9
-				}, this),
-				/* @__PURE__ */ (0, import_jsx_dev_runtime.jsxDEV)(ClientOnly, {}, void 0, false, {
-					fileName: _jsxFileName,
-					lineNumber: 140,
 					columnNumber: 9
 				}, this)
 			]

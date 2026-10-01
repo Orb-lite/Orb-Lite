@@ -14,7 +14,6 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteHeader, SiteFooter } from "../components/site-chrome";
 import { Toaster } from "../components/ui/sonner";
-import { AssistantChat } from "../components/assistant/assistant-chat";
 
 function NotFoundComponent() {
   return (
@@ -94,6 +93,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#020617" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "ORB-LITE" },
+      { name: "application-name", content: "ORB-LITE" },
     ],
     links: [
       {
@@ -106,6 +111,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&display=swap",
       },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/pwa-192x192.png" },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
     ],
   }),
@@ -141,9 +149,7 @@ function RootComponent() {
         <Outlet />
         <SiteFooter />
         <Toaster position="top-center" />
-        <ClientOnly>
-          <AssistantChat />
-        </ClientOnly>
+
       </div>
     </QueryClientProvider>
   );

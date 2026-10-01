@@ -1,3 +1,4 @@
+import { PWAInstallButton } from "@/components/pwa-install-button";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { LogOut } from "lucide-react";
@@ -67,16 +68,24 @@ function WialonLayout() {
             </p>
           </div>
         </div>
-        {session ? (
-          <button
-            onClick={onLogout}
-            className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:border-primary hover:text-primary"
-          >
-            <LogOut className="size-4" /> Salir
-          </button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <PWAInstallButton variant="header" />
+          {session ? (
+            <button
+              onClick={onLogout}
+              className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:border-primary hover:text-primary"
+            >
+              <LogOut className="size-4" /> Salir
+            </button>
+          ) : null}
+        </div>
       </div>
 
+      {session ? (
+        <div className="mt-3 mb-2 sm:hidden">
+          <PWAInstallButton variant="mobile-banner" />
+        </div>
+      ) : null}
       {session ? (
         <nav className="sticky top-[8rem] z-40 -mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto border-b border-border/60 bg-background/95 px-4 py-3 text-sm font-semibold uppercase tracking-wide shadow-[0_8px_20px_-18px_var(--primary)] backdrop-blur sm:top-24 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           {tabs

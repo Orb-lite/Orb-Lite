@@ -1,3 +1,4 @@
+import { PWAInstallButton } from "@/components/pwa-install-button";
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Menu, X } from "lucide-react";
@@ -27,15 +28,18 @@ export function SiteHeader() {
           />
         </Link>
 
-        <button
-          type="button"
-          className="inline-flex size-11 items-center justify-center rounded-md border border-border text-foreground transition-colors hover:border-primary hover:text-primary sm:hidden"
-          aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-        </button>
+        <div className="flex items-center gap-2 sm:hidden">
+          <PWAInstallButton variant="header" />
+          <button
+            type="button"
+            className="inline-flex size-11 items-center justify-center rounded-md border border-border text-foreground transition-colors hover:border-primary hover:text-primary"
+            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+        </div>
 
         <nav
           className={`${
@@ -54,6 +58,9 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <div className="hidden sm:block px-3 py-2 sm:px-0 sm:py-1">
+            <PWAInstallButton variant="header" />
+          </div>
           <div className="px-3 py-2 sm:px-0 sm:py-1">
             <CartDrawer />
           </div>
