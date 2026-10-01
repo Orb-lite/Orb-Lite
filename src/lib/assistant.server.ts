@@ -142,7 +142,10 @@ DIRECTRICES:
 - Devuelve SIEMPRE tu respuesta en formato JSON estrictamente válido que coincida con el schema requerido.
 `;
 
-function getFieldDefinitions(processId: AssistantProcessId, values: Record<string, any>): FormFieldDefinition[] {
+function getFieldDefinitions(
+  processId: AssistantProcessId,
+  values: Record<string, any>,
+): FormFieldDefinition[] {
   switch (processId) {
     case "renewal":
       return [
@@ -560,7 +563,10 @@ function getFieldDefinitions(processId: AssistantProcessId, values: Record<strin
           label: "Plantilla de reporte para Excel (opcional)",
           type: "select",
           options: [
-            { label: "Solo tabla de posiciones y sensores", value: "Solo tabla de posiciones y sensores" },
+            {
+              label: "Solo tabla de posiciones y sensores",
+              value: "Solo tabla de posiciones y sensores",
+            },
             { label: "Viajes y kilometraje", value: "Viajes y kilometraje" },
             { label: "Paradas y estacionamientos", value: "Paradas y estacionamientos" },
             { label: "Control y nivel de combustible", value: "Control y nivel de combustible" },
@@ -690,7 +696,9 @@ export function analyzeProcessRequirements(
           label: "Teléfono WhatsApp",
           why: "Para avisos de cobranza directa o soporte de telemetría de emergencia.",
           isRequired: false,
-          isComplete: Boolean(fields.customerPhone && String(fields.customerPhone).trim().length >= 8),
+          isComplete: Boolean(
+            fields.customerPhone && String(fields.customerPhone).trim().length >= 8,
+          ),
         },
       ];
       break;
@@ -794,7 +802,9 @@ export function analyzeProcessRequirements(
           label: "Punto de Salida",
           why: "Dirección o coordenadas de partida donde inicia el vehículo o repartidor.",
           isRequired: true,
-          isComplete: Boolean(fields.originAddress && String(fields.originAddress).trim().length > 0),
+          isComplete: Boolean(
+            fields.originAddress && String(fields.originAddress).trim().length > 0,
+          ),
         },
         {
           field: "destinations",
@@ -841,7 +851,9 @@ export function analyzeProcessRequirements(
           label: "Coordenadas (Latitud, Longitud)",
           why: "Punto central o vértices geográficos donde se traza el perímetro en el mapa.",
           isRequired: true,
-          isComplete: Boolean(fields.centerCoordinates && String(fields.centerCoordinates).includes(",")),
+          isComplete: Boolean(
+            fields.centerCoordinates && String(fields.centerCoordinates).includes(","),
+          ),
         },
       ];
       break;
@@ -968,11 +980,19 @@ export function analyzeProcessRequirements(
 /**
  * Fallback inteligente si GEMINI_API_KEY no está configurada o falla la conexión externa.
  */
-function localRuleFallback(message: string, history: Array<{ role: string; content: string }>): AssistantResponse {
+function localRuleFallback(
+  message: string,
+  history: Array<{ role: string; content: string }>,
+): AssistantResponse {
   const lower = message.toLowerCase();
 
   // 1. Renovación
-  if (lower.includes("renova") || lower.includes("corte") || lower.includes("imei") || lower.includes("chip")) {
+  if (
+    lower.includes("renova") ||
+    lower.includes("corte") ||
+    lower.includes("imei") ||
+    lower.includes("chip")
+  ) {
     const imeiMatch = message.match(/\b\d{15}\b/);
     const emailMatch = message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const phoneMatch = message.match(/\b\d{10}\b/);
@@ -1007,13 +1027,19 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
         fields: values,
         fieldDefinitions: getFieldDefinitions("renewal", values),
         requirementsAnalysis: analysis,
-        missingPrompt: "Indica el IMEI, nombre del cliente y de la unidad para completar el registro.",
+        missingPrompt:
+          "Indica el IMEI, nombre del cliente y de la unidad para completar el registro.",
       },
     };
   }
 
   // 2. Cliente CRM
-  if (lower.includes("cliente") || lower.includes("prospecto") || lower.includes("crm") || lower.includes("alta")) {
+  if (
+    lower.includes("cliente") ||
+    lower.includes("prospecto") ||
+    lower.includes("crm") ||
+    lower.includes("alta")
+  ) {
     const emailMatch = message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const phoneMatch = message.match(/\b\d{10}\b/);
 
@@ -1029,7 +1055,8 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
 
     const analysis = analyzeProcessRequirements("crm_customer", values);
     return {
-      reply: "He analizado los requisitos del CRM y abierto la ficha para dar de alta al cliente. Revisa el checklist de datos necesarios a continuación:",
+      reply:
+        "He analizado los requisitos del CRM y abierto la ficha para dar de alta al cliente. Revisa el checklist de datos necesarios a continuación:",
       process: {
         id: "crm_customer",
         title: "Nuevo Cliente / Lead en CRM",
@@ -1058,7 +1085,8 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
 
     const analysis = analyzeProcessRequirements("demo_request", values);
     return {
-      reply: "¡Excelente! Una cuenta demo te permite probar en vivo la ubicación en tiempo real, corte de motor y reportes. He analizado los datos requeridos para activar tu cuenta de prueba:",
+      reply:
+        "¡Excelente! Una cuenta demo te permite probar en vivo la ubicación en tiempo real, corte de motor y reportes. He analizado los datos requeridos para activar tu cuenta de prueba:",
       process: {
         id: "demo_request",
         title: "Solicitud de Cuenta Demo",
@@ -1067,13 +1095,19 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
         fields: values,
         fieldDefinitions: getFieldDefinitions("demo_request", values),
         requirementsAnalysis: analysis,
-        missingPrompt: "Por favor proporciona tu nombre, teléfono y correo para enviar tus credenciales de demo.",
+        missingPrompt:
+          "Por favor proporciona tu nombre, teléfono y correo para enviar tus credenciales de demo.",
       },
     };
   }
 
   // 4. Compartir Ruta / Seguimiento
-  if (lower.includes("compartir") || lower.includes("enlace") || lower.includes("link") || lower.includes("ruta")) {
+  if (
+    lower.includes("compartir") ||
+    lower.includes("enlace") ||
+    lower.includes("link") ||
+    lower.includes("ruta")
+  ) {
     const values = {
       unitName: "",
       reportEmail: "",
@@ -1083,7 +1117,8 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
 
     const analysis = analyzeProcessRequirements("route_share", values);
     return {
-      reply: "Puedes generar un enlace público temporal para que tu cliente o supervisor siga la unidad en vivo sin necesidad de contraseña. He analizado los parámetros de seguridad requeridos:",
+      reply:
+        "Puedes generar un enlace público temporal para que tu cliente o supervisor siga la unidad en vivo sin necesidad de contraseña. He analizado los parámetros de seguridad requeridos:",
       process: {
         id: "route_share",
         title: "Generar Enlace de Rastreo Compartido",
@@ -1098,7 +1133,14 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
   }
 
   // 5. Planificador Inteligente de Rutas
-  if (lower.includes("planifi") || (lower.includes("ruta") && (lower.includes("optimi") || lower.includes("salida") || lower.includes("destino") || lower.includes("punto")))) {
+  if (
+    lower.includes("planifi") ||
+    (lower.includes("ruta") &&
+      (lower.includes("optimi") ||
+        lower.includes("salida") ||
+        lower.includes("destino") ||
+        lower.includes("punto")))
+  ) {
     const values = {
       creationMethod: "Direcciones escritas",
       originAddress: "",
@@ -1109,7 +1151,8 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
 
     const analysis = analyzeProcessRequirements("smart_route", values);
     return {
-      reply: "He preparado el **Planificador Inteligente de Rutas**. Puedes ingresar tu punto de partida y destinos para trazar y optimizar el recorrido en Wialon:",
+      reply:
+        "He preparado el **Planificador Inteligente de Rutas**. Puedes ingresar tu punto de partida y destinos para trazar y optimizar el recorrido en Wialon:",
       process: {
         id: "smart_route",
         title: "Planificador Inteligente de Rutas",
@@ -1124,7 +1167,12 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
   }
 
   // 6. Geocercas por Cliente / Recurso
-  if (lower.includes("geocerca") || lower.includes("zona") || lower.includes("perímetro") || lower.includes("perimetro")) {
+  if (
+    lower.includes("geocerca") ||
+    lower.includes("zona") ||
+    lower.includes("perímetro") ||
+    lower.includes("perimetro")
+  ) {
     const values = {
       name: "",
       resourceName: "AlfredoRetana",
@@ -1135,7 +1183,8 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
 
     const analysis = analyzeProcessRequirements("geofence", values);
     return {
-      reply: "He abierto el formulario para **Crear Geocerca en Wialon**. Permite delimitar perímetros circulares o polígonos y asignarlos a un cliente/recurso:",
+      reply:
+        "He abierto el formulario para **Crear Geocerca en Wialon**. Permite delimitar perímetros circulares o polígonos y asignarlos a un cliente/recurso:",
       process: {
         id: "geofence",
         title: "Nueva Geocerca en Wialon",
@@ -1144,13 +1193,19 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
         fields: values,
         fieldDefinitions: getFieldDefinitions("geofence", values),
         requirementsAnalysis: analysis,
-        missingPrompt: "¿Cuál es el nombre de la geocerca y en qué coordenadas o dirección se ubica?",
+        missingPrompt:
+          "¿Cuál es el nombre de la geocerca y en qué coordenadas o dirección se ubica?",
       },
     };
   }
 
   // 7. Historial de Recorridos
-  if (lower.includes("historial") || lower.includes("recorrido") || lower.includes("viaje") || lower.includes("donde anduvo")) {
+  if (
+    lower.includes("historial") ||
+    lower.includes("recorrido") ||
+    lower.includes("viaje") ||
+    lower.includes("donde anduvo")
+  ) {
     const values = {
       unitName: "",
       from: new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 16),
@@ -1159,7 +1214,8 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
 
     const analysis = analyzeProcessRequirements("unit_history", values);
     return {
-      reply: "He preparado la consulta de **Historial de Recorridos**. Indica qué unidad satelital y el intervalo de fechas que necesitas trazar en el mapa:",
+      reply:
+        "He preparado la consulta de **Historial de Recorridos**. Indica qué unidad satelital y el intervalo de fechas que necesitas trazar en el mapa:",
       process: {
         id: "unit_history",
         title: "Historial de Recorridos por Unidad",
@@ -1174,7 +1230,13 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
   }
 
   // 8. Reportes y Gráficas para Excel
-  if (lower.includes("reporte") || lower.includes("excel") || lower.includes("grafica") || lower.includes("sensores") || lower.includes("combustible")) {
+  if (
+    lower.includes("reporte") ||
+    lower.includes("excel") ||
+    lower.includes("grafica") ||
+    lower.includes("sensores") ||
+    lower.includes("combustible")
+  ) {
     const values = {
       unitName: "",
       from: new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 16),
@@ -1184,7 +1246,8 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
 
     const analysis = analyzeProcessRequirements("wialon_report", values);
     return {
-      reply: "He preparado el generador de **Reportes para Excel**. Puedes consolidar posiciones, sensores de telemetría y descargas tabulares:",
+      reply:
+        "He preparado el generador de **Reportes para Excel**. Puedes consolidar posiciones, sensores de telemetría y descargas tabulares:",
       process: {
         id: "wialon_report",
         title: "Reportes y Gráficas para Excel",
@@ -1199,7 +1262,13 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
   }
 
   // 6. Cotización / Equipos
-  if (lower.includes("cotiz") || lower.includes("precio") || lower.includes("fmb920") || lower.includes("comprar") || lower.includes("costo")) {
+  if (
+    lower.includes("cotiz") ||
+    lower.includes("precio") ||
+    lower.includes("fmb920") ||
+    lower.includes("comprar") ||
+    lower.includes("costo")
+  ) {
     const values = {
       equipmentType: lower.includes("obd") ? "OBD-II" : "FMB920",
       quantity: 1,
@@ -1211,7 +1280,8 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
 
     const analysis = analyzeProcessRequirements("quick_quote", values);
     return {
-      reply: "Ofrecemos equipos homologados con garantía y configuración satelital lista para funcionar. He analizado los campos necesarios para tu cotización personalizada:",
+      reply:
+        "Ofrecemos equipos homologados con garantía y configuración satelital lista para funcionar. He analizado los campos necesarios para tu cotización personalizada:",
       process: {
         id: "quick_quote",
         title: "Cotización Rápida de Equipos GPS",
@@ -1220,7 +1290,8 @@ function localRuleFallback(message: string, history: Array<{ role: string; conte
         fields: values,
         fieldDefinitions: getFieldDefinitions("quick_quote", values),
         requirementsAnalysis: analysis,
-        missingPrompt: "¿Para cuántas unidades necesitas equipo y a qué número te enviamos la propuesta?",
+        missingPrompt:
+          "¿Para cuántas unidades necesitas equipo y a qué número te enviamos la propuesta?",
       },
     };
   }
@@ -1261,7 +1332,10 @@ export async function processAssistantMessage(
     });
 
     // Formatear historial reciente
-    const conversationTurns = history.slice(-6).map((turn) => `${turn.role === "user" ? "Usuario" : "Asistente"}: ${turn.content}`).join("\n\n");
+    const conversationTurns = history
+      .slice(-6)
+      .map((turn) => `${turn.role === "user" ? "Usuario" : "Asistente"}: ${turn.content}`)
+      .join("\n\n");
     const currentPrompt = `${conversationTurns ? `HISTORIAL DE LA CONVERSACIÓN:\n${conversationTurns}\n\n` : ""}MENSAJE DEL USUARIO AHORA:\n${message}`;
 
     const response = await ai.models.generateContent({
@@ -1279,7 +1353,8 @@ export async function processAssistantMessage(
             },
             processId: {
               type: Type.STRING,
-              description: "Uno de: renewal, crm_customer, demo_request, route_share, smart_route, geofence, unit_history, wialon_report, quick_quote, o null si solo es charla general",
+              description:
+                "Uno de: renewal, crm_customer, demo_request, route_share, smart_route, geofence, unit_history, wialon_report, quick_quote, o null si solo es charla general",
             },
             processTitle: {
               type: Type.STRING,

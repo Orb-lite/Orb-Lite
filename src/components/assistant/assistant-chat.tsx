@@ -22,14 +22,8 @@ import {
   Clock3,
   FileSpreadsheet,
 } from "lucide-react";
-import {
-  assistantChat,
-  assistantExecuteProcess,
-} from "@/lib/assistant.functions";
-import type {
-  AssistantProcessData,
-  RequirementsAnalysis,
-} from "@/lib/assistant.server";
+import { assistantChat, assistantExecuteProcess } from "@/lib/assistant.functions";
+import type { AssistantProcessData, RequirementsAnalysis } from "@/lib/assistant.server";
 
 export function GreenDotAvatar({
   size = "md",
@@ -56,9 +50,7 @@ export function GreenDotAvatar({
         style={{ animationDuration: "2s" }}
       />
       {/* Halo de radio de precisión semitransparente */}
-      <span
-        className={`absolute rounded-full bg-emerald-500/20 ${dotDimensions.pulse}`}
-      />
+      <span className={`absolute rounded-full bg-emerald-500/20 ${dotDimensions.pulse}`} />
       {/* Punto verde sólido con borde blanco impecable (idéntico a Google Maps) */}
       <span
         className={`relative z-10 rounded-full border-white bg-emerald-500 shadow-[0_2px_8px_rgba(0,0,0,0.35),0_0_14px_rgba(16,185,129,0.85)] ${dotDimensions.dot}`}
@@ -121,11 +113,26 @@ export function AssistantChat() {
         welcome:
           "¡Hola! Estás en el **Módulo CRM y Control**. Puedo ayudarte a registrar renovaciones de GPS, dar de alta clientes, gestionar cobranza y ejecutar operaciones directamente en la base de datos.",
         actions: [
-          { label: "⚡ Registrar Renovación", prompt: "Quiero registrar una renovación de servicio satelital" },
-          { label: "👤 Nuevo Cliente CRM", prompt: "Dar de alta un nuevo cliente o lead en el CRM" },
-          { label: "📦 Cotizar Flotilla", prompt: "Preparar cotización de equipos GPS para un cliente" },
-          { label: "🔍 Consultar Cliente", prompt: "¿Cómo consultar el expediente y número de cliente?" },
-          { label: "📋 Estado de Cobranza", prompt: "¿Cómo gestionar los recordatorios y adeudos de renovación?" },
+          {
+            label: "⚡ Registrar Renovación",
+            prompt: "Quiero registrar una renovación de servicio satelital",
+          },
+          {
+            label: "👤 Nuevo Cliente CRM",
+            prompt: "Dar de alta un nuevo cliente o lead en el CRM",
+          },
+          {
+            label: "📦 Cotizar Flotilla",
+            prompt: "Preparar cotización de equipos GPS para un cliente",
+          },
+          {
+            label: "🔍 Consultar Cliente",
+            prompt: "¿Cómo consultar el expediente y número de cliente?",
+          },
+          {
+            label: "📋 Estado de Cobranza",
+            prompt: "¿Cómo gestionar los recordatorios y adeudos de renovación?",
+          },
         ],
       };
     }
@@ -138,12 +145,31 @@ export function AssistantChat() {
         welcome:
           "¡Hola! Estás en la **Plataforma Satelital**. Puedo planificar rutas punto a punto, crear geocercas en Wialon, consultar el historial de recorridos y generar reportes para Excel.",
         actions: [
-          { label: "🗺️ Planificar Ruta", prompt: "Quiero planificar una ruta en el planificador inteligente con punto de salida y destinos" },
-          { label: "📍 Nueva Geocerca", prompt: "Quiero crear una nueva geocerca en Wialon indicando el cliente y la forma" },
-          { label: "⏱️ Historial de Recorrido", prompt: "Quiero consultar el historial de recorrido de una unidad satelital" },
-          { label: "📊 Generar Reporte Excel", prompt: "Generar reporte de posiciones y sensores para exportar a Excel" },
-          { label: "🔗 Compartir Rastreo", prompt: "Generar un enlace temporal para compartir una unidad con un cliente" },
-          { label: "⚡ Renovar Unidad", prompt: "Registrar la renovación de servicio para un vehículo monitoreado" },
+          {
+            label: "🗺️ Planificar Ruta",
+            prompt:
+              "Quiero planificar una ruta en el planificador inteligente con punto de salida y destinos",
+          },
+          {
+            label: "📍 Nueva Geocerca",
+            prompt: "Quiero crear una nueva geocerca en Wialon indicando el cliente y la forma",
+          },
+          {
+            label: "⏱️ Historial de Recorrido",
+            prompt: "Quiero consultar el historial de recorrido de una unidad satelital",
+          },
+          {
+            label: "📊 Generar Reporte Excel",
+            prompt: "Generar reporte de posiciones y sensores para exportar a Excel",
+          },
+          {
+            label: "🔗 Compartir Rastreo",
+            prompt: "Generar un enlace temporal para compartir una unidad con un cliente",
+          },
+          {
+            label: "⚡ Renovar Unidad",
+            prompt: "Registrar la renovación de servicio para un vehículo monitoreado",
+          },
         ],
       };
     }
@@ -155,12 +181,27 @@ export function AssistantChat() {
       welcome:
         "¡Bienvenido a **ORB-LITE**! Puedo ayudarte a solicitar una demo oficial gratuita, cotizar equipos GPS con instalación, renovar tu plan o responder dudas de nuestros servicios.",
       actions: [
-        { label: "🚀 Solicitar Demo", prompt: "Quiero solicitar una cuenta demo para probar la plataforma" },
+        {
+          label: "🚀 Solicitar Demo",
+          prompt: "Quiero solicitar una cuenta demo para probar la plataforma",
+        },
         { label: "📦 Cotizar Equipos GPS", prompt: "Quiero cotizar equipos GPS Teltonika FMB920" },
-        { label: "⚡ Renovar mi Servicio", prompt: "Quiero renovar mi plan mensual o anual de rastreo GPS" },
-        { label: "🛒 Comprar en Tienda", prompt: "¿Qué equipos GPS y chips multicarrier tienen en venta?" },
-        { label: "🔑 Acceder a Plataforma", prompt: "¿Cómo inicio sesión en mi cuenta de rastreo GPS?" },
-        { label: "📞 Asesoría Técnica", prompt: "¿Qué soluciones tienen para control de combustible y seguridad?" },
+        {
+          label: "⚡ Renovar mi Servicio",
+          prompt: "Quiero renovar mi plan mensual o anual de rastreo GPS",
+        },
+        {
+          label: "🛒 Comprar en Tienda",
+          prompt: "¿Qué equipos GPS y chips multicarrier tienen en venta?",
+        },
+        {
+          label: "🔑 Acceder a Plataforma",
+          prompt: "¿Cómo inicio sesión en mi cuenta de rastreo GPS?",
+        },
+        {
+          label: "📞 Asesoría Técnica",
+          prompt: "¿Qué soluciones tienen para control de combustible y seguridad?",
+        },
       ],
     };
   }, [isCrm, isPlatform]);
@@ -228,8 +269,7 @@ export function AssistantChat() {
         {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content:
-            "Ocurrió un error al procesar tu solicitud. Por favor intenta de nuevo.",
+          content: "Ocurrió un error al procesar tu solicitud. Por favor intenta de nuevo.",
         },
       ]);
     } finally {
@@ -247,10 +287,7 @@ export function AssistantChat() {
         // Recalcular requisitos localmente
         const updatedChecklist = msg.process.requirementsAnalysis.items.map((item) => {
           if (item.field === fieldKey) {
-            const hasVal =
-              value !== undefined &&
-              value !== null &&
-              String(value).trim().length > 0;
+            const hasVal = value !== undefined && value !== null && String(value).trim().length > 0;
             return { ...item, isComplete: hasVal };
           }
           return item;
@@ -339,18 +376,14 @@ export function AssistantChat() {
               <GreenDotAvatar size="md" />
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-slate-100">
-                    ORB-LITE Copilot
-                  </h3>
+                  <h3 className="text-sm font-bold text-slate-100">ORB-LITE Copilot</h3>
                   <span
                     className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold border ${contextInfo.badgeColor}`}
                   >
                     {contextInfo.badge}
                   </span>
                 </div>
-                <p className="text-[11px] text-slate-400">
-                  Analiza requisitos y manda a la API
-                </p>
+                <p className="text-[11px] text-slate-400">Analiza requisitos y manda a la API</p>
               </div>
             </div>
 
@@ -401,9 +434,7 @@ export function AssistantChat() {
                 key={msg.id}
                 className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start items-start"}`}
               >
-                {msg.role === "assistant" && (
-                  <GreenDotAvatar size="sm" className="mt-1" />
-                )}
+                {msg.role === "assistant" && <GreenDotAvatar size="sm" className="mt-1" />}
                 <div
                   className={`max-w-[88%] rounded-2xl p-3.5 leading-relaxed ${
                     msg.role === "user"
@@ -419,9 +450,7 @@ export function AssistantChat() {
                       processData={msg.process}
                       executedResult={msg.executedResult}
                       isLoading={isLoading}
-                      onFieldChange={(fieldKey, value) =>
-                        handleFormChange(msg.id, fieldKey, value)
-                      }
+                      onFieldChange={(fieldKey, value) => handleFormChange(msg.id, fieldKey, value)}
                       onExecute={() => handleExecuteProcess(msg.id, msg.process!)}
                     />
                   )}
@@ -520,9 +549,7 @@ function ProcessFormCard({
         <div className="flex items-center gap-2">
           {getProcessIcon()}
           <div>
-            <h4 className="text-xs font-bold text-slate-100">
-              {processData.title}
-            </h4>
+            <h4 className="text-xs font-bold text-slate-100">{processData.title}</h4>
             <p className="text-[10px] text-slate-400">{processData.description}</p>
           </div>
         </div>
@@ -549,8 +576,8 @@ function ProcessFormCard({
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />
             <span>
-              Análisis de Requisitos: {analysis.completedRequired} de{" "}
-              {analysis.totalRequired} obligatorios
+              Análisis de Requisitos: {analysis.completedRequired} de {analysis.totalRequired}{" "}
+              obligatorios
             </span>
           </div>
           {showAnalysis ? (
@@ -617,13 +644,9 @@ function ProcessFormCard({
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {processData.fieldDefinitions.map((field) => (
-              <div
-                key={field.key}
-                className={field.type === "textarea" ? "sm:col-span-2" : ""}
-              >
+              <div key={field.key} className={field.type === "textarea" ? "sm:col-span-2" : ""}>
                 <label className="mb-0.5 block text-[10px] font-medium text-slate-300">
-                  {field.label}{" "}
-                  {field.required && <span className="text-rose-400">*</span>}
+                  {field.label} {field.required && <span className="text-rose-400">*</span>}
                 </label>
 
                 {field.type === "select" ? (
@@ -694,9 +717,7 @@ function ProcessFormCard({
         <div className="mt-3 space-y-2 rounded-xl border border-emerald-500/40 bg-emerald-950/30 p-3">
           <div className="flex items-center gap-2 text-emerald-400">
             <CheckCircle2 className="h-4 w-4" />
-            <h5 className="font-bold text-xs">
-              Proceso ejecutado y confirmado en la plataforma
-            </h5>
+            <h5 className="font-bold text-xs">Proceso ejecutado y confirmado en la plataforma</h5>
           </div>
 
           <p className="text-xs text-slate-200">{executedResult.message}</p>

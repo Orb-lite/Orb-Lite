@@ -19,6 +19,11 @@ import {
   RefreshCw,
   Search,
   AlertCircle,
+  Layers,
+  Infinity as InfinityIcon,
+  CheckSquare,
+  Square,
+  Users,
 } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { type WialonSession } from "@/lib/wialon-session";
@@ -31,7 +36,13 @@ import {
   deleteUnitShare,
   type SharedUnitLink,
 } from "@/lib/unit-share.functions";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/wialon/compartir")({
   head: () => ({
@@ -39,7 +50,8 @@ export const Route = createFileRoute("/wialon/compartir")({
       { title: "Enlaces de Rastreo Compartido | ORB-LITE" },
       {
         name: "description",
-        content: "Comparte temporalmente la ubicación en tiempo real de cualquier unidad satelital.",
+        content:
+          "Comparte temporalmente o de forma permanente la ubicación en tiempo real de una o múltiples unidades satelitales.",
       },
       { property: "og:title", content: "Enlaces de Rastreo Compartido | ORB-LITE" },
     ],
@@ -52,14 +64,15 @@ function WialonSharePageWrapper() {
 }
 
 const PRESET_DURATIONS = [
-  { label: "1 hora", hours: 1 },
-  { label: "2 horas", hours: 2 },
-  { label: "4 horas", hours: 4 },
-  { label: "8 horas", hours: 8 },
-  { label: "12 horas", hours: 12 },
-  { label: "24 horas", hours: 24 },
-  { label: "48 horas", hours: 48 },
-  { label: "72 horas", hours: 72 },
+  { label: "1 hora", hours: 1, isUnlimited: false },
+  { label: "2 horas", hours: 2, isUnlimited: false },
+  { label: "4 horas", hours: 4, isUnlimited: false },
+  { label: "8 horas", hours: 8, isUnlimited: false },
+  { label: "12 horas", hours: 12, isUnlimited: false },
+  { label: "24 horas", hours: 24, isUnlimited: false },
+  { label: "48 horas", hours: 48, isUnlimited: false },
+  { label: "72 horas", hours: 72, isUnlimited: false },
+  { label: "♾️ Sin Límite", hours: 0, isUnlimited: true },
 ];
 
 function WialonSharePage({ session }: { session: WialonSession }) {
@@ -77,9 +90,13 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   const [search, setSearch] = React.useState("");
 
   // Form State
+  const [shareMode, setShareMode] = React.useState<"single" | "multi">("single");
   const [selectedUnitId, setSelectedUnitId] = React.useState<number | "custom">("custom");
+  const [selectedMultiUnitIds, setSelectedMultiUnitIds] = React.useState<number[]>([]);
+  const [multiUnitFilter, setMultiUnitFilter] = React.useState("");
   const [customUnitName, setCustomUnitName] = React.useState("");
   const [durationHours, setDurationHours] = React.useState<number>(24);
+  const [isUnlimited, setIsUnlimited] = React.useState<boolean>(false);
   const [clientName, setClientName] = React.useState("");
   const [clientPhone, setClientPhone] = React.useState("");
   const [clientEmail, setClientEmail] = React.useState("");
@@ -114,6 +131,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
       setClientPhone("");
       setClientEmail("");
       setNotes("");
+      setSelectedMultiUnitIds([]);
       setFormError(null);
     },
     onError: (err: any) => {
@@ -143,8 +161,15 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   });
 
   // Calculate statistics
-  const activeCount = shares.filter((s) => s.status === "active").length;
-  const expiredCount = shares.filter((s) => s.status !== "active").length;
+  const now = Date.now();
+  const activeCount = shares.filter((s) => {
+    const isUnlim = Boolean(s.isUnlimited || s.durationHours === 0);
+    return s.status === "active" && (isUnlim || new Date(s.expiresAt).getTime() > now);
+  }).length;
+  const expiredCount = shares.filter((s) => {
+    const isUnlim = Boolean(s.isUnlimited || s.durationHours === 0);
+    return s.status !== "active" || (!isUnlim && new Date(s.expiresAt).getTime() <= now);
+  }).length;
   const totalViews = shares.reduce((acc, s) => acc + (s.viewCount || 0), 0);
 
   const filteredShares = React.useMemo(() => {
@@ -158,10 +183,94 @@ function WialonSharePage({ session }: { session: WialonSession }) {
     );
   }, [shares, search]);
 
+  const filteredModalUnits = React.useMemo(() => {
+    const q = multiUnitFilter.toLowerCase().trim();
+    if (!q) return units;
+    return units.filter(
+      (u) =>
+        u.name.toLowerCase().includes(q) ||
+        (u.imei && u.imei.toLowerCase().includes(q)) ||
+        String(u.id).includes(q),
+    );
+  }, [units, multiUnitFilter]);
+
+  function handleToggleMultiUnit(id: number) {
+    setSelectedMultiUnitIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  }
+
+  function handleSelectAllMultiUnits() {
+    setSelectedMultiUnitIds(units.map((u) => u.id));
+  }
+
+  function handleDeselectAllMultiUnits() {
+    setSelectedMultiUnitIds([]);
+  }
+
   function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
 
+    const tokenFromStorage =
+      typeof window !== "undefined" ? localStorage.getItem("wialon_token") : null;
+
+    if (shareMode === "multi") {
+      if (selectedMultiUnitIds.length === 0) {
+        setFormError("Debes seleccionar al menos una unidad para compartir la flota.");
+        return;
+      }
+
+      const selectedUnitsData = selectedMultiUnitIds.map((id) => {
+        const found = units.find((u) => u.id === id);
+        return {
+          unitId: id,
+          unitName: found?.name || `Unidad ${id}`,
+          imei: found?.imei || null,
+          initialPosition:
+            found?.lat && found?.lon
+              ? {
+                  lat: found.lat,
+                  lon: found.lon,
+                  speed: found.speed ?? 0,
+                  course: found.course ?? 0,
+                  time: found.lastMessage ?? Math.floor(Date.now() / 1000),
+                }
+              : null,
+        };
+      });
+
+      const firstUnit = selectedUnitsData[0];
+      const summaryName =
+        selectedUnitsData.length > 1
+          ? `${selectedUnitsData.length} Unidades: ${selectedUnitsData
+              .map((u) => u.unitName)
+              .slice(0, 2)
+              .join(", ")}${selectedUnitsData.length > 2 ? "..." : ""}`
+          : firstUnit.unitName;
+
+      createMutation.mutate({
+        data: {
+          unitId: firstUnit.unitId,
+          unitName: summaryName,
+          imei: firstUnit.imei,
+          units: selectedUnitsData,
+          clientName: clientName.trim() || null,
+          clientPhone: clientPhone.trim() || null,
+          clientEmail: clientEmail.trim() || null,
+          notes: notes.trim() || null,
+          durationHours: isUnlimited ? 0 : durationHours,
+          isUnlimited,
+          host: session.host,
+          sid: session.sid,
+          wialonToken: tokenFromStorage,
+          initialPosition: firstUnit.initialPosition,
+        },
+      });
+      return;
+    }
+
+    // Modo Individual
     let unitName = customUnitName.trim();
     let imei: string | null = null;
     let initialPos: any = null;
@@ -188,19 +297,33 @@ function WialonSharePage({ session }: { session: WialonSession }) {
       return;
     }
 
+    const singleId =
+      typeof selectedUnitId === "number"
+        ? selectedUnitId
+        : Math.floor(10000 + Math.random() * 90000);
+
     createMutation.mutate({
       data: {
-        unitId: typeof selectedUnitId === "number" ? selectedUnitId : Math.floor(10000 + Math.random() * 90000),
+        unitId: singleId,
         unitName,
         imei,
+        units: [
+          {
+            unitId: singleId,
+            unitName,
+            imei,
+            initialPosition: initialPos,
+          },
+        ],
         clientName: clientName.trim() || null,
         clientPhone: clientPhone.trim() || null,
         clientEmail: clientEmail.trim() || null,
         notes: notes.trim() || null,
-        durationHours,
+        durationHours: isUnlimited ? 0 : durationHours,
+        isUnlimited,
         host: session.host,
         sid: session.sid,
-        wialonToken: typeof window !== "undefined" ? localStorage.getItem("wialon_token") : null,
+        wialonToken: tokenFromStorage,
         initialPosition: initialPos,
       },
     });
@@ -213,7 +336,12 @@ function WialonSharePage({ session }: { session: WialonSession }) {
     setTimeout(() => setCopiedToken(null), 3000);
   }
 
-  function getWhatsAppUrl(token: string, unitName: string, clientName?: string | null, clientPhone?: string | null) {
+  function getWhatsAppUrl(
+    token: string,
+    unitName: string,
+    clientName?: string | null,
+    clientPhone?: string | null,
+  ) {
     const url = `${window.location.origin}/rastreo/${token}`;
     const greeting = clientName ? `Hola ${clientName}, ` : "Hola, ";
     const msg = `${greeting}te comparto el enlace para seguir en tiempo real la unidad satelital *${unitName}*:\n\n${url}\n\nEnlace seguro con mapa en vivo y navegación Waze.`;
@@ -231,22 +359,26 @@ function WialonSharePage({ session }: { session: WialonSession }) {
         <div>
           <h2 className="font-display text-2xl font-bold uppercase tracking-wide flex items-center gap-2.5 text-foreground">
             <Share2 className="size-6 text-primary" />
-            Rastreo Compartido por Tiempo Limitado
+            Rastreo Compartido (Individual o Flota)
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Genera enlaces temporales seguros con mapa en vivo para clientes o supervisores sin compartir tus credenciales.
+            Genera enlaces seguros temporales o permanentes con mapa en tiempo real para clientes o
+            supervisores sin compartir tus credenciales.
           </p>
         </div>
 
         <button
           onClick={() => {
             setFormError(null);
+            if (units.length > 0 && selectedUnitId === "custom") {
+              setSelectedUnitId(units[0].id);
+            }
             setCreateDialogOpen(true);
           }}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground shadow-lg hover:opacity-90 transition-all active:scale-95 shrink-0"
         >
           <Plus className="size-4" />
-          <span>Nuevo Enlace Temporal</span>
+          <span>Compartir Unidad / Flota</span>
         </button>
       </div>
 
@@ -257,9 +389,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Enlaces Activos
             </p>
-            <p className="mt-1 font-mono text-2xl font-bold text-primary">
-              {activeCount}
-            </p>
+            <p className="mt-1 font-mono text-2xl font-bold text-primary">{activeCount}</p>
           </div>
           <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
             <ShieldCheck className="size-5" />
@@ -285,9 +415,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Total Visualizaciones
             </p>
-            <p className="mt-1 font-mono text-2xl font-bold text-cyan-400">
-              {totalViews}
-            </p>
+            <p className="mt-1 font-mono text-2xl font-bold text-cyan-400">{totalViews}</p>
           </div>
           <div className="size-10 rounded-full bg-cyan-500/10 flex items-center justify-center text-cyan-400">
             <Eye className="size-5" />
@@ -313,7 +441,9 @@ function WialonSharePage({ session }: { session: WialonSession }) {
           disabled={sharesQuery.isFetching}
           className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors self-end"
         >
-          <RefreshCw className={`size-3.5 ${sharesQuery.isFetching ? "animate-spin text-primary" : ""}`} />
+          <RefreshCw
+            className={`size-3.5 ${sharesQuery.isFetching ? "animate-spin text-primary" : ""}`}
+          />
           <span>Actualizar lista</span>
         </button>
       </div>
@@ -332,7 +462,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
           <p className="mt-1 text-sm text-muted-foreground max-w-md mx-auto">
             {search
               ? "No se encontraron enlaces con ese término de búsqueda."
-              : "Genera un enlace temporal para que tus clientes o supervisores puedan ver la unidad en vivo en el mapa."}
+              : "Genera un enlace para que tus clientes o supervisores puedan ver la unidad o flota en vivo en el mapa."}
           </p>
           <button
             onClick={() => setCreateDialogOpen(true)}
@@ -345,9 +475,12 @@ function WialonSharePage({ session }: { session: WialonSession }) {
       ) : (
         <div className="grid gap-4">
           {filteredShares.map((link) => {
-            const isExpired = link.status === "expired" || new Date(link.expiresAt).getTime() <= Date.now();
+            const isUnlim = Boolean(link.isUnlimited || link.durationHours === 0);
+            const isExpired =
+              !isUnlim && (link.status === "expired" || new Date(link.expiresAt).getTime() <= now);
             const isRevoked = link.status === "revoked";
-            const isActive = link.status === "active" && !isExpired;
+            const isActive = link.status === "active" && !isExpired && !isRevoked;
+            const isMulti = link.units && link.units.length > 1;
 
             return (
               <div
@@ -363,14 +496,25 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex flex-wrap items-center gap-2.5">
                       <span className="font-display text-base font-bold text-foreground flex items-center gap-2">
-                        <Car className="size-4 text-primary" />
+                        {isMulti ? (
+                          <Layers className="size-4 text-cyan-400" />
+                        ) : (
+                          <Car className="size-4 text-primary" />
+                        )}
                         {link.unitName}
                       </span>
+
+                      {isMulti ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-300">
+                          <Layers className="size-3" />
+                          Flota ({link.units?.length} unidades)
+                        </span>
+                      ) : null}
 
                       {isActive ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
                           <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          Activo
+                          Activo en Vivo
                         </span>
                       ) : isRevoked ? (
                         <span className="rounded-full border border-red-500/40 bg-red-500/10 px-2.5 py-0.5 text-xs font-semibold text-red-400">
@@ -381,6 +525,13 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                           Expirado
                         </span>
                       )}
+
+                      {isUnlim ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/40 px-2.5 py-0.5 text-xs font-bold text-emerald-300">
+                          <InfinityIcon className="size-3" />
+                          Sin Límite
+                        </span>
+                      ) : null}
 
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Eye className="size-3.5 text-cyan-400" />
@@ -400,8 +551,14 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                         </p>
                       ) : null}
                       <p>
-                        <strong className="text-foreground">Vigencia:</strong> {link.durationHours}h
-                        (expira {new Date(link.expiresAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })})
+                        <strong className="text-foreground">Vigencia:</strong>{" "}
+                        {isUnlim ? (
+                          <span className="text-emerald-400 font-semibold flex-inline items-center gap-1">
+                            Permanente (Sin límite de tiempo)
+                          </span>
+                        ) : (
+                          `${link.durationHours}h (expira ${new Date(link.expiresAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "short" })})`
+                        )}
                       </p>
                     </div>
 
@@ -434,7 +591,12 @@ function WialonSharePage({ session }: { session: WialonSession }) {
 
                     {/* WhatsApp Button */}
                     <a
-                      href={getWhatsAppUrl(link.token, link.unitName, link.clientName, link.clientPhone)}
+                      href={getWhatsAppUrl(
+                        link.token,
+                        link.unitName,
+                        link.clientName,
+                        link.clientPhone,
+                      )}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-emerald-300 transition-colors"
@@ -455,10 +617,12 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                       <span>Ver Mapa</span>
                     </a>
 
-                    {/* Extend Duration */}
-                    {isActive ? (
+                    {/* Extend Duration (only if not unlimited) */}
+                    {isActive && !isUnlim ? (
                       <button
-                        onClick={() => extendMutation.mutate({ data: { token: link.token, hours: 4 } })}
+                        onClick={() =>
+                          extendMutation.mutate({ data: { token: link.token, hours: 4 } })
+                        }
                         disabled={extendMutation.isPending}
                         className="rounded-lg border border-border bg-background px-2.5 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                         title="Extender 4 horas más"
@@ -471,7 +635,9 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                     {isActive ? (
                       <button
                         onClick={() => {
-                          if (confirm(`¿Deseas revocar el enlace de "${link.unitName}" de inmediato?`)) {
+                          if (
+                            confirm(`¿Deseas revocar el enlace de "${link.unitName}" de inmediato?`)
+                          ) {
                             revokeMutation.mutate({ data: { token: link.token } });
                           }
                         }}
@@ -486,12 +652,12 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                     {/* Delete */}
                     <button
                       onClick={() => {
-                        if (confirm(`¿Eliminar este enlace del registro?`)) {
+                        if (confirm(`¿Eliminar este registro de enlace compartido?`)) {
                           deleteMutation.mutate({ data: { token: link.token } });
                         }
                       }}
                       disabled={deleteMutation.isPending}
-                      className="rounded-lg border border-red-500/20 p-2 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                      className="rounded-lg border border-border bg-background p-2 text-muted-foreground hover:text-destructive transition-colors"
                       title="Eliminar registro"
                     >
                       <Trash2 className="size-3.5" />
@@ -506,14 +672,15 @@ function WialonSharePage({ session }: { session: WialonSession }) {
 
       {/* Dialog: Create New Share Link */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-lg bg-card text-foreground border-border">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto bg-card text-foreground border-border">
           <DialogHeader>
             <DialogTitle className="font-display text-lg font-bold uppercase tracking-wider text-primary flex items-center gap-2">
               <Share2 className="size-5" />
-              Compartir Unidad por Tiempo Limitado
+              Compartir Ubicación Satelital en Vivo
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Genera un enlace público y temporal con ubicación en tiempo real para clientes o proveedores.
+              Genera un enlace público en tiempo real para clientes o proveedores. Puedes compartir
+              una unidad o una flota completa.
             </DialogDescription>
           </DialogHeader>
 
@@ -525,70 +692,266 @@ function WialonSharePage({ session }: { session: WialonSession }) {
               </div>
             ) : null}
 
-            {/* Select Unit */}
+            {/* Mode Switcher: Single vs Multi Unit */}
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                Selecciona la Unidad *
+              <label className="text-xs font-semibold uppercase tracking-wider text-foreground mb-1.5 block">
+                Modalidad de Compartición *
               </label>
-              <select
-                value={selectedUnitId}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setSelectedUnitId(val === "custom" ? "custom" : Number(val));
-                }}
-                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              >
-                {units.length > 0 ? (
-                  <optgroup label="Unidades de tu cuenta">
-                    {units.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name} {u.online ? "(En línea)" : "(Última conexión)"}
-                      </option>
-                    ))}
-                  </optgroup>
-                ) : null}
-                <option value="custom">+ Escribir nombre de unidad manualmente</option>
-              </select>
+              <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/60 border border-border">
+                <button
+                  type="button"
+                  onClick={() => setShareMode("single")}
+                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold uppercase transition-all ${
+                    shareMode === "single"
+                      ? "bg-primary text-primary-foreground shadow"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Car className="size-4" />
+                  <span>Unidad Individual</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShareMode("multi");
+                    if (selectedMultiUnitIds.length === 0 && units.length > 0) {
+                      if (typeof selectedUnitId === "number") {
+                        setSelectedMultiUnitIds([selectedUnitId]);
+                      } else {
+                        setSelectedMultiUnitIds(units.slice(0, 3).map((u) => u.id));
+                      }
+                    }
+                  }}
+                  className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold uppercase transition-all ${
+                    shareMode === "multi"
+                      ? "bg-primary text-primary-foreground shadow"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Layers className="size-4" />
+                  <span>Multi-Unidad (Flota)</span>
+                  {selectedMultiUnitIds.length > 0 ? (
+                    <span className="rounded-full bg-primary-foreground/20 px-1.5 py-0.5 text-[10px]">
+                      {selectedMultiUnitIds.length}
+                    </span>
+                  ) : null}
+                </button>
+              </div>
             </div>
 
-            {/* Custom unit name if selected */}
-            {selectedUnitId === "custom" ? (
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-foreground">
-                  Nombre o Placa del Vehículo *
-                </label>
-                <input
-                  type="text"
-                  value={customUnitName}
-                  onChange={(e) => setCustomUnitName(e.target.value)}
-                  placeholder="Ej. Nissan NP300 - JHL492"
-                  className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                  required
-                />
-              </div>
-            ) : null}
-
-            {/* Duration Selector */}
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-foreground flex items-center gap-1.5">
-                <Clock className="size-3.5 text-primary" />
-                Vigencia del Enlace *
-              </label>
-              <div className="grid grid-cols-4 gap-2 mt-2">
-                {PRESET_DURATIONS.map((preset) => (
-                  <button
-                    key={preset.hours}
-                    type="button"
-                    onClick={() => setDurationHours(preset.hours)}
-                    className={`rounded-lg border px-2 py-2 text-xs font-bold uppercase transition-all ${
-                      durationHours === preset.hours
-                        ? "border-primary bg-primary/10 text-primary shadow-sm"
-                        : "border-border text-muted-foreground hover:bg-muted"
-                    }`}
+            {/* Single Unit Selector */}
+            {shareMode === "single" ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold uppercase tracking-wider text-foreground">
+                    Selecciona la Unidad *
+                  </label>
+                  <select
+                    value={selectedUnitId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedUnitId(val === "custom" ? "custom" : Number(val));
+                    }}
+                    className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    {preset.label}
-                  </button>
-                ))}
+                    {units.length > 0 ? (
+                      <optgroup label="Unidades de tu cuenta">
+                        {units.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name} {u.online ? "(En línea 🟢)" : "(Última conexión)"}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null}
+                    <option value="custom">+ Escribir nombre de unidad manualmente</option>
+                  </select>
+                </div>
+
+                {selectedUnitId === "custom" ? (
+                  <div>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-foreground">
+                      Nombre o Placa del Vehículo *
+                    </label>
+                    <input
+                      type="text"
+                      value={customUnitName}
+                      onChange={(e) => setCustomUnitName(e.target.value)}
+                      placeholder="Ej. Nissan NP300 - JHL492"
+                      className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      required
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              /* Multi Unit Selector */
+              <div className="space-y-2.5 rounded-xl border border-border/80 bg-background/50 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                    <Layers className="size-3.5" />
+                    Seleccionar Unidades de la Flota ({selectedMultiUnitIds.length} seleccionadas)
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSelectAllMultiUnits}
+                      className="text-[11px] font-semibold text-primary hover:underline"
+                    >
+                      Todas ({units.length})
+                    </button>
+                    <span className="text-border">|</span>
+                    <button
+                      type="button"
+                      onClick={handleDeselectAllMultiUnits}
+                      className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter inside modal */}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={multiUnitFilter}
+                    onChange={(e) => setMultiUnitFilter(e.target.value)}
+                    placeholder="Filtrar unidades por nombre o IMEI..."
+                    className="w-full rounded-md border border-input bg-background pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+
+                {/* Checkbox list */}
+                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 border border-border/60 rounded-lg p-2 bg-card/60">
+                  {filteredModalUnits.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-4">
+                      No se encontraron unidades en tu cuenta.
+                    </p>
+                  ) : (
+                    filteredModalUnits.map((u) => {
+                      const isChecked = selectedMultiUnitIds.includes(u.id);
+                      return (
+                        <div
+                          key={u.id}
+                          onClick={() => handleToggleMultiUnit(u.id)}
+                          className={`flex items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 text-xs cursor-pointer transition-all border ${
+                            isChecked
+                              ? "bg-cyan-500/10 border-cyan-500/40 text-foreground"
+                              : "bg-background/80 border-border/60 text-muted-foreground hover:border-border"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {isChecked ? (
+                              <CheckSquare className="size-4 text-cyan-400 shrink-0" />
+                            ) : (
+                              <Square className="size-4 text-muted-foreground shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-semibold text-xs truncate text-foreground flex items-center gap-1.5">
+                                <span
+                                  className={`size-2 rounded-full shrink-0 ${
+                                    u.online ? "bg-emerald-400" : "bg-slate-500"
+                                  }`}
+                                />
+                                {u.name}
+                              </p>
+                              {u.imei ? (
+                                <p className="text-[10px] text-muted-foreground font-mono">
+                                  IMEI: {u.imei}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          <div className="text-right text-[10px] shrink-0 font-mono text-muted-foreground">
+                            {u.speed ? `${Math.round(u.speed)} km/h` : "Detenido"}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Duration Selector with "Sin límite" */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold uppercase tracking-wider text-foreground flex items-center gap-1.5">
+                  <Clock className="size-3.5 text-primary" />
+                  Vigencia del Enlace *
+                </label>
+                {isUnlimited ? (
+                  <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
+                    <InfinityIcon className="size-3.5" />
+                    Sin límite (Permanente)
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-semibold text-cyan-400 font-mono">
+                    {durationHours} horas
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {PRESET_DURATIONS.map((preset) => {
+                  const isSelected = preset.isUnlimited
+                    ? isUnlimited
+                    : !isUnlimited && durationHours === preset.hours;
+
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        setIsUnlimited(preset.isUnlimited);
+                        if (!preset.isUnlimited) {
+                          setDurationHours(preset.hours);
+                        }
+                      }}
+                      className={`rounded-lg border px-2 py-2 text-xs font-bold uppercase transition-all ${
+                        isSelected
+                          ? preset.isUnlimited
+                            ? "border-emerald-500 bg-emerald-500/20 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+                            : "border-primary bg-primary/10 text-primary shadow-sm"
+                          : "border-border text-muted-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Toggle switch for unlimited */}
+              <div
+                onClick={() => setIsUnlimited((prev) => !prev)}
+                className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${
+                  isUnlimited
+                    ? "bg-emerald-950/30 border-emerald-500/40 text-emerald-300"
+                    : "bg-background border-border text-muted-foreground hover:border-border/80"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <InfinityIcon
+                    className={`size-4 ${isUnlimited ? "text-emerald-400" : "text-muted-foreground"}`}
+                  />
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">
+                      Acceso Permanente (Sin caducidad automática)
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      El enlace se mantendrá activo hasta que lo revoques manualmente.
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isUnlimited}
+                  onChange={(e) => setIsUnlimited(e.target.checked)}
+                  className="rounded border-border text-emerald-500 focus:ring-emerald-500"
+                />
               </div>
             </div>
 
@@ -629,7 +992,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ej. Entrega programada ruta Vallarta - Guadalajara"
+                placeholder="Ej. Seguimiento de entrega con ruta Vallarta - Guadalajara"
                 rows={2}
                 className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
               />
@@ -677,24 +1040,36 @@ function WialonSharePage({ session }: { session: WialonSession }) {
           </DialogTitle>
 
           <DialogDescription className="text-xs text-muted-foreground mt-1">
-            El enlace temporal de rastreo para <strong>{successLink?.unitName}</strong> ya está activo y disponible.
+            El enlace de rastreo en tiempo real para <strong>{successLink?.unitName}</strong> ya
+            está activo y disponible.
           </DialogDescription>
 
           {successLink ? (
             <div className="space-y-4 mt-4 text-left">
               <div className="rounded-xl border border-border/80 bg-background p-3 text-xs">
                 <p className="font-mono break-all text-primary select-all">
-                  {typeof window !== "undefined" ? `${window.location.origin}/rastreo/${successLink.token}` : ""}
+                  {typeof window !== "undefined"
+                    ? `${window.location.origin}/rastreo/${successLink.token}`
+                    : ""}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                 <p>
-                  <strong>Vigencia:</strong> {successLink.durationHours} horas
+                  <strong>Vigencia:</strong>{" "}
+                  {successLink.isUnlimited || successLink.durationHours === 0 ? (
+                    <span className="text-emerald-400 font-semibold">Permanente</span>
+                  ) : (
+                    `${successLink.durationHours} horas`
+                  )}
                 </p>
                 <p>
-                  <strong>Expira:</strong>{" "}
-                  {new Date(successLink.expiresAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}
+                  <strong>Estado:</strong>{" "}
+                  {successLink.isUnlimited || successLink.durationHours === 0 ? (
+                    <span className="text-emerald-400">Sin caducidad</span>
+                  ) : (
+                    `Expira ${new Date(successLink.expiresAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`
+                  )}
                 </p>
               </div>
 
@@ -718,7 +1093,12 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                 </button>
 
                 <a
-                  href={getWhatsAppUrl(successLink.token, successLink.unitName, successLink.clientName, successLink.clientPhone)}
+                  href={getWhatsAppUrl(
+                    successLink.token,
+                    successLink.unitName,
+                    successLink.clientName,
+                    successLink.clientPhone,
+                  )}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 py-2.5 px-3 text-xs font-semibold uppercase tracking-wider text-emerald-300"

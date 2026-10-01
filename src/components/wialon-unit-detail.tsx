@@ -21,8 +21,7 @@ export function WialonUnitDetail({
 
   const detail = useQuery({
     queryKey: ["wialon-unit-detail", session.sid, unitId],
-    queryFn: () =>
-      detailFn({ data: { host: session.host, sid: session.sid, unitId } }),
+    queryFn: () => detailFn({ data: { host: session.host, sid: session.sid, unitId } }),
   });
 
   async function runCommand(name: string, link: string) {
@@ -40,11 +39,7 @@ export function WialonUnitDetail({
       });
       setFeedback(`Comando "${name}" enviado a la unidad.`);
     } catch (error) {
-      setFeedback(
-        error instanceof Error
-          ? error.message
-          : "No se pudo enviar el comando.",
-      );
+      setFeedback(error instanceof Error ? error.message : "No se pudo enviar el comando.");
     } finally {
       setBusy(null);
     }
@@ -67,14 +62,10 @@ export function WialonUnitDetail({
           </button>
         </div>
 
-        {detail.isLoading ? (
-          <p className="mt-4 text-sm text-muted-foreground">Cargando…</p>
-        ) : null}
+        {detail.isLoading ? <p className="mt-4 text-sm text-muted-foreground">Cargando…</p> : null}
         {detail.isError ? (
           <p className="mt-4 text-sm text-destructive">
-            {detail.error instanceof Error
-              ? detail.error.message
-              : "Error al consultar la unidad."}
+            {detail.error instanceof Error ? detail.error.message : "Error al consultar la unidad."}
           </p>
         ) : null}
 
@@ -83,17 +74,12 @@ export function WialonUnitDetail({
             <dl className="grid gap-3 sm:grid-cols-2">
               <Row label="IMEI / ID único" value={data.uniqueId ?? "—"} />
               <Row label="Teléfono" value={data.phone ?? "—"} />
-              <Row
-                label="Estado"
-                value={data.unit.online ? "En línea" : "Sin señal"}
-              />
+              <Row label="Estado" value={data.unit.online ? "En línea" : "Sin señal"} />
               <Row
                 label="Última señal"
                 value={
                   data.unit.lastMessage
-                    ? new Date(data.unit.lastMessage * 1000).toLocaleString(
-                        "es-MX",
-                      )
+                    ? new Date(data.unit.lastMessage * 1000).toLocaleString("es-MX")
                     : "—"
                 }
               />
@@ -107,11 +93,7 @@ export function WialonUnitDetail({
               />
               <Row
                 label="Velocidad"
-                value={
-                  data.unit.speed != null
-                    ? `${Math.round(data.unit.speed)} km/h`
-                    : "—"
-                }
+                value={data.unit.speed != null ? `${Math.round(data.unit.speed)} km/h` : "—"}
               />
             </dl>
 
@@ -154,9 +136,7 @@ export function WialonUnitDetail({
                     <button
                       key={`${command.id}-${index}`}
                       disabled={busy === command.name}
-                      onClick={() =>
-                        void runCommand(command.name, command.link)
-                      }
+                      onClick={() => void runCommand(command.name, command.link)}
                       className="rounded-md border border-border px-3 py-2 text-sm hover:border-primary hover:text-primary disabled:opacity-60"
                     >
                       {busy === command.name ? "Enviando…" : command.name}
@@ -164,9 +144,7 @@ export function WialonUnitDetail({
                   ))}
                 </div>
               )}
-              {feedback ? (
-                <p className="mt-3 text-sm text-primary">{feedback}</p>
-              ) : null}
+              {feedback ? <p className="mt-3 text-sm text-primary">{feedback}</p> : null}
             </section>
 
             {data.params.length > 0 ? (
@@ -177,9 +155,7 @@ export function WialonUnitDetail({
                 <div className="mt-2 grid gap-1 sm:grid-cols-2">
                   {data.params.map((param, index) => (
                     <p key={`${param.key}-${index}`} className="text-muted-foreground">
-                      <span className="font-semibold text-foreground">
-                        {param.key}:
-                      </span>{" "}
+                      <span className="font-semibold text-foreground">{param.key}:</span>{" "}
                       {param.value}
                     </p>
                   ))}
@@ -196,9 +172,7 @@ export function WialonUnitDetail({
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-widest text-muted-foreground">
-        {label}
-      </dt>
+      <dt className="text-xs uppercase tracking-widest text-muted-foreground">{label}</dt>
       <dd className="mt-1 font-semibold">{value}</dd>
     </div>
   );

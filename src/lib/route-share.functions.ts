@@ -47,7 +47,13 @@ function toView(
     stops?: SharedRouteStop[];
     reportSentAt?: string;
   },
-  liveVehicle?: { lat: number; lon: number; speed?: number; course?: number; unitName?: string } | null,
+  liveVehicle?: {
+    lat: number;
+    lon: number;
+    speed?: number;
+    course?: number;
+    unitName?: string;
+  } | null,
 ): SharedRouteView {
   return {
     name: route.name,
@@ -151,10 +157,19 @@ export const getSharedRoute = createServerFn({ method: "GET" })
       throw new Error("Este enlace de ruta no existe o fue eliminado.");
     }
 
-    let liveVehicle: { lat: number; lon: number; speed?: number; course?: number; unitName?: string } | null = null;
+    let liveVehicle: {
+      lat: number;
+      lon: number;
+      speed?: number;
+      course?: number;
+      unitName?: string;
+    } | null = null;
     try {
-      const { refreshSharedUnitLivePosition, getSharedUnitByToken } = await import("./unit-share.server");
-      const sharedUnit = (await refreshSharedUnitLivePosition(data.token)) ?? (await getSharedUnitByToken(data.token));
+      const { refreshSharedUnitLivePosition, getSharedUnitByToken } =
+        await import("./unit-share.server");
+      const sharedUnit =
+        (await refreshSharedUnitLivePosition(data.token)) ??
+        (await getSharedUnitByToken(data.token));
       if (sharedUnit?.lastPosition) {
         liveVehicle = {
           lat: sharedUnit.lastPosition.lat,

@@ -1,6 +1,14 @@
 import * as React from "react";
 import L from "leaflet";
-import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
+import {
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  useMap,
+} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { DARK_BASE_CONFIG, DARK_LABELS_CONFIG } from "@/lib/map-layers";
 
@@ -63,10 +71,20 @@ export default function SharedRouteMap({
   stops: Stop[];
   nextIndex: number;
   me: Pt | null;
-  liveVehicle?: { lat: number; lon: number; speed?: number; course?: number; unitName?: string } | null;
+  liveVehicle?: {
+    lat: number;
+    lon: number;
+    speed?: number;
+    course?: number;
+    unitName?: string;
+  } | null;
 }) {
   const line = path.length > 1 ? path : stops;
-  const center = liveVehicle ? [liveVehicle.lat, liveVehicle.lon] : stops[0] ? [stops[0].lat, stops[0].lon] : [20.67, -103.35];
+  const center = liveVehicle
+    ? [liveVehicle.lat, liveVehicle.lon]
+    : stops[0]
+      ? [stops[0].lat, stops[0].lon]
+      : [20.67, -103.35];
 
   const vehicleIcon = React.useMemo(() => {
     if (!liveVehicle) return null;
@@ -115,7 +133,9 @@ export default function SharedRouteMap({
         </Marker>
       ) : null}
 
-      <Fit points={liveVehicle ? [...stops, { lat: liveVehicle.lat, lon: liveVehicle.lon }] : stops} />
+      <Fit
+        points={liveVehicle ? [...stops, { lat: liveVehicle.lat, lon: liveVehicle.lon }] : stops}
+      />
     </MapContainer>
   );
 }

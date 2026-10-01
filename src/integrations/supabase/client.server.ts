@@ -67,11 +67,7 @@ function createSupabaseAdminClient() {
   const SUPABASE_SERVICE_ROLE_KEY =
     process.env["SUPABASE_SERVICE_ROLE_KEY"] || process.env["SUPABASE_SECRET_KEY"];
 
-  if (
-    !SUPABASE_URL ||
-    !SUPABASE_SERVICE_ROLE_KEY ||
-    SUPABASE_URL.includes("false123.com")
-  ) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || SUPABASE_URL.includes("false123.com")) {
     console.warn("[Supabase] Running server in resilient fallback mode (Supabase not configured)");
     return createFallbackAdminClient();
   }
