@@ -4,51 +4,33 @@ import path from "node:path";
 const rootDir = process.cwd();
 const outputDir = path.join(rootDir, ".vercel", "output");
 const staticDir = path.join(outputDir, "static");
-const assetsDir = path.join(staticDir, "assets");
-
-if (!fs.existsSync(assetsDir)) {
-  console.log("[finalize-vercel-build] No assets directory found, skipping patch.");
-  process.exit(0);
-}
-
-const assetFiles = fs.readdirSync(assetsDir);
-const cssFile = assetFiles.find((f) => f.startsWith("styles-") && f.endsWith(".css"));
-const jsFile = assetFiles.find((f) => f.startsWith("index-") && f.endsWith(".js"));
-
-console.log("[finalize-vercel-build] Detected CSS:", cssFile);
-console.log("[finalize-vercel-build] Detected JS:", jsFile);
-
-if (!jsFile) {
-  console.error("[finalize-vercel-build] Could not find client index-*.js bundle!");
-  process.exit(1);
-}
-
-const baseHtml = `<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ORB-LITE | Rastreo GPS Satelital</title>
-    <meta name="description" content="Sistema de rastreo satelital GPS en tiempo real para vehículos, flotas y empresas. Monitoreo en vivo, apagado de motor, reportes, gestión de rutas y catálogo oficial." />
-    <meta property="og:title" content="ORB-LITE | Rastreo GPS Satelital" />
-    <meta property="og:description" content="Sistema de rastreo satelital GPS en tiempo real para vehículos, flotas y empresas. Monitoreo en vivo, apagado de motor, reportes, gestión de rutas y catálogo oficial." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    ${cssFile ? `<link rel="stylesheet" href="/assets/${cssFile}" />` : ""}
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/assets/${jsFile}"></script>
-  </body>
-</html>`;
-
-// 1. Write .vercel/output/static/index.html so Vercel CDN serves it directly
 const staticIndexHtml = path.join(staticDir, "index.html");
-fs.writeFileSync(staticIndexHtml, baseHtml, "utf8");
-console.log("[finalize-vercel-build] Successfully created", staticIndexHtml);
 
-// 2. Also patch .vercel/output/functions/__server.func/_chunks/renderer-template.mjs if present
+// 1. Remove static index.html so Vercel forwards page requests to __server.func (SSR)
+if (fs.existsSync(staticIndexHtml)) {
+  fs.unlinkSync(staticIndexHtml);
+  console.log("[finalize-vercel-build] Removed static index.html to allow SSR execution.");
+}
+
+// 2. Patch react.mjs in __server.func/_libs to support jsxDEV in production SSR
+const reactLibsPath = path.join(
+  outputDir,
+  "functions",
+  "__server.func",
+  "_libs",
+  "react.mjs",
+);
+
+if (fs.existsSync(reactLibsPath)) {
+  let content = fs.readFileSync(reactLibsPath, "utf8");
+  if (!content.includes('import React from "react"')) {
+    content = `import { t as __commonJSMin } from "../_runtime.mjs";\nimport React from "react";\nvar require_react_jsx_dev_runtime_production = /* @__PURE__ */ __commonJSMin(((exports) => {\n\texports.Fragment = Symbol.for("react.fragment");\n\texports.jsxDEV = (type, props, key) => React.createElement(type, key !== void 0 ? { ...props, key } : props);\n}));\nvar require_jsx_dev_runtime = /* @__PURE__ */ __commonJSMin(((exports, module) => {\n\tmodule.exports = require_react_jsx_dev_runtime_production();\n}));\nexport { require_jsx_dev_runtime as t };\n`;
+    fs.writeFileSync(reactLibsPath, content, "utf8");
+    console.log("[finalize-vercel-build] Patched jsxDEV fallback in", reactLibsPath);
+  }
+}
+
+// 3. Wire SSR in renderer-template.mjs
 const rendererChunkPath = path.join(
   outputDir,
   "functions",
@@ -59,11 +41,22 @@ const rendererChunkPath = path.join(
 
 if (fs.existsSync(rendererChunkPath)) {
   let content = fs.readFileSync(rendererChunkPath, "utf8");
-  const escapedHtml = JSON.stringify(baseHtml);
-  content = content.replace(
-    /new HTTPResponse\([\s\S]*?,\s*\{\s*headers:\s*\{\s*"content-type":\s*"text\/html; charset=utf-8"\s*\}\s*\}\)/,
-    `new HTTPResponse(${escapedHtml}, { headers: { "content-type": "text/html; charset=utf-8" } })`,
-  );
+  const replacementFn = `async function renderIndexHTML(event) {
+\tconst ssr = globalThis.__nitro_vite_envs__?.["ssr"];
+\tif (ssr) {
+\t\ttry {
+\t\t\tconst res = await ssr.fetch(event.req);
+\t\t\tif (res && res.status < 400) return res;
+\t\t} catch (err) {
+\t\t\tconsole.error("[SSR error in renderIndexHTML]:", err);
+\t\t}
+\t}
+\treturn rendererTemplate(event.req);
+}`;
+
+  content = content.replace(/(?:async\s+)*function renderIndexHTML\(event\)[\s\S]*?return rendererTemplate\(event\.req\);[\s\S]*?\}/, replacementFn);
   fs.writeFileSync(rendererChunkPath, content, "utf8");
-  console.log("[finalize-vercel-build] Successfully patched", rendererChunkPath);
+  console.log("[finalize-vercel-build] Successfully wired SSR fetch in", rendererChunkPath);
 }
+
+console.log("[finalize-vercel-build] All patches applied successfully.");
