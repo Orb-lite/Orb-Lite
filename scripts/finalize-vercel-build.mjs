@@ -35,6 +35,18 @@ const fallbackHtml = `<!doctype html>
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (self.$R = self.$R || {})["tsr"] = [];
+      self.$_TSR = {
+        h() { this.hydrated = !0; this.c(); },
+        e() { this.streamEnded = !0; this.c(); },
+        c() { this.hydrated && this.streamEnded && (delete self.$_TSR, delete self.$R.tsr); },
+        p(e) { this.initialized ? e() : this.buffer.push(e); },
+        buffer: [],
+        router: { matches: [], manifest: { routes: {} } }
+      };
+      self.$_TSR.e();
+    </script>
     ${jsFile ? `<script type="module" src="/assets/${jsFile}"></script>` : ""}
   </body>
 </html>`;
@@ -46,22 +58,71 @@ if (fs.existsSync(staticIndexHtml)) {
   console.log("[finalize-vercel-build] Removed static index.html to allow SSR execution.");
 }
 
-// 3. Ensure serverless function package.json includes react, react-dom and tslib
-const serverPkgPath = path.join(serverFuncDir, "package.json");
-if (fs.existsSync(serverPkgPath)) {
-  try {
-    const pkg = JSON.parse(fs.readFileSync(serverPkgPath, "utf8"));
-    pkg.dependencies = {
-      ...pkg.dependencies,
-      tslib: "^2.8.1",
-      react: "^19.2.0",
-      "react-dom": "^19.2.0",
-    };
-    fs.writeFileSync(serverPkgPath, JSON.stringify(pkg, null, 2), "utf8");
-    console.log("[finalize-vercel-build] Added react and react-dom to serverless package.json");
-  } catch (err) {
-    console.warn("[finalize-vercel-build] Could not update serverless package.json:", err);
+// 3. Inline self-contained tslib helpers so zero external node_modules are needed
+const tslibCode = `export var __assign = Object.assign || function (target) {
+  for (var s, i = 1, n = arguments.length; i < n; i++) {
+    s = arguments[i];
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) target[p] = s[p];
   }
+  return target;
+};
+
+export function __rest(s, e) {
+  var t = {};
+  for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0) t[p] = s[p];
+  if (s != null && typeof Object.getOwnPropertySymbols === "function")
+    for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+      if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+        t[p[i]] = s[p[i]];
+    }
+  return t;
+}
+
+export function __spreadArray(to, from, pack) {
+  if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+    if (ar || !(i in from)) {
+      if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+      ar[i] = from[i];
+    }
+  }
+  return to.concat(ar || Array.prototype.slice.call(from));
+}
+
+export function __awaiter(thisArg, _arguments, P, generator) {
+  function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+  return new (P || (P = Promise))(function (resolve, reject) {
+    function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+    function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+    function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+    step((generator = generator.apply(thisArg, _arguments || [])).next());
+  });
+}
+`;
+
+const libsDir = path.join(serverFuncDir, "_libs");
+if (fs.existsSync(libsDir)) {
+  fs.writeFileSync(path.join(libsDir, "tslib.mjs"), tslibCode, "utf8");
+  const radixDir = path.join(libsDir, "@radix-ui");
+  if (fs.existsSync(radixDir)) {
+    fs.writeFileSync(path.join(radixDir, "tslib.mjs"), tslibCode, "utf8");
+  }
+
+  // Patch any files importing "tslib"
+  const tslibConsumers = [
+    path.join(radixDir, "react-dialog+[...].mjs"),
+    path.join(libsDir, "supabase__auth-js.mjs"),
+    path.join(libsDir, "supabase__functions-js.mjs")
+  ];
+  for (const cPath of tslibConsumers) {
+    if (fs.existsSync(cPath)) {
+      let code = fs.readFileSync(cPath, "utf8");
+      if (code.includes('from "tslib"') || code.includes("from 'tslib'")) {
+        code = code.replace(/from\s+["']tslib["']/g, 'from "./tslib.mjs"');
+        fs.writeFileSync(cPath, code, "utf8");
+      }
+    }
+  }
+  console.log("[finalize-vercel-build] Inlined tslib helpers in _libs.");
 }
 
 // 4. Patch react.mjs in __server.func/_libs to support jsxDEV in production SSR

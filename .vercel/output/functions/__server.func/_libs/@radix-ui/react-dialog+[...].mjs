@@ -3,7 +3,7 @@ import { l as require_react_dom, u as require_react } from "../@floating-ui/reac
 import { n as require_jsx_runtime, t as createContextScope } from "../radix-ui__react-context+react.mjs";
 import { n as useComposedRefs } from "../radix-ui__react-compose-refs.mjs";
 import { t as composeEventHandlers } from "../radix-ui__primitive.mjs";
-import { __assign, __rest, __spreadArray } from "tslib";
+import { __assign, __rest, __spreadArray } from "./tslib.mjs";
 //#region node_modules/@radix-ui/react-slot/dist/index.mjs
 var import_react_dom = /* @__PURE__ */ __toESM(require_react_dom(), 1);
 var import_react = /* @__PURE__ */ __toESM(require_react(), 1);
