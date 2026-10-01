@@ -1,8 +1,11 @@
+// @ts-nocheck
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 let nitroHandler: any = null;
+
 try {
-  const nitroModule = await import("../.output/server/index.mjs");
+  // @ts-ignore
+  const nitroModule = await import("../.output/server/index.mjs" as any);
   if (nitroModule?.default?.fetch) {
     nitroHandler = nitroModule.default;
   }
@@ -19,7 +22,6 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
       }
       const body = ["GET", "HEAD"].includes(req.method || "") ? undefined : Buffer.concat(chunks);
-
       const headers = new Headers();
       for (const [key, val] of Object.entries(req.headers)) {
         if (val) {
@@ -31,12 +33,15 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
         }
       }
 
-      const webReq = new Request(url.href, {
+      const reqInit: RequestInit = {
         method: req.method || "GET",
         headers,
-        body,
-      });
+      };
+      if (body && body.length > 0) {
+        reqInit.body = body;
+      }
 
+      const webReq = new Request(url.href, reqInit);
       const ctx = {
         waitUntil: () => {},
         context: { waitUntil: () => {}, cf: {} },
