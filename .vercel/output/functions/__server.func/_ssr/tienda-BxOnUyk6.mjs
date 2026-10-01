@@ -158,25 +158,25 @@ function ProductCard({ product }) {
 					lineNumber: 139,
 					columnNumber: 9
 				}, this),
-				product.variants.length > 1 && /* @__PURE__ */ (void 0)("div", {
+				product.variants.length > 1 && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 					className: "space-y-2",
 					children: product.variants.map((v) => {
-						return /* @__PURE__ */ (void 0)("button", {
+						return /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("button", {
 							type: "button",
 							onClick: () => setVariantId(v.id),
 							className: `w-full rounded-xl border p-3 text-left transition-colors ${v.id === variantId ? "border-primary bg-primary/10" : "border-border/60 hover:border-primary/50"}`,
-							children: /* @__PURE__ */ (void 0)("div", {
+							children: /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 								className: "flex items-start justify-between gap-3",
-								children: [/* @__PURE__ */ (void 0)("div", {
+								children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 									className: "min-w-0",
-									children: [/* @__PURE__ */ (void 0)("p", {
+									children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 										className: "truncate text-sm font-semibold",
 										children: v.name
 									}, void 0, false, {
 										fileName: _jsxFileName$2,
 										lineNumber: 167,
 										columnNumber: 23
-									}, this), v.badge && /* @__PURE__ */ (void 0)("p", {
+									}, this), v.badge && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 										className: "text-[11px] uppercase tracking-wide text-primary",
 										children: v.badge
 									}, void 0, false, {
@@ -188,16 +188,16 @@ function ProductCard({ product }) {
 									fileName: _jsxFileName$2,
 									lineNumber: 166,
 									columnNumber: 21
-								}, this), /* @__PURE__ */ (void 0)("div", {
+								}, this), /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 									className: "shrink-0 text-right",
-									children: [v.original_price && /* @__PURE__ */ (void 0)("p", {
+									children: [v.original_price && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 										className: "text-xs text-muted-foreground line-through",
 										children: formatMxn(v.original_price)
 									}, void 0, false, {
 										fileName: _jsxFileName$2,
 										lineNumber: 176,
 										columnNumber: 25
-									}, this), /* @__PURE__ */ (void 0)("p", {
+									}, this), /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 										className: "font-display font-bold text-primary",
 										children: formatMxn(v.price)
 									}, void 0, false, {
@@ -259,10 +259,10 @@ function ProductCard({ product }) {
 					lineNumber: 189,
 					columnNumber: 9
 				}, this),
-				isDigital && /* @__PURE__ */ (void 0)("div", {
+				isDigital && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 					className: "space-y-3 rounded-xl border border-border/60 p-3",
 					children: [
-						/* @__PURE__ */ (void 0)("p", {
+						/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 							className: "font-display text-xs font-bold uppercase tracking-widest text-muted-foreground",
 							children: "Datos de renovación (por equipo)"
 						}, void 0, false, {
@@ -270,7 +270,7 @@ function ProductCard({ product }) {
 							lineNumber: 208,
 							columnNumber: 13
 						}, this),
-						/* @__PURE__ */ (void 0)(RenewalForm, {
+						/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(RenewalForm, {
 							variantId,
 							value: renewal,
 							onChange: setRenewal,
@@ -280,7 +280,7 @@ function ProductCard({ product }) {
 							lineNumber: 211,
 							columnNumber: 13
 						}, this),
-						/* @__PURE__ */ (void 0)("p", {
+						/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 							className: "text-[11px] text-muted-foreground",
 							children: "Agrega un paquete por equipo: cada uno guarda sus propios datos en el carrito."
 						}, void 0, false, {
@@ -294,11 +294,11 @@ function ProductCard({ product }) {
 					lineNumber: 207,
 					columnNumber: 11
 				}, this),
-				!isDigital && /* @__PURE__ */ (void 0)("div", {
+				!isDigital && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 					className: "space-y-3 rounded-xl border border-border/60 p-3",
-					children: [/* @__PURE__ */ (void 0)("label", {
+					children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("label", {
 						className: "flex cursor-pointer items-start gap-2 text-sm",
-						children: [/* @__PURE__ */ (void 0)("input", {
+						children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("input", {
 							type: "checkbox",
 							checked: needsShipping,
 							onChange: (e) => {
@@ -311,11 +311,11 @@ function ProductCard({ product }) {
 							fileName: _jsxFileName$2,
 							lineNumber: 227,
 							columnNumber: 15
-						}, this), /* @__PURE__ */ (void 0)("span", {
+						}, this), /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 							className: "min-w-0 flex-1",
-							children: [/* @__PURE__ */ (void 0)("span", {
+							children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 								className: "flex items-center gap-2 font-semibold",
-								children: [/* @__PURE__ */ (void 0)(Truck, { className: "h-4 w-4 text-primary" }, void 0, false, {
+								children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Truck, { className: "h-4 w-4 text-primary" }, void 0, false, {
 									fileName: _jsxFileName$2,
 									lineNumber: 239,
 									columnNumber: 19
@@ -324,12 +324,12 @@ function ProductCard({ product }) {
 								fileName: _jsxFileName$2,
 								lineNumber: 238,
 								columnNumber: 17
-							}, this), /* @__PURE__ */ (void 0)("span", {
+							}, this), /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 								className: "block text-xs text-muted-foreground",
 								children: [
 									NATIONAL.description,
 									" ",
-									/* @__PURE__ */ (void 0)("span", {
+									/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 										className: "font-semibold text-primary",
 										children: ["+", formatMxn(NATIONAL.price)]
 									}, void 0, true, {
@@ -352,7 +352,7 @@ function ProductCard({ product }) {
 						fileName: _jsxFileName$2,
 						lineNumber: 226,
 						columnNumber: 13
-					}, this), needsShipping ? /* @__PURE__ */ (void 0)(ShippingForm, {
+					}, this), needsShipping ? /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(ShippingForm, {
 						value: info,
 						onChange: setInfo,
 						errors: errors ?? void 0
@@ -360,10 +360,10 @@ function ProductCard({ product }) {
 						fileName: _jsxFileName$2,
 						lineNumber: 250,
 						columnNumber: 15
-					}, this) : /* @__PURE__ */ (void 0)("div", {
+					}, this) : /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 						className: "space-y-2 border-t border-border/60 pt-3",
 						children: [
-							/* @__PURE__ */ (void 0)("p", {
+							/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 								className: "font-display text-xs font-bold uppercase tracking-widest text-muted-foreground",
 								children: "Datos de contacto para la entrega"
 							}, void 0, false, {
@@ -371,7 +371,7 @@ function ProductCard({ product }) {
 								lineNumber: 253,
 								columnNumber: 17
 							}, this),
-							/* @__PURE__ */ (void 0)(PickupForm, {
+							/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(PickupForm, {
 								value: pickup,
 								onChange: setPickup,
 								errors: pickupErrors ?? void 0
@@ -380,7 +380,7 @@ function ProductCard({ product }) {
 								lineNumber: 256,
 								columnNumber: 17
 							}, this),
-							/* @__PURE__ */ (void 0)("p", {
+							/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 								className: "text-[11px] text-muted-foreground",
 								children: "Te contactamos para coordinar la entrega en Guadalajara."
 							}, void 0, false, {
@@ -420,7 +420,7 @@ function ProductCard({ product }) {
 									fileName: _jsxFileName$2,
 									lineNumber: 273,
 									columnNumber: 15
-								}, this), variant.price_note && /* @__PURE__ */ (void 0)("p", {
+								}, this), variant.price_note && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 									className: "text-[11px] text-muted-foreground",
 									children: variant.price_note
 								}, void 0, false, {
@@ -515,9 +515,9 @@ function CatalogGrid({ initialFilter = "ALL", showTabs = true }) {
 	const products = PRODUCTS.filter((p) => filter === "ALL" || p.category === filter);
 	return /* @__PURE__ */ (0, import_jsx_dev_runtime.jsxDEV)("div", {
 		className: "space-y-8",
-		children: [showTabs && /* @__PURE__ */ (void 0)("div", {
+		children: [showTabs && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 			className: "flex flex-wrap justify-center gap-2",
-			children: TABS.map((tab) => /* @__PURE__ */ (void 0)("button", {
+			children: TABS.map((tab) => /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("button", {
 				type: "button",
 				onClick: () => setFilter(tab.id),
 				className: `rounded-full border px-4 py-2 font-display text-xs font-bold uppercase tracking-widest transition-colors ${filter === tab.id ? "border-primary bg-primary/15 text-primary" : "border-border/60 text-muted-foreground hover:border-primary/50 hover:text-primary"}`,

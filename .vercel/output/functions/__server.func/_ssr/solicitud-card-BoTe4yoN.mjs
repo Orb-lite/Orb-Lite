@@ -338,16 +338,16 @@ function SolicitudDetailDialog({ row, open, onOpenChange }) {
 							lineNumber: 168,
 							columnNumber: 13
 						}, this) : null,
-						items.length > 0 && /* @__PURE__ */ (void 0)(DetailSection, {
+						items.length > 0 && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(DetailSection, {
 							title: "Productos",
-							children: /* @__PURE__ */ (void 0)("ul", {
+							children: /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("ul", {
 								className: "list-disc pl-4 space-y-1",
-								children: items.map((it, i) => /* @__PURE__ */ (void 0)("li", { children: [
+								children: items.map((it, i) => /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("li", { children: [
 									Number(it.quantity ?? 1),
 									" × ",
 									String(it.title ?? it.variantName ?? "Producto"),
 									it.price ? ` · ${mxn(Number(it.price))}` : "",
-									it.renewal ? /* @__PURE__ */ (void 0)("span", {
+									it.renewal ? /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 										className: "block text-xs text-muted-foreground",
 										children: [
 											it.renewal.fullName ? `Titular: ${it.renewal.fullName}` : null,

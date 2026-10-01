@@ -2685,7 +2685,7 @@ var Email$3 = ({ customerName, customerNumber, variantName = "Renovación de ser
 								lineNumber: 68,
 								columnNumber: 11
 							}, void 0),
-							period && /* @__PURE__ */ (void 0)(Text, {
+							period && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$2,
 								children: ["Periodo: ", period === "monthly" ? "Mensual" : "Anual"]
 							}, void 0, true, {
@@ -2701,7 +2701,7 @@ var Email$3 = ({ customerName, customerNumber, variantName = "Renovación de ser
 								lineNumber: 70,
 								columnNumber: 11
 							}, void 0),
-							customerNumber && /* @__PURE__ */ (void 0)(Text, {
+							customerNumber && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$2,
 								children: ["Cliente #", customerNumber]
 							}, void 0, true, {
@@ -2709,7 +2709,7 @@ var Email$3 = ({ customerName, customerNumber, variantName = "Renovación de ser
 								lineNumber: 71,
 								columnNumber: 30
 							}, void 0),
-							unitName && /* @__PURE__ */ (void 0)(Text, {
+							unitName && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$2,
 								children: ["Equipo en plataforma: ", unitName]
 							}, void 0, true, {
@@ -2717,7 +2717,7 @@ var Email$3 = ({ customerName, customerNumber, variantName = "Renovación de ser
 								lineNumber: 72,
 								columnNumber: 24
 							}, void 0),
-							imei && /* @__PURE__ */ (void 0)(Text, {
+							imei && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$2,
 								children: ["IMEI: ", imei]
 							}, void 0, true, {
@@ -2725,7 +2725,7 @@ var Email$3 = ({ customerName, customerNumber, variantName = "Renovación de ser
 								lineNumber: 73,
 								columnNumber: 20
 							}, void 0),
-							iccid && /* @__PURE__ */ (void 0)(Text, {
+							iccid && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$2,
 								children: ["ICCID: ", iccid]
 							}, void 0, true, {
@@ -2733,7 +2733,7 @@ var Email$3 = ({ customerName, customerNumber, variantName = "Renovación de ser
 								lineNumber: 74,
 								columnNumber: 21
 							}, void 0),
-							simPhone && /* @__PURE__ */ (void 0)(Text, {
+							simPhone && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$2,
 								children: ["Teléfono del chip: ", simPhone]
 							}, void 0, true, {
@@ -2976,11 +2976,11 @@ var Email$2 = ({ stage = "bloqueo", customerName, customerNumber, variantName = 
 						lineNumber: 66,
 						columnNumber: 9
 					}, void 0),
-					stage === "bloqueo" && /* @__PURE__ */ (void 0)(Text, {
+					stage === "bloqueo" && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 						style: p,
 						children: [
 							"Pasaron los 20 días de plazo, por lo que el ",
-							/* @__PURE__ */ (void 0)("strong", { children: "acceso quedó bloqueado" }, void 0, false, {
+							/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("strong", { children: "acceso quedó bloqueado" }, void 0, false, {
 								fileName: _jsxFileName$2,
 								lineNumber: 75,
 								columnNumber: 57
@@ -2992,18 +2992,18 @@ var Email$2 = ({ stage = "bloqueo", customerName, customerNumber, variantName = 
 						lineNumber: 74,
 						columnNumber: 11
 					}, void 0),
-					stage === "segundo-mes" && /* @__PURE__ */ (void 0)(Text, {
+					stage === "segundo-mes" && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 						style: p,
 						children: [
 							"Al no registrar tu pago, la cuenta entra en ",
-							/* @__PURE__ */ (void 0)("strong", { children: "proceso de cancelación" }, void 0, false, {
+							/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("strong", { children: "proceso de cancelación" }, void 0, false, {
 								fileName: _jsxFileName$2,
 								lineNumber: 82,
 								columnNumber: 57
 							}, void 0),
 							". Tienes todo este segundo mes para ponerte al corriente. Envíanos el",
 							" ",
-							/* @__PURE__ */ (void 0)("strong", { children: "comprobante de pago" }, void 0, false, {
+							/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("strong", { children: "comprobante de pago" }, void 0, false, {
 								fileName: _jsxFileName$2,
 								lineNumber: 84,
 								columnNumber: 13
@@ -3015,11 +3015,11 @@ var Email$2 = ({ stage = "bloqueo", customerName, customerNumber, variantName = 
 						lineNumber: 81,
 						columnNumber: 11
 					}, void 0),
-					stage === "baja" && /* @__PURE__ */ (void 0)(Text, {
+					stage === "baja" && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 						style: p,
 						children: [
 							"Al cumplirse el tercer mes de adeudo, el servicio se ",
-							/* @__PURE__ */ (void 0)("strong", { children: "dio de baja" }, void 0, false, {
+							/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("strong", { children: "dio de baja" }, void 0, false, {
 								fileName: _jsxFileName$2,
 								lineNumber: 89,
 								columnNumber: 66
@@ -3042,7 +3042,7 @@ var Email$2 = ({ stage = "bloqueo", customerName, customerNumber, variantName = 
 								lineNumber: 96,
 								columnNumber: 11
 							}, void 0),
-							customerNumber && /* @__PURE__ */ (void 0)(Text, {
+							customerNumber && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$1,
 								children: ["Cliente #", customerNumber]
 							}, void 0, true, {
@@ -3050,7 +3050,7 @@ var Email$2 = ({ stage = "bloqueo", customerName, customerNumber, variantName = 
 								lineNumber: 97,
 								columnNumber: 30
 							}, void 0),
-							unitName && /* @__PURE__ */ (void 0)(Text, {
+							unitName && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$1,
 								children: ["Equipo en plataforma: ", unitName]
 							}, void 0, true, {
@@ -3058,7 +3058,7 @@ var Email$2 = ({ stage = "bloqueo", customerName, customerNumber, variantName = 
 								lineNumber: 98,
 								columnNumber: 24
 							}, void 0),
-							imei && /* @__PURE__ */ (void 0)(Text, {
+							imei && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$1,
 								children: ["IMEI: ", imei]
 							}, void 0, true, {
@@ -3066,7 +3066,7 @@ var Email$2 = ({ stage = "bloqueo", customerName, customerNumber, variantName = 
 								lineNumber: 99,
 								columnNumber: 20
 							}, void 0),
-							iccid && /* @__PURE__ */ (void 0)(Text, {
+							iccid && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$1,
 								children: ["ICCID: ", iccid]
 							}, void 0, true, {
@@ -3074,7 +3074,7 @@ var Email$2 = ({ stage = "bloqueo", customerName, customerNumber, variantName = 
 								lineNumber: 100,
 								columnNumber: 21
 							}, void 0),
-							simPhone && /* @__PURE__ */ (void 0)(Text, {
+							simPhone && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Text, {
 								style: row$1,
 								children: ["Teléfono del chip: ", simPhone]
 							}, void 0, true, {

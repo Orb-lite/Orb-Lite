@@ -336,7 +336,7 @@ function PickupForm({ value, onChange, errors }) {
 					lineNumber: 50,
 					columnNumber: 11
 				}, this),
-				errors?.[f.name] && /* @__PURE__ */ (void 0)("span", {
+				errors?.[f.name] && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 					className: "mt-1 block text-[11px] text-destructive",
 					children: errors[f.name]
 				}, void 0, false, {
@@ -484,7 +484,7 @@ function TextField({ field, local, errors, update }) {
 				lineNumber: 113,
 				columnNumber: 7
 			}, this),
-			errors?.[field.name] && /* @__PURE__ */ (void 0)("span", {
+			errors?.[field.name] && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 				className: "mt-1 block text-[11px] text-destructive",
 				children: errors[field.name]
 			}, void 0, false, {
@@ -557,7 +557,7 @@ function BillingForm({ value, onChange, errors }) {
 						lineNumber: 155,
 						columnNumber: 9
 					}, this),
-					errors?.taxRegime && /* @__PURE__ */ (void 0)("span", {
+					errors?.taxRegime && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 						className: "mt-1 block text-[11px] text-destructive",
 						children: errors.taxRegime
 					}, void 0, false, {
@@ -606,7 +606,7 @@ function BillingForm({ value, onChange, errors }) {
 						lineNumber: 176,
 						columnNumber: 9
 					}, this),
-					errors?.cfdiUse && /* @__PURE__ */ (void 0)("span", {
+					errors?.cfdiUse && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 						className: "mt-1 block text-[11px] text-destructive",
 						children: errors.cfdiUse
 					}, void 0, false, {
@@ -724,7 +724,7 @@ function RenewalForm({ variantId, value, onChange, errors }) {
 	};
 	return /* @__PURE__ */ (0, import_jsx_dev_runtime.jsxDEV)("div", {
 		className: "grid grid-cols-1 gap-3",
-		children: [meta && /* @__PURE__ */ (void 0)("p", {
+		children: [meta && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 			className: "text-[11px] text-muted-foreground",
 			children: [
 				"Plataforma ",
@@ -758,7 +758,7 @@ function RenewalForm({ variantId, value, onChange, errors }) {
 				lineNumber: 101,
 				columnNumber: 11
 			}, this),
-			errors?.[name] && /* @__PURE__ */ (void 0)("span", {
+			errors?.[name] && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 				className: "mt-1 block text-[11px] text-destructive",
 				children: errors[name]
 			}, void 0, false, {
@@ -880,7 +880,7 @@ function ShippingForm({ value, onChange, errors }) {
 					lineNumber: 66,
 					columnNumber: 11
 				}, this),
-				errors?.[f.name] && /* @__PURE__ */ (void 0)("span", {
+				errors?.[f.name] && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 					className: "mt-1 block text-[11px] text-destructive",
 					children: errors[f.name]
 				}, void 0, false, {
@@ -1096,10 +1096,10 @@ function CustomerBlock() {
 				lineNumber: 53,
 				columnNumber: 7
 			}, this),
-			!isFirstPurchase && /* @__PURE__ */ (void 0)("div", {
+			!isFirstPurchase && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 				className: "space-y-2 border-t border-border/60 pt-3",
 				children: [
-					/* @__PURE__ */ (void 0)("span", {
+					/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 						className: "block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
 						children: "Tu número de cliente"
 					}, void 0, false, {
@@ -1107,9 +1107,9 @@ function CustomerBlock() {
 						lineNumber: 73,
 						columnNumber: 11
 					}, this),
-					/* @__PURE__ */ (void 0)("div", {
+					/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 						className: "flex gap-2",
-						children: [/* @__PURE__ */ (void 0)("input", {
+						children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("input", {
 							type: "text",
 							inputMode: "numeric",
 							value: input,
@@ -1120,21 +1120,21 @@ function CustomerBlock() {
 							fileName: _jsxFileName$3,
 							lineNumber: 77,
 							columnNumber: 13
-						}, this), /* @__PURE__ */ (void 0)(Button, {
+						}, this), /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Button, {
 							type: "button",
 							variant: "outline",
 							onClick: handleLookup,
 							disabled: loading,
 							className: "shrink-0",
-							children: [loading ? /* @__PURE__ */ (void 0)(LoaderCircle, { className: "h-4 w-4 animate-spin" }, void 0, false, {
+							children: [loading ? /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(LoaderCircle, { className: "h-4 w-4 animate-spin" }, void 0, false, {
 								fileName: _jsxFileName$3,
 								lineNumber: 93,
 								columnNumber: 17
-							}, this) : /* @__PURE__ */ (void 0)(Search, { className: "h-4 w-4" }, void 0, false, {
+							}, this) : /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Search, { className: "h-4 w-4" }, void 0, false, {
 								fileName: _jsxFileName$3,
 								lineNumber: 95,
 								columnNumber: 17
-							}, this), /* @__PURE__ */ (void 0)("span", {
+							}, this), /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 								className: "ml-2",
 								children: "Cargar datos"
 							}, void 0, false, {
@@ -1152,7 +1152,7 @@ function CustomerBlock() {
 						lineNumber: 76,
 						columnNumber: 11
 					}, this),
-					customerNumber && /* @__PURE__ */ (void 0)("p", {
+					customerNumber && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 						className: "text-[11px] font-semibold text-primary",
 						children: [
 							"Cliente #",
@@ -1323,7 +1323,7 @@ function ConstanciaUpload({ value, rfc, onChange, error }) {
 				lineNumber: 107,
 				columnNumber: 7
 			}, this),
-			value && /* @__PURE__ */ (void 0)("p", {
+			value && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 				className: "truncate text-[11px] text-muted-foreground",
 				children: ["Archivo: ", value.fileName]
 			}, void 0, true, {
@@ -1331,12 +1331,12 @@ function ConstanciaUpload({ value, rfc, onChange, error }) {
 				lineNumber: 129,
 				columnNumber: 9
 			}, this),
-			value && detected && (detected.rfc || detected.razonSocial) && /* @__PURE__ */ (void 0)("p", {
+			value && detected && (detected.rfc || detected.razonSocial) && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 				className: "text-[11px] text-muted-foreground",
 				children: [
 					"Datos leídos:",
 					" ",
-					/* @__PURE__ */ (void 0)("span", {
+					/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 						className: "font-semibold text-foreground",
 						children: [detected.razonSocial, detected.rfc].filter(Boolean).join(" · ")
 					}, void 0, false, {
@@ -1350,9 +1350,9 @@ function ConstanciaUpload({ value, rfc, onChange, error }) {
 				lineNumber: 132,
 				columnNumber: 9
 			}, this),
-			value && detected?.fechaEmision && /* @__PURE__ */ (void 0)("p", {
+			value && detected?.fechaEmision && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 				className: "text-[11px] text-muted-foreground",
-				children: ["Emitida el ", /* @__PURE__ */ (void 0)("span", {
+				children: ["Emitida el ", /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 					className: "font-semibold text-foreground",
 					children: detected.fechaEmision
 				}, void 0, false, {
@@ -1365,7 +1365,7 @@ function ConstanciaUpload({ value, rfc, onChange, error }) {
 				lineNumber: 140,
 				columnNumber: 9
 			}, this),
-			value && vigente && vence && /* @__PURE__ */ (void 0)("p", {
+			value && vigente && vence && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 				className: "text-[11px] text-primary",
 				children: [
 					"Validada. Vigente hasta el ",
@@ -1377,7 +1377,7 @@ function ConstanciaUpload({ value, rfc, onChange, error }) {
 				lineNumber: 145,
 				columnNumber: 9
 			}, this),
-			value && !vigente && /* @__PURE__ */ (void 0)("p", {
+			value && !vigente && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 				className: "text-[11px] text-destructive",
 				children: "Tu constancia tiene más de un mes. Sube una actualizada para facturar esta compra."
 			}, void 0, false, {
@@ -1393,7 +1393,7 @@ function ConstanciaUpload({ value, rfc, onChange, error }) {
 				lineNumber: 153,
 				columnNumber: 7
 			}, this),
-			error && /* @__PURE__ */ (void 0)("p", {
+			error && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 				className: "text-[11px] text-destructive",
 				children: error
 			}, void 0, false, {
@@ -1556,7 +1556,7 @@ function CartDrawer() {
 					fileName: _jsxFileName$1,
 					lineNumber: 273,
 					columnNumber: 11
-				}, this), totals.totalItems > 0 && /* @__PURE__ */ (void 0)(Badge, {
+				}, this), totals.totalItems > 0 && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Badge, {
 					className: "absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full p-0 text-xs",
 					children: totals.totalItems
 				}, void 0, false, {
@@ -1672,9 +1672,9 @@ function CartDrawer() {
 									lineNumber: 310,
 									columnNumber: 21
 								}, this),
-								line.addOns.length > 0 && /* @__PURE__ */ (void 0)("ul", {
+								line.addOns.length > 0 && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("ul", {
 									className: "mt-2 space-y-1 text-xs text-muted-foreground",
-									children: line.addOns.map((a) => /* @__PURE__ */ (void 0)("li", { children: [
+									children: line.addOns.map((a) => /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("li", { children: [
 										"+ ",
 										a.name,
 										" — ",
@@ -1689,16 +1689,16 @@ function CartDrawer() {
 									lineNumber: 326,
 									columnNumber: 23
 								}, this),
-								line.isRenewal && /* @__PURE__ */ (void 0)("div", {
+								line.isRenewal && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 									className: "mt-3 space-y-2 rounded-lg border border-border/60 p-3",
-									children: [/* @__PURE__ */ (void 0)("p", {
+									children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 										className: "font-display text-[11px] font-bold uppercase tracking-widest text-muted-foreground",
 										children: "Datos del equipo"
 									}, void 0, false, {
 										fileName: _jsxFileName$1,
 										lineNumber: 337,
 										columnNumber: 25
-									}, this), /* @__PURE__ */ (void 0)(RenewalForm, {
+									}, this), /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(RenewalForm, {
 										variantId: line.variantId,
 										value: line.renewal,
 										onChange: (info) => updateRenewal(line.id, info),
@@ -1846,10 +1846,10 @@ function CartDrawer() {
 										columnNumber: 23
 									}, this);
 								}),
-								shippingId === "local" && totals.lines.some((l) => !l.isRenewal) && /* @__PURE__ */ (void 0)("div", {
+								shippingId === "local" && totals.lines.some((l) => !l.isRenewal) && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 									className: "space-y-3 rounded-xl border border-border/60 p-3",
 									children: [
-										/* @__PURE__ */ (void 0)("p", {
+										/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 											className: "font-display text-xs font-bold uppercase tracking-widest text-muted-foreground",
 											children: "Datos de contacto para la entrega"
 										}, void 0, false, {
@@ -1857,7 +1857,7 @@ function CartDrawer() {
 											lineNumber: 410,
 											columnNumber: 23
 										}, this),
-										/* @__PURE__ */ (void 0)(PickupForm, {
+										/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(PickupForm, {
 											value: pickupInfo,
 											onChange: setPickupInfo,
 											errors: pickupErrors ?? void 0
@@ -1866,7 +1866,7 @@ function CartDrawer() {
 											lineNumber: 413,
 											columnNumber: 23
 										}, this),
-										/* @__PURE__ */ (void 0)("p", {
+										/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 											className: "text-[11px] text-muted-foreground",
 											children: "Te contactamos para coordinar la entrega."
 										}, void 0, false, {
@@ -1880,16 +1880,16 @@ function CartDrawer() {
 									lineNumber: 409,
 									columnNumber: 21
 								}, this),
-								shippingId === "national" && /* @__PURE__ */ (void 0)("div", {
+								shippingId === "national" && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 									className: "space-y-3 rounded-xl border border-border/60 p-3",
-									children: [/* @__PURE__ */ (void 0)("p", {
+									children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 										className: "font-display text-xs font-bold uppercase tracking-widest text-muted-foreground",
 										children: "Datos de envío"
 									}, void 0, false, {
 										fileName: _jsxFileName$1,
 										lineNumber: 426,
 										columnNumber: 23
-									}, this), /* @__PURE__ */ (void 0)(ShippingForm, {
+									}, this), /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(ShippingForm, {
 										value: shippingInfo,
 										onChange: setShippingInfo,
 										errors: errors ?? void 0
@@ -1952,10 +1952,10 @@ function CartDrawer() {
 								fileName: _jsxFileName$1,
 								lineNumber: 439,
 								columnNumber: 19
-							}, this), wantsInvoice && /* @__PURE__ */ (void 0)("div", {
+							}, this), wantsInvoice && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 								className: "space-y-3 border-t border-border/60 pt-3",
 								children: [
-									/* @__PURE__ */ (void 0)("p", {
+									/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 										className: "font-display text-xs font-bold uppercase tracking-widest text-muted-foreground",
 										children: "Datos de facturación"
 									}, void 0, false, {
@@ -1963,7 +1963,7 @@ function CartDrawer() {
 										lineNumber: 459,
 										columnNumber: 23
 									}, this),
-									/* @__PURE__ */ (void 0)(BillingForm, {
+									/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(BillingForm, {
 										value: billingInfo,
 										onChange: setBillingInfo,
 										errors: billingErrors ?? void 0
@@ -1972,7 +1972,7 @@ function CartDrawer() {
 										lineNumber: 462,
 										columnNumber: 23
 									}, this),
-									/* @__PURE__ */ (void 0)(ConstanciaUpload, {
+									/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(ConstanciaUpload, {
 										value: constancia,
 										rfc: billingInfo?.rfc,
 										onChange: (file) => {
@@ -1985,7 +1985,7 @@ function CartDrawer() {
 										lineNumber: 467,
 										columnNumber: 23
 									}, this),
-									/* @__PURE__ */ (void 0)("p", {
+									/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 										className: "text-[11px] text-muted-foreground",
 										children: "Necesitamos razón social, RFC, régimen fiscal, uso de CFDI, C.P. fiscal y correo, además de tu Constancia de Situación Fiscal, para emitir tu factura."
 									}, void 0, false, {

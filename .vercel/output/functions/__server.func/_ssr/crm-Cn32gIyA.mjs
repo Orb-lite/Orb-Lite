@@ -587,7 +587,7 @@ function NuevaVentaSection() {
 										lineNumber: 458,
 										columnNumber: 15
 									}, this),
-									line.variantId === CUSTOM_ID && /* @__PURE__ */ (void 0)(Input, {
+									line.variantId === CUSTOM_ID && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Input, {
 										className: "mt-2",
 										autoComplete: "off",
 										placeholder: "Nombre del producto o servicio",
@@ -601,9 +601,9 @@ function NuevaVentaSection() {
 										lineNumber: 491,
 										columnNumber: 17
 									}, this),
-									renewalFieldsFor(line.variantId).length > 0 && /* @__PURE__ */ (void 0)("div", {
+									renewalFieldsFor(line.variantId).length > 0 && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 										className: "mt-2 space-y-2 rounded-md border border-border/60 bg-muted/30 p-3",
-										children: [/* @__PURE__ */ (void 0)("p", {
+										children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 											className: "text-[11px] uppercase tracking-wide text-muted-foreground",
 											children: [
 												"Datos de la renovación (",
@@ -617,9 +617,9 @@ function NuevaVentaSection() {
 											fileName: _jsxFileName$3,
 											lineNumber: 505,
 											columnNumber: 19
-										}, this), /* @__PURE__ */ (void 0)("div", {
+										}, this), /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 											className: "grid gap-2 sm:grid-cols-2",
-											children: renewalFieldsFor(line.variantId).map((field) => /* @__PURE__ */ (void 0)(Field, {
+											children: renewalFieldsFor(line.variantId).map((field) => /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Field, {
 												id: `venta-renov-${index}-${field}`,
 												label: RENEWAL_LABELS[field],
 												value: line.renewal[field],
@@ -2416,9 +2416,9 @@ function CrmPage() {
 								lineNumber: 161,
 								columnNumber: 17
 							}, this),
-							visible.length > PAGE_SIZE && /* @__PURE__ */ (void 0)("nav", {
+							visible.length > PAGE_SIZE && /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("nav", {
 								className: "flex flex-wrap items-center justify-between gap-3 pt-2",
-								children: [/* @__PURE__ */ (void 0)("p", {
+								children: [/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("p", {
 									className: "text-xs text-muted-foreground",
 									children: [
 										"Mostrando ",
@@ -2430,10 +2430,10 @@ function CrmPage() {
 									fileName: _jsxFileName,
 									lineNumber: 165,
 									columnNumber: 21
-								}, this), /* @__PURE__ */ (void 0)("div", {
+								}, this), /* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("div", {
 									className: "flex items-center gap-2",
 									children: [
-										/* @__PURE__ */ (void 0)(Button, {
+										/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Button, {
 											size: "sm",
 											variant: "outline",
 											onClick: () => setPage((p) => Math.max(1, p - 1)),
@@ -2444,7 +2444,7 @@ function CrmPage() {
 											lineNumber: 169,
 											columnNumber: 23
 										}, this),
-										/* @__PURE__ */ (void 0)("span", {
+										/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV("span", {
 											className: "px-2 text-sm text-muted-foreground",
 											children: [
 												"Página ",
@@ -2457,7 +2457,7 @@ function CrmPage() {
 											lineNumber: 172,
 											columnNumber: 23
 										}, this),
-										/* @__PURE__ */ (void 0)(Button, {
+										/* @__PURE__ */ import_jsx_dev_runtime.jsxDEV(Button, {
 											size: "sm",
 											variant: "outline",
 											onClick: () => setPage((p) => Math.min(totalPages, p + 1)),
