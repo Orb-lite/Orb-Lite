@@ -95,19 +95,23 @@ PROCESOS QUE PUEDES EJECUTAR:
    - units: Cantidad estimada de unidades (ej. "5 a 10")
    - message: Mensaje con requerimientos específicos
 
-4. "route_share" (Generar Enlace de Rastreo Compartido):
-   - unitName: Nombre o ID del vehículo
-   - reportEmail: Correo para recibir confirmación/reporte
-   - durationHours: Duración de vigencia del enlace (ej. 2, 4, 8, 12, 24, 48)
-   - clientNotes: Comentario o nota del cliente/destinatario
+4. "route_share" (Compartir Ubicación por Link / Rastreo Temporal):
+   - unitName: Nombre o placa de la unidad satelital (ej. "Kenworth T680 #14")
+   - reportEmail: Correo para recibir notificaciones del enlace
+   - durationHours: Vigencia del enlace (2, 4, 8, 12, 24, 48 horas)
+   - clientNotes: Referencia o nota para el cliente
+   IMPORTANTE: Usa este proceso EXCLUSIVAMENTE cuando el usuario pide COMPARTIR ubicación o generar un link temporal de rastreo para un cliente. NUNCA lo uses si el usuario pide crear, planear, planificar o trazar una ruta.
 
-5. "smart_route" (Rutas por Cliente / Recurso - Planificador Inteligente):
-   - originAddress: Punto de salida (ej. "Av. Vallarta 1000, Guadalajara" o coordenadas)
-   - destinations: Direcciones de destino (una o varias direcciones, lugares o links de Google Maps)
-   - returnToOrigin: "true" o "false" (si regresa al punto de salida al terminar)
-   - creationMethod: "Direcciones escritas" o "Puntos en mapa"
-   - routeName: Nombre con el que se guardará la ruta en Wialon
-
+5. "smart_route" (Crear / Planificar Ruta con Lista de Locaciones y Municipio/Ciudad):
+   - routeName: Nombre de la ruta (ej. "Ruta centro - almacén")
+   - originAddress: Punto de salida con calle y municipio o ciudad o coordenadas (ej. "Av. Vallarta 1000, Guadalajara")
+   - destinations: Lista de locaciones o paradas intermedias/destinos especificando municipio o ciudad en cada una (ej. "1. Calle Juárez 450, Centro, Tlaquepaque
+2. Av. Patria 850, Col. Jardines, Zapopan
+3. Periférico Sur 2100, Toluquilla, Tlaquepaque")
+   - reportEmail: Email a donde tiene que llegar el reporte de paradas, avance y fin del viaje
+   - returnToOrigin: "true" (regresar al punto de salida) o "false" (ruta lineal)
+   - syncToWialon: "true" (sincronizar en Wialon) o "false" (guardar en mi cuenta)
+   IMPORTANTE: Usa este proceso siempre que el usuario mencione planificar ruta, crear ruta, planear ruta, optimizar ruta, lista de locaciones con municipio o ciudad, o pedir reporte de ruta.
 6. "geofence" (Geocercas por Cliente / Recurso):
    - name: Nombre de la geocerca (ej. "Bodega Guadalajara / Cliente Norte")
    - resourceName: Guardar en cliente / recurso de Wialon (ej. "AlfredoRetana", "Recurso Principal")
@@ -415,29 +419,35 @@ function getFieldDefinitions(
     case "smart_route":
       return [
         {
-          key: "creationMethod",
-          label: "Método de Creación",
-          type: "select",
-          options: [
-            { label: "Direcciones escritas", value: "Direcciones escritas" },
-            { label: "Puntos en mapa", value: "Puntos en mapa" },
-          ],
-          value: values.creationMethod || "Direcciones escritas",
+          key: "routeName",
+          label: "Nombre de la Ruta",
+          type: "text",
+          value: values.routeName || "",
+          placeholder: "Ej. Ruta centro - almacén",
+          required: true,
         },
         {
           key: "originAddress",
-          label: "Punto de Salida",
+          label: "Punto de salida (con Municipio o Ciudad)",
           type: "text",
           value: values.originAddress || "",
-          placeholder: "Ej. Av. Vallarta 1000, Guadalajara o coordenadas (20.6...)",
+          placeholder: "Ej. Av. Vallarta 1000, Guadalajara o coordenadas (20.67, -103.34)",
           required: true,
         },
         {
           key: "destinations",
-          label: "Direcciones de Destino (una o varias)",
+          label: "Lista de locaciones / destinos (con Municipio o Ciudad)",
           type: "textarea",
           value: values.destinations || "",
-          placeholder: "Dirección 1, lugar o link Google Maps",
+          placeholder: "Escribe una o varias locaciones con municipio o ciudad (una por renglón), ej:\n1. Calle Juárez 450, Centro, Tlaquepaque\n2. Av. Patria 850, Col. Jardines, Zapopan\n3. Periférico Sur 2100, Toluquilla, Tlaquepaque",
+          required: true,
+        },
+        {
+          key: "reportEmail",
+          label: "Email a donde tiene que llegar el reporte",
+          type: "email",
+          value: values.reportEmail || "",
+          placeholder: "logistica@empresa.com",
           required: true,
         },
         {
@@ -445,17 +455,20 @@ function getFieldDefinitions(
           label: "Regresar al punto de salida",
           type: "select",
           options: [
-            { label: "Sí (Regresar al origen)", value: "true" },
-            { label: "No (Ruta punto a punto)", value: "false" },
+            { label: "Sí (Regresar al punto de salida)", value: "true" },
+            { label: "No (Ruta lineal punto a punto)", value: "false" },
           ],
           value: String(values.returnToOrigin ?? "true"),
         },
         {
-          key: "routeName",
-          label: "Nombre de la Ruta (opcional)",
-          type: "text",
-          value: values.routeName || "",
-          placeholder: "Ej. Ruta Reparto Zapopan Norte",
+          key: "syncToWialon",
+          label: "Sincronizar también en Wialon (recurso del cliente)",
+          type: "select",
+          options: [
+            { label: "Sí (Guardar también en Wialon)", value: "true" },
+            { label: "No (Solo en mi cuenta)", value: "false" },
+          ],
+          value: String(values.syncToWialon ?? "false"),
         },
       ];
 
@@ -799,8 +812,8 @@ export function analyzeProcessRequirements(
       checklist = [
         {
           field: "originAddress",
-          label: "Punto de Salida",
-          why: "Dirección o coordenadas de partida donde inicia el vehículo o repartidor.",
+          label: "Punto de salida (con Municipio o Ciudad)",
+          why: "Lugar de salida de la unidad con municipio o ciudad o coordenadas para ubicar el arranque.",
           isRequired: true,
           isComplete: Boolean(
             fields.originAddress && String(fields.originAddress).trim().length > 0,
@@ -808,17 +821,38 @@ export function analyzeProcessRequirements(
         },
         {
           field: "destinations",
-          label: "Direcciones de Destino",
-          why: "Destinos o paradas a visitar (se pueden escribir direcciones o pegar enlaces de Google Maps).",
+          label: "Lista de locaciones / destinos (con Municipio o Ciudad)",
+          why: "Destinos o paradas a visitar con calle, colonia y municipio o ciudad para trazar y optimizar la secuencia en el mapa.",
           isRequired: true,
           isComplete: Boolean(fields.destinations && String(fields.destinations).trim().length > 0),
         },
         {
+          field: "reportEmail",
+          label: "Email a donde tiene que llegar el reporte",
+          why: "Correo electrónico obligatorio al que se enviará el reporte del avance del recorrido, paradas y finalización de la ruta.",
+          isRequired: true,
+          isComplete: Boolean(fields.reportEmail && String(fields.reportEmail).includes("@") && String(fields.reportEmail).includes(".")),
+        },
+        {
+          field: "routeName",
+          label: "Nombre de la Ruta",
+          why: "Nombre identificador para guardar y consultar la ruta en Wialon y en reportes de flota.",
+          isRequired: true,
+          isComplete: Boolean(fields.routeName && String(fields.routeName).trim().length > 0),
+        },
+        {
           field: "returnToOrigin",
-          label: "Regresar al Punto de Salida",
-          why: "Determina si el cálculo de kilometraje y tiempo considera el viaje de regreso a la base.",
+          label: "Regresar al punto de salida",
+          why: "Indica si la ruta debe calcularse como circuito cerrado con retorno a la base.",
           isRequired: false,
-          isComplete: Boolean(fields.returnToOrigin),
+          isComplete: Boolean(fields.returnToOrigin !== undefined && fields.returnToOrigin !== null),
+        },
+        {
+          field: "syncToWialon",
+          label: "Sincronizar en Wialon",
+          why: "Permite registrar la ruta directamente en el recurso de Wialon del cliente.",
+          isRequired: false,
+          isComplete: Boolean(fields.syncToWialon !== undefined && fields.syncToWialon !== null),
         },
       ];
       break;
@@ -1101,67 +1135,87 @@ function localRuleFallback(
     };
   }
 
-  // 4. Compartir Ruta / Seguimiento
+  // 4. Crear / Planificar Ruta con Lista de Locaciones y Municipio/Ciudad
+  if (
+    lower.includes("planifi") ||
+    lower.includes("planear") ||
+    lower.includes("crear ruta") ||
+    lower.includes("trazar ruta") ||
+    lower.includes("nueva ruta") ||
+    lower.includes("locacion") ||
+    lower.includes("locaciones") ||
+    lower.includes("parada") ||
+    lower.includes("paradas") ||
+    lower.includes("destino") ||
+    lower.includes("optimiz") ||
+    (lower.includes("ruta") &&
+      !lower.includes("compartir") &&
+      !lower.includes("enlace") &&
+      !lower.includes("link"))
+  ) {
+    const emailMatch = message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const values = {
+      routeName: "Ruta centro - almacén",
+      originAddress: "",
+      destinations: "",
+      reportEmail: emailMatch ? emailMatch[0] : "",
+      returnToOrigin: "true",
+      syncToWialon: "false",
+    };
+    const analysis = analyzeProcessRequirements("smart_route", values);
+    return {
+      reply:
+        "He preparado el **Planificador Inteligente de Rutas**. Para trazar y optimizar el recorrido con precisión satelital, por favor indica:\n\n" +
+        "• **Nombre de la ruta** (ej. *Ruta centro - almacén*)\n" +
+        "• **Punto de salida** con municipio o ciudad (o coordenadas)\n" +
+        "• **Lista de locaciones o destinos** especificando municipio o ciudad en cada parada\n" +
+        "• **Email a donde tiene que llegar el reporte** de paradas, avance y fin del viaje\n" +
+        "• Si la ruta debe regresar al punto de salida y si deseas sincronizarla también en Wialon.\n\n" +
+        "Puedes escribir tus locaciones aquí en el chat o completar el formulario interactivo generado a continuación:",
+      process: {
+        id: "smart_route",
+        title: "Planificador Inteligente de Rutas",
+        description: "Optimiza trayectos por lista de locaciones con municipio o ciudad y envía el reporte por email.",
+        readyToSubmit: analysis.isReady,
+        fields: values,
+        fieldDefinitions: getFieldDefinitions("smart_route", values),
+        requirementsAnalysis: analysis,
+        missingPrompt:
+          "Indica el punto de salida, la lista de locaciones (con municipio o ciudad) y el email para el reporte.",
+      },
+    };
+  }
+
+  // 5. Compartir Ubicación por Link / Rastreo Temporal
   if (
     lower.includes("compartir") ||
     lower.includes("enlace") ||
     lower.includes("link") ||
-    lower.includes("ruta")
+    lower.includes("rastreo temporal") ||
+    lower.includes("compartir unidad") ||
+    lower.includes("compartir ubicacion") ||
+    lower.includes("compartir ubicación")
   ) {
+    const emailMatch = message.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
     const values = {
       unitName: "",
-      reportEmail: "",
+      reportEmail: emailMatch ? emailMatch[0] : "",
       durationHours: "24",
       clientNotes: "",
     };
-
     const analysis = analyzeProcessRequirements("route_share", values);
     return {
       reply:
         "Puedes generar un enlace público temporal para que tu cliente o supervisor siga la unidad en vivo sin necesidad de contraseña. He analizado los parámetros de seguridad requeridos:",
       process: {
         id: "route_share",
-        title: "Generar Enlace de Rastreo Compartido",
-        description: "Enlace web temporal con mapa y recorrido en vivo.",
+        title: "Compartir Ubicación por Link (Rastreo Temporal)",
+        description: "Genera un enlace web temporal con mapa y recorrido en vivo para clientes.",
         readyToSubmit: analysis.isReady,
         fields: values,
         fieldDefinitions: getFieldDefinitions("route_share", values),
         requirementsAnalysis: analysis,
         missingPrompt: "¿Qué unidad deseas compartir y qué correo recibirá los avisos?",
-      },
-    };
-  }
-
-  // 5. Planificador Inteligente de Rutas
-  if (
-    lower.includes("planifi") ||
-    (lower.includes("ruta") &&
-      (lower.includes("optimi") ||
-        lower.includes("salida") ||
-        lower.includes("destino") ||
-        lower.includes("punto")))
-  ) {
-    const values = {
-      creationMethod: "Direcciones escritas",
-      originAddress: "",
-      destinations: "",
-      returnToOrigin: "true",
-      routeName: "",
-    };
-
-    const analysis = analyzeProcessRequirements("smart_route", values);
-    return {
-      reply:
-        "He preparado el **Planificador Inteligente de Rutas**. Puedes ingresar tu punto de partida y destinos para trazar y optimizar el recorrido en Wialon:",
-      process: {
-        id: "smart_route",
-        title: "Planificador Inteligente de Rutas",
-        description: "Optimiza trayectos, calcula kilometraje y traza paradas en Wialon.",
-        readyToSubmit: analysis.isReady,
-        fields: values,
-        fieldDefinitions: getFieldDefinitions("smart_route", values),
-        requirementsAnalysis: analysis,
-        missingPrompt: "Indica el punto de salida y al menos una dirección de destino.",
       },
     };
   }
@@ -1339,7 +1393,7 @@ export async function processAssistantMessage(
     const currentPrompt = `${conversationTurns ? `HISTORIAL DE LA CONVERSACIÓN:\n${conversationTurns}\n\n` : ""}MENSAJE DEL USUARIO AHORA:\n${message}`;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.8-flash",
       contents: currentPrompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,

@@ -1309,6 +1309,7 @@ export const saveUserRoute = createServerFn({ method: "POST" })
         distanceMeters: z.number().optional(),
         durationSeconds: z.number().optional(),
         syncToWialon: z.boolean().default(false),
+        reportEmail: z.string().trim().email().optional(),
         host: z.string().optional(),
         sid: z.string().optional(),
         resourceId: z.number().int().optional(),
@@ -1333,6 +1334,7 @@ export const saveUserRoute = createServerFn({ method: "POST" })
       ...(data.durationSeconds !== undefined && {
         durationSeconds: data.durationSeconds,
       }),
+      ...(data.reportEmail !== undefined && { reportEmail: data.reportEmail }),
     });
 
     let wialonId: number | null = null;

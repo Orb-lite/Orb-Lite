@@ -146,9 +146,9 @@ export function AssistantChat() {
           "¡Hola! Estás en la **Plataforma Satelital**. Puedo planificar rutas punto a punto, crear geocercas en Wialon, consultar el historial de recorridos y generar reportes para Excel.",
         actions: [
           {
-            label: "🗺️ Planificar Ruta",
+            label: "🗺️ Crear / Planificar Ruta",
             prompt:
-              "Quiero planificar una ruta en el planificador inteligente con punto de salida y destinos",
+              "Quiero crear y planificar una ruta ingresando una lista de locaciones con municipio o ciudad y el email para el reporte",
           },
           {
             label: "📍 Nueva Geocerca",
@@ -163,8 +163,8 @@ export function AssistantChat() {
             prompt: "Generar reporte de posiciones y sensores para exportar a Excel",
           },
           {
-            label: "🔗 Compartir Rastreo",
-            prompt: "Generar un enlace temporal para compartir una unidad con un cliente",
+            label: "🔗 Compartir Ubicación (Link)",
+            prompt: "Quiero generar un enlace temporal para compartir la ubicación en vivo de una unidad por link",
           },
           {
             label: "⚡ Renovar Unidad",

@@ -266,24 +266,46 @@ export const assistantExecuteProcess = createServerFn({ method: "POST" })
         const fields = data.fields;
         if (!fields.originAddress || !fields.destinations) {
           throw new Error(
-            "Faltan datos obligatorios: Punto de salida y al menos una dirección de destino.",
+            "Faltan datos obligatorios: Punto de salida y lista de locaciones con municipio o ciudad.",
+          );
+        }
+        if (!fields.reportEmail || !String(fields.reportEmail).includes("@")) {
+          throw new Error(
+            "Falta el dato obligatorio: Email a donde tiene que llegar el reporte de la ruta.",
           );
         }
 
         const routeId = "RUTA-" + Math.floor(1000 + Math.random() * 9000);
+        const name = String(fields.routeName || "Ruta centro - almacén").trim();
+        const origin = String(fields.originAddress).trim();
+        const dest = String(fields.destinations).trim();
+        const email = String(fields.reportEmail).trim();
+        const returnOrigin = fields.returnToOrigin === "true" || fields.returnToOrigin === true;
+        const syncWialon = fields.syncToWialon === "true" || fields.syncToWialon === true;
+
+        const params = new URLSearchParams({
+          origin,
+          dest,
+          name,
+          email,
+          return: returnOrigin ? "true" : "false",
+          sync: syncWialon ? "true" : "false",
+        });
+
         return {
           ok: true,
           processTitle: "Planificador Inteligente de Rutas",
           id: routeId,
-          message: `Ruta optimizada con éxito. Punto de salida: "${fields.originAddress}" con destino(s): "${fields.destinations}". ${fields.returnToOrigin === "true" || fields.returnToOrigin === true ? "(Circuito con regreso al origen)" : ""}`,
-          link: `/wialon/rutas?origin=${encodeURIComponent(fields.originAddress)}&dest=${encodeURIComponent(fields.destinations)}`,
+          message: `Ruta "${name}" configurada con éxito. Punto de salida: "${origin}" con lista de locaciones listas para optimizar. El reporte de paradas y conclusión del viaje se enviará a ${email}.`,
+          link: `/wialon/rutas?${params.toString()}`,
           summary: {
-            "Punto de Salida": fields.originAddress,
-            Destinos: fields.destinations,
-            "Regreso al Origen":
-              fields.returnToOrigin === "true" || fields.returnToOrigin === true ? "Sí" : "No",
-            Método: fields.creationMethod || "Direcciones escritas",
-            Estado: "Lista para navegación en Wialon",
+            "Nombre de la Ruta": name,
+            "Punto de Salida": origin,
+            "Lista de Locaciones": dest,
+            "Email de Reporte": email,
+            "Regreso al Origen": returnOrigin ? "Sí" : "No",
+            "Sincronizar en Wialon": syncWialon ? "Sí" : "No",
+            Estado: "Cargada en Planificador Inteligente",
           },
         };
       }
