@@ -1,14 +1,14 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ExternalLink } from "lucide-react";
-import { PLATFORM_URLS, writeSession, type WialonSession } from "@/lib/wialon-session";
+import { toast } from "sonner";
+import { PLATFORM_LABEL, writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin } from "@/lib/wialon.functions";
 
 export const Route = createFileRoute("/wialon/callback")({
   head: () => ({
     meta: [
-      { title: "Conectando con la plataforma | ORB-LITE" },
+      { title: "Iniciando sesión en la plataforma | ORB-LITE" },
       {
         name: "description",
         content: "Validando tu acceso a la plataforma de rastreo satelital ORB-LITE.",
@@ -37,6 +37,7 @@ function readParams(): {
   if (typeof window === "undefined") {
     return { token: null, host: "lite", wialonError: null };
   }
+
   const search = new URLSearchParams(window.location.search);
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
 
@@ -46,19 +47,23 @@ function readParams(): {
     search.get("svc_error") ??
     hash.get("svc_error");
 
-  // Código 0 en Wialon significa ÉXITO / SIN ERROR. No debe tratarse como fallo.
+  // Código 0 en Wialon significa ÉXITO. Solo valores distintos de 0 son errores reales.
   const errorCode =
-    rawError && rawError !== "0" && rawError !== "none" && rawError !== "null"
+    rawError &&
+    rawError !== "0" &&
+    rawError !== "none" &&
+    rawError !== "null" &&
+    rawError !== "undefined"
       ? rawError
       : null;
 
   const token =
-    search.get("access_token") ??
     hash.get("access_token") ??
-    search.get("token") ??
+    search.get("access_token") ??
     hash.get("token") ??
-    search.get("eid") ??
-    hash.get("eid");
+    search.get("token") ??
+    hash.get("eid") ??
+    search.get("eid");
 
   const stored =
     window.sessionStorage.getItem("orblite.wialon.oauth-host") ||
@@ -107,25 +112,25 @@ async function directClientLogin(
 function WialonCallbackPage() {
   const login = useServerFn(wialonLogin);
   const navigate = useNavigate();
-  const [error, setError] = React.useState<string | null>(null);
-  const [currentHost, setCurrentHost] = React.useState<"lite" | "full">("lite");
+  const [status, setStatus] = React.useState<"loading" | "error">("loading");
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
 
     async function run() {
       const { token, host, wialonError } = readParams();
-      setCurrentHost(host);
 
       if (wialonError) {
-        setError(wialonError);
+        setStatus("error");
+        setErrorMessage(wialonError);
         return;
       }
 
       if (!token) {
-        // Si no hay token, redirigir directamente al portal oficial de Wialon
-        const targetUrl = PLATFORM_URLS[host].app;
-        window.location.assign(targetUrl);
+        // Si no viene token, volver a la página de login
+        setStatus("error");
+        setErrorMessage("No se detectó un token de acceso de Wialon. Por favor inicia sesión nuevamente.");
         return;
       }
 
@@ -136,10 +141,11 @@ function WialonCallbackPage() {
           if (cancelled) return;
           writeSession(result);
           localStorage.setItem("wialon_token", token);
+          toast.success(`¡Bienvenido a la plataforma, ${result.userName}!`);
           void navigate({ to: "/wialon/mapa" });
           return;
         } catch (serverErr) {
-          console.warn("[Wialon Callback] ServerFn falló, probando conexión directa cliente:", serverErr);
+          console.warn("[Wialon Callback] ServerFn falló, probando cliente directo:", serverErr);
         }
 
         // 2. Respaldo directo en el navegador
@@ -149,20 +155,20 @@ function WialonCallbackPage() {
         if (directResult) {
           writeSession(directResult);
           localStorage.setItem("wialon_token", token);
+          toast.success(`¡Bienvenido a la plataforma, ${directResult.userName}!`);
           void navigate({ to: "/wialon/mapa" });
           return;
         }
 
-        // Si no se pudo validar el token automáticamente, ofrecer entrada directa a Wialon
-        setError(
-          "No se pudo validar el token automáticamente. Puedes entrar directamente a la página oficial de Wialon.",
+        setStatus("error");
+        setErrorMessage(
+          "El token de acceso no fue aceptado por los servidores de Wialon. Por favor verifica tus credenciales e intenta de nuevo.",
         );
       } catch (err: any) {
         if (!cancelled) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "No se pudo iniciar sesión en la plataforma Wialon.",
+          setStatus("error");
+          setErrorMessage(
+            err instanceof Error ? err.message : "Error al iniciar sesión en la plataforma.",
           );
         }
       }
@@ -175,47 +181,33 @@ function WialonCallbackPage() {
     };
   }, [login, navigate]);
 
-  const targetUrl = PLATFORM_URLS[currentHost]?.app || "https://lite.wialon.us/";
-
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
+    <div className="flex min-h-[65vh] flex-col items-center justify-center p-6 text-center">
       <div className="mx-auto max-w-md rounded-2xl border border-border/80 bg-card p-8 shadow-xl">
-        {error ? (
+        {status === "loading" ? (
           <>
-            <h1 className="font-display text-xl font-bold uppercase tracking-wide text-destructive">
-              Acceso a la plataforma
+            <div className="mx-auto size-12 animate-spin rounded-full border-3 border-primary border-t-transparent" />
+            <h1 className="mt-5 font-display text-xl font-bold uppercase tracking-wide text-foreground">
+              Iniciando sesión en tu plataforma…
             </h1>
-            <p className="mt-3 text-sm text-muted-foreground">{error}</p>
-
-            <div className="mt-6 flex flex-col gap-3">
-              <a
-                href={targetUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-lg hover:opacity-90 transition-opacity"
-              >
-                <span>Entrar en la página de Wialon</span>
-                <ExternalLink className="size-4" />
-              </a>
-
-              <button
-                type="button"
-                onClick={() => void navigate({ to: "/wialon" })}
-                className="inline-flex w-full items-center justify-center rounded-xl border border-border px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors"
-              >
-                Volver a la selección de plataforma
-              </button>
-            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Cargando tus unidades satelitales y preparando el mapa en vivo.
+            </p>
           </>
         ) : (
           <>
-            <div className="mx-auto size-10 animate-spin rounded-full border-3 border-primary border-t-transparent" />
-            <h1 className="mt-4 font-display text-xl font-bold uppercase tracking-wide text-foreground">
-              Conectando con la plataforma…
+            <h1 className="font-display text-xl font-bold uppercase tracking-wide text-destructive">
+              Error de conexión
             </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Redirigiendo a tu cuenta satelital de Wialon.
-            </p>
+            <p className="mt-3 text-sm text-muted-foreground">{errorMessage}</p>
+
+            <button
+              type="button"
+              onClick={() => void navigate({ to: "/wialon" })}
+              className="mt-6 flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90 transition-opacity"
+            >
+              Volver a iniciar sesión
+            </button>
           </>
         )}
       </div>

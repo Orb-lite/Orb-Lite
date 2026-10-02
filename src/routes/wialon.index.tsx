@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ExternalLink, MapPin, ShieldCheck, Video, KeyRound, Radio, ArrowRight, User, Lock, ChevronDown, ChevronUp } from "lucide-react";
+import { ShieldCheck, MapPin, Video, KeyRound, ArrowRight, User, Lock, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { PLATFORM_URLS, useWialonSession, writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin, wialonLoginWithCredentials } from "@/lib/wialon.functions";
@@ -13,12 +13,12 @@ export const Route = createFileRoute("/wialon/")({
       {
         name: "description",
         content:
-          "Accede directamente a la plataforma satelital Wialon (ORB-LITE y ORB-FULL) para monitorear tus vehículos y flotas en tiempo real.",
+          "Inicia sesión con tu cuenta de Wialon para acceder a tu plataforma de rastreo satelital ORB-LITE: mapa en vivo, historial, sensores y unidades.",
       },
       { property: "og:title", content: "Acceso a la plataforma de rastreo | ORB-LITE" },
       {
         property: "og:description",
-        content: "Acceso a Wialon Lite y Wialon Full para rastreo GPS en vivo, historial y reportes.",
+        content: "Mapa en vivo, unidades, historial y alertas de equipos en un solo panel.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -67,9 +67,8 @@ function WialonLoginPage() {
   const loginCredentials = useServerFn(wialonLoginWithCredentials);
   const loginToken = useServerFn(wialonLogin);
 
-  const [showEmbedded, setShowEmbedded] = React.useState(false);
-  const [embedHost, setEmbedHost] = React.useState<"lite" | "full">("lite");
-  const [method, setMethod] = React.useState<"credentials" | "token">("credentials");
+  const [host, setHost] = React.useState<"lite" | "full">("lite");
+  const [activeTab, setActiveTab] = React.useState<"wialon-oauth" | "direct" | "token">("wialon-oauth");
   const [user, setUser] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [token, setToken] = React.useState("");
@@ -77,13 +76,46 @@ function WialonLoginPage() {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (session) void navigate({ to: "/wialon/mapa" });
+    // Si viene con un access_token en el hash o query, enviar inmediatamente a callback
+    if (typeof window !== "undefined") {
+      const search = new URLSearchParams(window.location.search);
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const queryToken = search.get("access_token") ?? hash.get("access_token");
+      if (queryToken) {
+        void navigate({ to: "/wialon/callback" });
+        return;
+      }
+    }
+    if (session) {
+      void navigate({ to: "/wialon/mapa" });
+    }
   }, [session, navigate]);
 
-  async function handleCredentialsLogin(e: React.FormEvent) {
+  function startWialonOAuthLogin() {
+    const base = PLATFORM_URLS[host].app.replace(/\/$/, "");
+    window.sessionStorage.setItem("orblite.wialon.oauth-host", host);
+    window.localStorage.setItem("orblite.wialon.oauth-host", host);
+    const redirect = `${window.location.origin}/wialon/callback`;
+    const url = new URL(`${base}/login.html`);
+    url.searchParams.set("client_id", "ORB-LITE");
+    url.searchParams.set("access_type", "-1");
+    url.searchParams.set("activation_time", "0");
+    url.searchParams.set("duration", "2592000"); // 30 días
+    url.searchParams.set("flags", "0x1");
+    url.searchParams.set("lang", "es");
+    url.searchParams.set("redirect_uri", redirect);
+    url.searchParams.set("response_type", "token");
+    window.location.assign(url.toString());
+  }
+
+  async function handleDirectCredentialsLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (!user.trim() || !password) {
-      setError("Completa tu usuario y contraseña.");
+    if (!user.trim()) {
+      setError("Por favor escribe tu usuario de Wialon.");
+      return;
+    }
+    if (!password) {
+      setError("Por favor escribe tu contraseña.");
       return;
     }
 
@@ -94,12 +126,12 @@ function WialonLoginPage() {
       let sess: WialonSession | null = null;
       try {
         const res = await loginCredentials({
-          data: { host: embedHost, user: user.trim(), password },
+          data: { host, user: user.trim(), password },
         });
         if (res?.sid) sess = res;
-      } catch (err) {
-        sess = await directClientLoginWithCredentials(embedHost, user.trim(), password);
-        if (!sess) throw err;
+      } catch (serverErr) {
+        sess = await directClientLoginWithCredentials(host, user.trim(), password);
+        if (!sess) throw serverErr;
       }
 
       if (sess) {
@@ -109,9 +141,14 @@ function WialonLoginPage() {
         return;
       }
 
-      setError("Usuario o contraseña incorrectos.");
+      setError("Usuario o contraseña de Wialon incorrectos.");
     } catch (err: any) {
-      setError(err?.message || "No se pudo iniciar sesión en Wialon.");
+      const msg = err?.message || "Error al iniciar sesión.";
+      if (msg.includes("8") || msg.toLowerCase().includes("incorrect")) {
+        setError("Usuario o contraseña de Wialon incorrectos. Verifica si tu cuenta es ORB-LITE o ORB-FULL.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -123,20 +160,24 @@ function WialonLoginPage() {
       setError("Por favor escribe tu token.");
       return;
     }
+
     setLoading(true);
     setError(null);
+
     try {
-      const res = await loginToken({ data: { host: embedHost, token: token.trim() } });
+      const res = await loginToken({
+        data: { host, token: token.trim() },
+      });
       if (res?.sid) {
         writeSession(res);
         localStorage.setItem("wialon_token", token.trim());
-        toast.success("¡Sesión iniciada con éxito!");
+        toast.success(`¡Sesión iniciada con éxito!`);
         void navigate({ to: "/wialon/mapa" });
         return;
       }
-      setError("Token inválido.");
+      setError("Token inválido o expirado.");
     } catch (err: any) {
-      setError(err?.message || "Error al validar token.");
+      setError(err?.message || "No se pudo iniciar sesión con este token.");
     } finally {
       setLoading(false);
     }
@@ -144,226 +185,220 @@ function WialonLoginPage() {
 
   return (
     <div className="flex min-h-[65vh] flex-col items-center justify-center px-4 py-8 sm:py-12">
-      <div className="w-full max-w-2xl text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-          <Radio className="size-3.5 animate-pulse" />
-          <span>Acceso Directo Oficial</span>
+      <div className="w-full max-w-md">
+        <div className="text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+            Rastreo Satelital ORB-LITE
+          </p>
+          <h1 className="mt-1 font-display text-2xl font-extrabold uppercase tracking-wide text-foreground sm:text-3xl">
+            Acceso a la plataforma
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Inicia sesión con tu cuenta de Wialon para abrir tu panel de rastreo.
+          </p>
         </div>
-        <h1 className="mt-4 font-display text-3xl font-extrabold uppercase tracking-wide text-foreground sm:text-4xl">
-          Plataforma de Rastreo
-        </h1>
-        <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground sm:text-base">
-          Ingresa a la página oficial de Wialon correspondiente a tu cuenta para monitorear tus vehículos en vivo.
-        </p>
 
-        {/* Tarjetas de acceso directo a la página de Wialon */}
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 text-left">
-          {/* Opción 1: ORB-LITE (Wialon Lite) */}
-          <div className="group relative flex flex-col justify-between rounded-2xl border-2 border-primary/40 bg-card p-6 shadow-xl transition-all hover:border-primary hover:shadow-2xl">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="rounded-md bg-primary/20 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-primary">
-                  Versión Lite
-                </span>
-                <span className="text-xs text-muted-foreground font-mono">lite.wialon.us</span>
-              </div>
-              <h2 className="mt-3 font-display text-2xl font-bold uppercase tracking-wide text-foreground">
-                ORB-LITE
-              </h2>
-              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                Portal oficial para cuentas estándar de rastreo satelital, monitoreo en tiempo real y paro de motor.
-              </p>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-border/60">
-              <a
-                href="https://lite.wialon.us/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-lg transition-transform group-hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <span>Entrar a Wialon Lite</span>
-                <ExternalLink className="size-4" />
-              </a>
-              <div className="mt-2 text-center">
-                <a
-                  href="https://cms-lite.wialon.us/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[11px] text-muted-foreground hover:text-primary transition-colors underline"
+        <section className="mt-6 rounded-2xl border border-border/80 bg-card p-6 shadow-xl">
+          {/* Selector de versión */}
+          <div className="mb-5 space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Selecciona tu versión
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {(["lite", "full"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => {
+                    setHost(option);
+                    setError(null);
+                  }}
+                  className={`rounded-xl border px-3 py-2.5 text-xs font-bold uppercase tracking-wider transition-all ${
+                    host === option
+                      ? "border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/40"
+                      : "border-border text-muted-foreground hover:bg-muted/50"
+                  }`}
                 >
-                  Gestor de Altas (CMS Lite)
-                </a>
-              </div>
+                  {option === "lite" ? "ORB-LITE (Lite)" : "ORB-FULL (Full)"}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Opción 2: ORB-FULL (Wialon Full) */}
-          <div className="group relative flex flex-col justify-between rounded-2xl border-2 border-border/80 bg-card p-6 shadow-xl transition-all hover:border-amber-400 hover:shadow-2xl">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="rounded-md bg-amber-500/20 px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-amber-400">
-                  Versión Full
-                </span>
-                <span className="text-xs text-muted-foreground font-mono">hosting.wialon.com</span>
-              </div>
-              <h2 className="mt-3 font-display text-2xl font-bold uppercase tracking-wide text-foreground">
-                ORB-FULL
-              </h2>
-              <p className="mt-2 text-xs text-muted-foreground leading-relaxed">
-                Portal oficial Wialon Hosting para telemetría avanzada, sensores de combustible, cámaras y logística.
-              </p>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-border/60">
-              <a
-                href="https://hosting.wialon.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 py-3 font-display text-sm font-bold uppercase tracking-wider text-black shadow-lg transition-transform group-hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <span>Entrar a Wialon Full</span>
-                <ExternalLink className="size-4" />
-              </a>
-              <div className="mt-2 text-center">
-                <a
-                  href="https://cms.wialon.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[11px] text-muted-foreground hover:text-amber-400 transition-colors underline"
-                >
-                  Gestor de Altas (CMS Full)
-                </a>
-              </div>
-            </div>
+          {/* Selector de modo */}
+          <div className="mb-5 flex rounded-lg bg-muted/40 p-1 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("wialon-oauth");
+                setError(null);
+              }}
+              className={`flex-1 rounded-md py-2 transition-all ${
+                activeTab === "wialon-oauth"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Página de Wialon
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("direct");
+                setError(null);
+              }}
+              className={`flex-1 rounded-md py-2 transition-all ${
+                activeTab === "direct"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Usuario y Contraseña
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("token");
+                setError(null);
+              }}
+              className={`flex-1 rounded-md py-2 transition-all ${
+                activeTab === "token"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Token
+            </button>
           </div>
-        </div>
 
-        {/* Sección desplegable opcional para ver el mapa dentro de la web */}
-        <div className="mt-8 border-t border-border/60 pt-6">
-          <button
-            type="button"
-            onClick={() => setShowEmbedded((prev) => !prev)}
-            className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <span>{showEmbedded ? "Ocultar acceso integrado" : "¿Deseas ver el mapa dentro de este sitio web?"}</span>
-            {showEmbedded ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-          </button>
+          {/* Opción 1: Login por la página de Wialon (Recomendado) */}
+          {activeTab === "wialon-oauth" && (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Inicia sesión en la página oficial de Wialon. Una vez autenticado, se abrirá automáticamente tu sesión dentro de la plataforma ORB-LITE con tu mapa y unidades.
+              </p>
 
-          {showEmbedded && (
-            <div className="mx-auto mt-4 max-w-md rounded-2xl border border-border bg-card p-6 text-left shadow-lg">
-              <div className="mb-4 flex gap-2">
-                {(["lite", "full"] as const).map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setEmbedHost(opt)}
-                    className={`flex-1 rounded-lg border py-2 text-xs font-bold uppercase ${
-                      embedHost === opt ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
-                    }`}
-                  >
-                    {opt === "lite" ? "ORB-LITE" : "ORB-FULL"}
-                  </button>
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={startWialonOAuthLogin}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-lg hover:opacity-90 active:scale-[0.99] transition-all"
+              >
+                <span>Entrar por la página de Wialon</span>
+                <ArrowRight className="size-4" />
+              </button>
 
-              <div className="mb-4 flex rounded-lg bg-muted/40 p-1 text-xs">
-                <button
-                  type="button"
-                  onClick={() => setMethod("credentials")}
-                  className={`flex-1 rounded-md py-1.5 font-medium ${method === "credentials" ? "bg-card text-foreground shadow" : "text-muted-foreground"}`}
-                >
-                  Usuario y Contraseña
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMethod("token")}
-                  className={`flex-1 rounded-md py-1.5 font-medium ${method === "token" ? "bg-card text-foreground shadow" : "text-muted-foreground"}`}
-                >
-                  Token
-                </button>
-              </div>
-
-              {method === "credentials" ? (
-                <form onSubmit={handleCredentialsLogin} className="space-y-3">
-                  <div>
-                    <label className="text-xs font-semibold text-foreground">Usuario</label>
-                    <input
-                      type="text"
-                      value={user}
-                      onChange={(e) => setUser(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-foreground">Contraseña</label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none"
-                      required
-                    />
-                  </div>
-                  {error && <p className="text-xs text-destructive">{error}</p>}
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full rounded-lg bg-primary py-2.5 font-display text-xs font-bold uppercase text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                  >
-                    {loading ? "Entrando…" : "Ver mapa en este sitio"}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleTokenLogin} className="space-y-3">
-                  <div>
-                    <label className="text-xs font-semibold text-foreground">Token Wialon</label>
-                    <textarea
-                      rows={2}
-                      value={token}
-                      onChange={(e) => setToken(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-border bg-background p-2 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
-                      required
-                    />
-                  </div>
-                  {error && <p className="text-xs text-destructive">{error}</p>}
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full rounded-lg bg-primary py-2.5 font-display text-xs font-bold uppercase text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                  >
-                    {loading ? "Validando…" : "Ver mapa con token"}
-                  </button>
-                </form>
-              )}
+              <p className="text-[11px] text-center text-muted-foreground">
+                Servidor: <span className="font-mono text-primary font-semibold">{host === "lite" ? "lite.wialon.us" : "hosting.wialon.com"}</span>
+              </p>
             </div>
           )}
-        </div>
+
+          {/* Opción 2: Formulario directo Usuario y Contraseña */}
+          {activeTab === "direct" && (
+            <form onSubmit={handleDirectCredentialsLogin} className="space-y-3.5">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Usuario</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    autoComplete="username"
+                    value={user}
+                    onChange={(e) => setUser(e.target.value)}
+                    placeholder="Usuario en Wialon"
+                    className="w-full rounded-lg border border-border bg-background py-2.5 pl-9 pr-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Contraseña</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full rounded-lg border border-border bg-background py-2.5 pl-9 pr-3 text-sm text-foreground focus:border-primary focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-2 flex w-full items-center justify-center rounded-xl bg-primary py-3 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90 disabled:opacity-50 transition-all"
+              >
+                {loading ? "Iniciando sesión…" : "Abrir mi plataforma"}
+              </button>
+            </form>
+          )}
+
+          {/* Opción 3: Token */}
+          {activeTab === "token" && (
+            <form onSubmit={handleTokenLogin} className="space-y-3.5">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Token de acceso</label>
+                <textarea
+                  rows={2}
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="Pega aquí tu token de Wialon…"
+                  className="w-full rounded-lg border border-border bg-background p-2.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
+                  required
+                />
+              </div>
+
+              {error && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+                  {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="mt-2 flex w-full items-center justify-center rounded-xl bg-primary py-3 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90 disabled:opacity-50 transition-all"
+              >
+                {loading ? "Validando…" : "Abrir con token"}
+              </button>
+            </form>
+          )}
+        </section>
       </div>
 
-      {/* Grid de módulos Wialon */}
-      <div className="mt-14 grid w-full max-w-4xl gap-4 sm:grid-cols-4">
+      {/* Grid de módulos en la plataforma ORB-LITE */}
+      <div className="mt-12 grid w-full max-w-4xl gap-4 sm:grid-cols-4">
         {[
           {
             icon: MapPin,
             title: "Mapa en vivo",
-            text: "Ubicación en tiempo real, velocidad y sensores de tus unidades.",
+            text: "Ubicación satelital en tiempo real, velocidad y sensores de tus unidades.",
           },
           {
             icon: ShieldCheck,
-            title: "Historial de rutas",
-            text: "Consulta de recorridos por fechas, paradas y kilometraje.",
+            title: "Historial y rutas",
+            text: "Recorridos, paradas, kilometraje y velocidad máxima registrada.",
           },
           {
             icon: Video,
-            title: "Cámaras y Video",
-            text: "Transmisiones en vivo y descarga de eventos de video satelital.",
+            title: "Cámaras y video",
+            text: "Monitoreo en vivo de cámaras y video telemetría satelital.",
           },
           {
             icon: KeyRound,
-            title: "Altas y usuarios",
-            text: "Creación de geocercas, alertas y gestión de usuarios vía CMS.",
+            title: "Altas y gestión",
+            text: "Gestión de unidades, geocercas y usuarios con permisos.",
           },
         ].map((item) => (
           <div key={item.title} className="rounded-xl border border-border/60 bg-card/40 p-4 text-center">
