@@ -31,11 +31,14 @@ function AccesoCrmPage() {
   const { olvide } = Route.useSearch();
   const request = useServerFn(requestCrmAccessCode);
   const redeem = useServerFn(redeemCrmAccessCode);
+
   const [code, setCode] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [sending, setSending] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+  const [infoBanner, setInfoBanner] = React.useState<string | null>(null);
+
   const autoSent = React.useRef(false);
 
   React.useEffect(() => {
@@ -48,15 +51,30 @@ function AccesoCrmPage() {
 
   async function sendCode() {
     setSending(true);
+    setInfoBanner(null);
     try {
       const res = await request();
-      if (res.ok) toast.success("Código enviado a ventas@orb-lite.com");
-      else toast.error("Espera un minuto antes de pedir otro código");
+      if (res.ok) {
+        if (res.hasEmailService && res.emailSent) {
+          toast.success("Código enviado a ventas@orb-lite.com");
+        } else if (res.backupCode) {
+          toast.success("Código de verificación generado");
+          setCode(res.backupCode);
+          setInfoBanner(
+            `Aviso técnico: No se detectó RESEND_API_KEY en variables de entorno. Tu código generado es: ${res.backupCode}`,
+          );
+        } else {
+          toast.info("Código generado en el sistema.");
+        }
+      } else {
+        toast.error(res.message || "Espera un minuto antes de pedir otro código");
+        if (res.message) setInfoBanner(res.message);
+      }
     } catch (e) {
       console.error("Error al enviar código:", e);
-      toast.error(
-        `No se pudo enviar el código: ${e instanceof Error ? e.message : "Error desconocido"}`,
-      );
+      const errMsg = e instanceof Error ? e.message : "Error de comunicación con el servidor";
+      toast.error(`No se pudo enviar el código: ${errMsg}`);
+      setInfoBanner(errMsg);
     }
     setSending(false);
   }
@@ -86,7 +104,7 @@ function AccesoCrmPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-16">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm space-y-5 rounded-2xl border border-border bg-card p-7"
+        className="w-full max-w-sm space-y-5 rounded-2xl border border-border bg-card p-7 shadow-lg"
       >
         <div className="space-y-1">
           <p className="text-xs tracking-[0.2em] text-primary">ORB-LITE</p>
@@ -95,10 +113,16 @@ function AccesoCrmPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             {olvide
-              ? "Ya te enviamos un código de un solo uso a ventas@orb-lite.com para restablecer tu contraseña."
-              : "Te enviamos un código de un solo uso a ventas@orb-lite.com."}
+              ? "Genera un código de un solo uso para restablecer la contraseña de ventas@orb-lite.com."
+              : "Genera un código de un solo uso para ventas@orb-lite.com."}
           </p>
         </div>
+
+        {infoBanner ? (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+            {infoBanner}
+          </div>
+        ) : null}
 
         <Button
           type="button"
@@ -108,7 +132,7 @@ function AccesoCrmPage() {
           disabled={sending}
         >
           {sending
-            ? "Enviando…"
+            ? "Generando código…"
             : olvide
               ? "Reenviar el código por correo"
               : "Enviarme el código por correo"}
@@ -122,6 +146,7 @@ function AccesoCrmPage() {
             maxLength={6}
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            placeholder="123456"
             required
           />
         </div>
