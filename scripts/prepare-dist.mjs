@@ -102,8 +102,32 @@ export function prepareDist() {
     htmlContent = htmlContent.replace("</head>", `${cssLinks}\n  </head>`);
   }
 
+  const tsrBootstrap = `<script>
+    window.$_TSR = window.$_TSR || {
+      h: function () { this.hydrated = true; if (this.c) this.c(); },
+      e: function () { this.streamEnded = true; if (this.c) this.c(); },
+      c: function () { if (this.hydrated && this.streamEnded) { delete window.$_TSR; if (window.$R) delete window.$R.tsr; } },
+      p: function (fn) { if (this.initialized) fn(); else this.buffer.push(fn); },
+      buffer: [],
+      t: new Map(),
+      initialized: true,
+      router: {
+        manifest: {},
+        matches: []
+      }
+    };
+    window.$R = window.$R || {};
+  </script>`;
+
   if (jsScripts) {
-    htmlContent = htmlContent.replace("</body>", `${jsScripts}\n  </body>`);
+    if (!htmlContent.includes("window.$_TSR")) {
+      htmlContent = htmlContent.replace("</body>", `${tsrBootstrap}
+    ${jsScripts}
+  </body>`);
+    } else {
+      htmlContent = htmlContent.replace("</body>", `${jsScripts}
+  </body>`);
+    }
   }
 
   // Write compiled HTML to dist/index.html AND .vercel/output/static/index.html

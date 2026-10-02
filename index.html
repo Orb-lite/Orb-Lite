@@ -9,6 +9,22 @@
     <meta property="og:description" content="Sistema de rastreo satelital GPS en tiempo real para vehículos, flotas y empresas. Monitoreo en vivo, apagado de motor, reportes, gestión de rutas y catálogo oficial." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+      <script>
+      window.$_TSR = window.$_TSR || {
+        h: function () { this.hydrated = true; if (this.c) this.c(); },
+        e: function () { this.streamEnded = true; if (this.c) this.c(); },
+        c: function () { if (this.hydrated && this.streamEnded) { delete window.$_TSR; if (window.$R) delete window.$R.tsr; } },
+        p: function (fn) { if (this.initialized) fn(); else this.buffer.push(fn); },
+        buffer: [],
+        t: new Map(),
+        initialized: true,
+        router: {
+          manifest: {},
+          matches: []
+        }
+      };
+      window.$R = window.$R || {};
+    </script>
   </head>
   <body>
     <div id="root"></div>
