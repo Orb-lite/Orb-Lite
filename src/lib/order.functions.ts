@@ -109,7 +109,7 @@ export const notifyNewOrder = createServerFn({ method: "POST" })
         customer_number: data.customerNumber ?? null,
         full_name: contact?.fullName ?? data.billingInfo?.legalName ?? null,
         phone: contact?.phone ?? data.billingInfo?.phone ?? null,
-        email: data.billingInfo?.email ?? null,
+        email: contact?.email ?? data.billingInfo?.email ?? null,
         items: lines,
         shipping_label: shipping.label,
         wants_invoice: data.wantsInvoice,

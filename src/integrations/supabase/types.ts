@@ -1,8 +1,12 @@
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5";
   };
@@ -188,6 +192,107 @@ export type Database = {
         };
         Relationships: [];
       };
+      geofences: {
+        Row: {
+          color: string;
+          created_at: string;
+          created_by_id: string;
+          created_by_name: string | null;
+          description: string | null;
+          geometry: Json;
+          id: string;
+          name: string;
+          type: string;
+          updated_at: string;
+        };
+        Insert: {
+          color?: string;
+          created_at?: string;
+          created_by_id: string;
+          created_by_name?: string | null;
+          description?: string | null;
+          geometry: Json;
+          id?: string;
+          name: string;
+          type?: string;
+          updated_at?: string;
+        };
+        Update: {
+          color?: string;
+          created_at?: string;
+          created_by_id?: string;
+          created_by_name?: string | null;
+          description?: string | null;
+          geometry?: Json;
+          id?: string;
+          name?: string;
+          type?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      geofence_assignments: {
+        Row: {
+          assigned_at: string;
+          assigned_user_id: string;
+          geofence_id: string;
+          id: string;
+        };
+        Insert: {
+          assigned_at?: string;
+          assigned_user_id: string;
+          geofence_id: string;
+          id?: string;
+        };
+        Update: {
+          assigned_at?: string;
+          assigned_user_id?: string;
+          geofence_id?: string;
+          id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "geofence_assignments_geofence_id_fkey";
+            columns: ["geofence_id"];
+            isOneToOne: false;
+            referencedRelation: "geofences";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      hardware_command_definitions: {
+        Row: {
+          command_code: string;
+          command_name: string;
+          created_at: string;
+          description: string | null;
+          hardware_brand: string;
+          id: string;
+          input_label: string | null;
+          requires_input: boolean | null;
+        };
+        Insert: {
+          command_code: string;
+          command_name: string;
+          created_at?: string;
+          description?: string | null;
+          hardware_brand: string;
+          id?: string;
+          input_label?: string | null;
+          requires_input?: boolean | null;
+        };
+        Update: {
+          command_code?: string;
+          command_name?: string;
+          created_at?: string;
+          description?: string | null;
+          hardware_brand?: string;
+          id?: string;
+          input_label?: string | null;
+          requires_input?: boolean | null;
+        };
+        Relationships: [];
+      };
       renovaciones: {
         Row: {
           amount: number;
@@ -262,6 +367,82 @@ export type Database = {
           variant_name?: string;
         };
         Relationships: [];
+      };
+      shared_links: {
+        Row: {
+          created_at: string;
+          created_by_id: string | null;
+          created_by_name: string | null;
+          expires_at: string | null;
+          id: string;
+          is_active: boolean;
+          name: string | null;
+          route_id: string | null;
+          token: string | null;
+          unit_id: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          created_by_id?: string | null;
+          created_by_name?: string | null;
+          expires_at?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name?: string | null;
+          route_id?: string | null;
+          token?: string | null;
+          unit_id?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          created_by_id?: string | null;
+          created_by_name?: string | null;
+          expires_at?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name?: string | null;
+          route_id?: string | null;
+          token?: string | null;
+          unit_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "shared_links_route_id_fkey";
+            columns: ["route_id"];
+            isOneToOne: false;
+            referencedRelation: "user_routes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      shared_link_assignments: {
+        Row: {
+          assigned_at: string;
+          assigned_user_id: string;
+          id: string;
+          shared_link_id: string;
+        };
+        Insert: {
+          assigned_at?: string;
+          assigned_user_id: string;
+          id?: string;
+          shared_link_id: string;
+        };
+        Update: {
+          assigned_at?: string;
+          assigned_user_id?: string;
+          id?: string;
+          shared_link_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "shared_link_assignments_shared_link_id_fkey";
+            columns: ["shared_link_id"];
+            isOneToOne: false;
+            referencedRelation: "shared_links";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       solicitudes: {
         Row: {
@@ -374,6 +555,35 @@ export type Database = {
         };
         Relationships: [];
       };
+      user_route_assignments: {
+        Row: {
+          assigned_at: string;
+          assigned_user_id: string;
+          id: string;
+          route_id: string;
+        };
+        Insert: {
+          assigned_at?: string;
+          assigned_user_id: string;
+          id?: string;
+          route_id: string;
+        };
+        Update: {
+          assigned_at?: string;
+          assigned_user_id?: string;
+          id?: string;
+          route_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_route_assignments_route_id_fkey";
+            columns: ["route_id"];
+            isOneToOne: false;
+            referencedRelation: "user_routes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -398,12 +608,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -413,8 +623,10 @@ export type Tables<
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R;
       }
       ? R
@@ -423,12 +635,13 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -447,12 +660,13 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -471,12 +685,13 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -487,12 +702,13 @@ export type Enums<
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -500,9 +716,3 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never;
-
-export const Constants = {
-  public: {
-    Enums: {},
-  },
-} as const;

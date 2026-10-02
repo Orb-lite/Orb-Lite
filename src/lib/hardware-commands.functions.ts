@@ -1,84 +1,86 @@
-
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client.server";
-import { wialonUnitDetail } from "@/lib/wialon.functions";
-import { wialonCall, type WialonHost } from "@/lib/wialon.server";
 
-export const getHardwareCommands = createServerFn({ method: "POST" })
+export interface HardwareCommand {
+  id: string;
+  hardwareBrand: string;
+  commandName: string;
+  commandCode: string;
+  description: string | null;
+  requiresInput: boolean;
+  inputLabel: string | null;
+  createdAt: string;
+}
+
+/** Consulta las definiciones de comandos por marca de hardware o lista todas */
+export const getHardwareCommandDefinitions = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({
-      unitId: z.number().int().positive(),
-      host: z.enum(["lite", "full"]),
-      sid: z.string().min(1),
-    }).parse(input),
+    z
+      .object({
+        brand: z.string().trim().optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data }) => {
-    // 1. Get unit details
-    const unitDetail = await wialonUnitDetail({
-        data: { unitId: data.unitId, host: data.host, sid: data.sid }
-    });
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    if (!unitDetail.hwTypeId) {
-        throw new Error("No se pudo determinar el tipo de hardware de la unidad.");
+    let query = supabaseAdmin
+      .from("hardware_command_definitions")
+      .select("id, hardware_brand, command_name, command_code, description, requires_input, input_label, created_at")
+      .order("hardware_brand", { ascending: true })
+      .order("command_name", { ascending: true });
+
+    if (data.brand) {
+      query = query.ilike("hardware_brand", `%${data.brand}%`);
     }
 
-    // 2. Get hardware type name
-    const hwTypes = await wialonCall<Array<{ id: number; name: string }>>(
-      data.host as WialonHost,
-      "core/get_hw_types",
-      {
-        filterType: "id",
-        filterValue: [unitDetail.hwTypeId],
-        includeType: true,
-        ignoreRename: true,
-      },
-      data.sid,
-    );
-    
-    const hwTypeName = (Array.isArray(hwTypes) ? hwTypes[0]?.name : undefined) ?? "";
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
 
-    // 3. Simple brand mapping (can be enhanced)
-    // This assumes hardware_command_definitions.hardware_brand matches the brand/type
-    const brand = hwTypeName;
+    const commands: HardwareCommand[] = (rows ?? []).map((r) => ({
+      id: r.id,
+      hardwareBrand: r.hardware_brand,
+      commandName: r.command_name,
+      commandCode: r.command_code,
+      description: r.description,
+      requiresInput: Boolean(r.requires_input),
+      inputLabel: r.input_label,
+      createdAt: r.created_at,
+    }));
 
-    // 4. Fetch commands
-    const { data: commands, error } = await supabase
-      .from("hardware_command_definitions")
-      .select("*")
-      .eq("hardware_brand", brand);
-
-    if (error) throw error;
     return { commands };
   });
 
-export const addHardwareCommand = createServerFn({ method: "POST" })
+/** Agrega una nueva definición de comando para una marca de GPS */
+export const addHardwareCommandDefinition = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({
-      hardwareBrand: z.string(),
-      commandName: z.string(),
-      commandCode: z.string(),
-      description: z.string().optional(),
-      requiresInput: z.boolean().default(false),
-      inputLabel: z.string().optional(),
-    }).parse(input),
+    z
+      .object({
+        hardwareBrand: z.string().trim().min(2).max(100),
+        commandName: z.string().trim().min(2).max(100),
+        commandCode: z.string().trim().min(1).max(250),
+        description: z.string().trim().max(500).optional().or(z.literal("")),
+        requiresInput: z.boolean().default(false),
+        inputLabel: z.string().trim().max(100).optional().or(z.literal("")),
+      })
+      .parse(input),
   )
   .handler(async ({ data }) => {
-    const { data: command, error } = await supabase
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: inserted, error } = await supabaseAdmin
       .from("hardware_command_definitions")
-      .insert([
-        {
-          hardware_brand: data.hardwareBrand,
-          command_name: data.commandName,
-          command_code: data.commandCode,
-          description: data.description,
-          requires_input: data.requiresInput,
-          input_label: data.inputLabel,
-        },
-      ])
-      .select()
+      .insert({
+        hardware_brand: data.hardwareBrand,
+        command_name: data.commandName,
+        command_code: data.commandCode,
+        description: data.description || null,
+        requires_input: data.requiresInput,
+        input_label: data.inputLabel || null,
+      })
+      .select("*")
       .single();
 
-    if (error) throw error;
-    return { command };
+    if (error) throw new Error(error.message);
+    return { ok: true, command: inserted };
   });

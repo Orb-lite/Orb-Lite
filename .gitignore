@@ -1,9 +1,11 @@
 node_modules/
+build/
 dist/
 .output/
-.nuxt/
-.vercel
-.env
-.env.local
-.DS_Store
+.vercel/
+.tanstack/
+.wrangler/
+coverage/
 *.log
+.env*
+!.env.example

@@ -160,6 +160,8 @@ export async function deleteUserRouteFromStorage(
 ): Promise<boolean> {
   inMemoryRoutes.delete(routeId);
   try {
+    await supabaseAdmin.from("user_route_assignments").delete().eq("route_id", routeId);
+    await supabaseAdmin.from("shared_links").delete().eq("route_id", routeId);
     await supabaseAdmin.from("user_routes").delete().eq("id", routeId).eq("user_id", userId);
   } catch (err) {
     console.warn("[user-routes] Could not sync delete to Supabase:", err);
@@ -236,6 +238,17 @@ export async function setRouteShare(
 
   try {
     await supabaseAdmin.from("user_routes").update(routeToRow(route)).eq("id", route.id);
+    await supabaseAdmin.from("shared_links").upsert(
+      {
+        name: route.name,
+        token: shareToken,
+        route_id: route.id,
+        is_active: true,
+        created_by_id: String(userId),
+        created_by_name: route.userName || null,
+      },
+      { onConflict: "token" },
+    );
   } catch (err) {
     console.warn("[user-routes] Could not sync share update to Supabase:", err);
   }

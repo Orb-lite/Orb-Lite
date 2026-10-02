@@ -1,5 +1,6 @@
 import * as React from "react";
 import { render } from "@react-email/render";
+import nodemailer from "nodemailer";
 import { TEMPLATES } from "./registry";
 
 const SITE_NAME = "ORB-LITE";
@@ -14,14 +15,6 @@ export interface SendTemplateEmailOptions {
   /** Clave de idempotencia para evitar duplicados en reintentos */
   idempotencyKey?: string;
   replyTo?: string;
-  attachments?: Array<{
-    filename: string;
-    content: string | Buffer;
-  }>;
-  tags?: Array<{
-    name: string;
-    value: string;
-  }>;
 }
 
 /**
@@ -78,10 +71,6 @@ export async function sendTemplateEmail(
           html,
           text,
           ...(options.replyTo ? { reply_to: options.replyTo } : {}),
-          ...(options.attachments && options.attachments.length > 0
-            ? { attachments: options.attachments }
-            : {}),
-          ...(options.tags && options.tags.length > 0 ? { tags: options.tags } : {}),
         }),
       });
 
@@ -103,7 +92,6 @@ export async function sendTemplateEmail(
   const smtpPass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD;
   if (smtpHost && smtpUser && smtpPass) {
     try {
-      const nodemailer = await import("nodemailer").then((m) => m.default || m);
       const port = Number(process.env.SMTP_PORT || 465);
       const transporter = nodemailer.createTransport({
         host: smtpHost,
@@ -197,9 +185,36 @@ export async function sendTemplateEmail(
     }
   }
 
-  // 5. Modo Simulado / Registro: No bloquea el sistema si aún no agregas tus claves en Vercel
+  // 5. Fallback a Lovable si aún está configurado LOVABLE_API_KEY
+  const lovableApiKey = process.env.LOVABLE_API_KEY;
+  if (lovableApiKey) {
+    try {
+      const { sendLovableEmail } = await import("@lovable.dev/email-js");
+      await sendLovableEmail(
+        {
+          to: recipient,
+          from: fromAddress,
+          sender_domain: "notify.orb-lite.com",
+          subject,
+          html,
+          text,
+          purpose: "transactional",
+          label: templateName,
+          idempotency_key: options.idempotencyKey || crypto.randomUUID(),
+          ...(options.replyTo ? { reply_to: options.replyTo } : {}),
+        },
+        { apiKey: lovableApiKey, sendUrl: process.env["LOVABLE_SEND_URL"] },
+      );
+      return { sent: true };
+    } catch (error: any) {
+      console.error("[send-email] Error en Lovable email API:", error);
+      return { sent: false, reason: error.message };
+    }
+  }
+
+  // 6. Modo Simulado / Registro: No bloquea el sistema si aún no agregas tus claves en Vercel
   console.warn(
-    `[send-email] ⚠️ No se detectó RESEND_API_KEY ni configuración SMTP alternativa.`,
+    `[send-email] ⚠️ No se detectaron credenciales de correo (RESEND_API_KEY, SMTP_HOST, SENDGRID_API_KEY o BREVO_API_KEY).`,
   );
   console.log(`[send-email] Correo simulado exitoso para: ${recipient} | Asunto: "${subject}"`);
   return { sent: true };

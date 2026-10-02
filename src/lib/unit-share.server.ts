@@ -190,22 +190,16 @@ export async function createSharedUnitLink(params: {
 
   // Intentar sincronizar en Supabase si está disponible
   try {
-    await supabaseAdmin.from("shared_unit_links").insert({
+    await supabaseAdmin.from("shared_links").insert({
       id: linkRecord.id,
+      name: linkRecord.unitName || linkRecord.clientName || "Unidad compartida",
       token: linkRecord.token,
-      unit_id: linkRecord.unitId,
-      unit_name: linkRecord.unitName,
-      imei: linkRecord.imei,
-      client_name: linkRecord.clientName,
-      client_phone: linkRecord.clientPhone,
-      client_email: linkRecord.clientEmail,
-      notes: linkRecord.notes,
-      duration_hours: linkRecord.durationHours,
+      unit_id: String(linkRecord.unitId),
+      route_id: null,
+      expires_at: linkRecord.isUnlimited ? null : linkRecord.expiresAt,
+      is_active: linkRecord.status === "active",
+      created_by_name: linkRecord.clientName || null,
       created_at: linkRecord.createdAt,
-      expires_at: linkRecord.expiresAt,
-      status: linkRecord.status,
-      host: linkRecord.host,
-      last_position: linkRecord.lastPosition,
     });
   } catch (err) {
     console.warn("[unit-share] Supabase offline, link saved in resilient memory:", err);
@@ -249,32 +243,31 @@ export async function getSharedUnitByToken(token: string): Promise<SharedUnitLin
   if (!link) {
     try {
       const { data } = await supabaseAdmin
-        .from("shared_unit_links")
+        .from("shared_links")
         .select("*")
         .eq("token", token)
         .maybeSingle();
 
       if (data) {
-        const isUnlim = Boolean(data.duration_hours === 0 || data.is_unlimited);
+        const isExpired = data.expires_at ? new Date(data.expires_at).getTime() <= Date.now() : false;
         link = {
           id: data.id,
-          token: data.token,
-          unitId: data.unit_id,
-          unitName: data.unit_name,
-          imei: data.imei,
-          clientName: data.client_name,
-          clientPhone: data.client_phone,
-          clientEmail: data.client_email,
-          notes: data.notes,
-          durationHours: data.duration_hours,
-          isUnlimited: isUnlim,
+          token: data.token || token,
+          unitId: data.unit_id ? (isNaN(Number(data.unit_id)) ? (data.unit_id as any) : Number(data.unit_id)) : 0,
+          unitName: data.name || "Unidad",
+          imei: null,
+          clientName: data.created_by_name || "",
+          clientPhone: null,
+          clientEmail: null,
+          notes: null,
+          durationHours: data.expires_at ? 24 : 0,
+          isUnlimited: !data.expires_at,
           createdAt: data.created_at,
-          expiresAt: data.expires_at,
-          status: data.status,
-          viewCount: data.view_count ?? 0,
-          lastViewedAt: data.last_viewed_at,
-          host: data.host,
-          lastPosition: data.last_position,
+          expiresAt: data.expires_at || new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString(),
+          status: !data.is_active ? "revoked" : isExpired ? "expired" : "active",
+          viewCount: 0,
+          lastViewedAt: null,
+          host: "lite",
         };
         inMemoryUnitShares.set(token, link);
         inMemoryUnitShares.set(link.id, link);
@@ -308,7 +301,7 @@ export async function revokeSharedUnitLink(token: string): Promise<boolean> {
   link.status = "revoked";
 
   try {
-    await supabaseAdmin.from("shared_unit_links").update({ status: "revoked" }).eq("token", token);
+    await supabaseAdmin.from("shared_links").update({ is_active: false }).eq("token", token);
   } catch {
     // Ignorar error de red
   }
@@ -332,11 +325,10 @@ export async function extendSharedUnitLink(
 
   try {
     await supabaseAdmin
-      .from("shared_unit_links")
+      .from("shared_links")
       .update({
         expires_at: link.expiresAt,
-        duration_hours: link.durationHours,
-        status: "active",
+        is_active: true,
       })
       .eq("token", token);
   } catch {
@@ -354,7 +346,7 @@ export async function deleteSharedUnitLink(token: string): Promise<boolean> {
   }
 
   try {
-    await supabaseAdmin.from("shared_unit_links").delete().eq("token", token);
+    await supabaseAdmin.from("shared_links").delete().eq("token", token);
   } catch {
     // Ignorar
   }
