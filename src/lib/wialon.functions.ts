@@ -91,6 +91,51 @@ function normalizeUnit(
 }
 
 /** Inicia sesión en Wialon exclusivamente con un token generado por su API. */
+
+/** Inicia sesión en Wialon con usuario y contraseña directos. */
+export const wialonLoginWithCredentials = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        host: hostSchema,
+        user: z.string().trim().min(1, "Captura tu nombre de usuario."),
+        password: z.string().min(1, "Captura tu contraseña."),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const primaryHost = data.host as WialonHost;
+    const hosts: WialonHost[] = primaryHost === "full" ? ["full", "lite"] : ["lite", "full"];
+    let lastError: unknown = null;
+
+    for (const h of hosts) {
+      try {
+        const result = await wialonCall<{
+          eid?: string;
+          user?: { id?: number; nm?: string };
+        }>(h, "core/login", { user: data.user, password: data.password });
+
+        if (result?.eid) {
+          return {
+            sid: result.eid,
+            host: h,
+            userId: result.user?.id ?? 0,
+            userName: result.user?.nm ?? data.user,
+          };
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (lastError instanceof WialonError) {
+      throw lastError;
+    }
+    throw new Error(
+      lastError instanceof Error ? lastError.message : "Usuario o contraseña de Wialon incorrectos.",
+    );
+  });
+
 export const wialonLogin = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
