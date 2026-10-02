@@ -34,16 +34,6 @@ function MapaView({ session }: { session: WialonSession }) {
   const [selectedGeofenceKeys, setSelectedGeofenceKeys] = React.useState<string[] | null>(null);
   const { hidden, setVisible } = useHiddenUnits(session);
 
-  React.useEffect(() => {
-    if (query.data && "sid" in query.data && query.data.sid && query.data.sid !== session.sid) {
-      writeSession({
-        ...session,
-        sid: query.data.sid as string,
-        host: ((query.data as any).host as any) || session.host,
-      });
-    }
-  }, [query.data, session]);
-
   const query = useQuery({
     queryKey: ["wialon-units", session.sid],
     queryFn: () => fetchUnits({ data: { host: session.host, sid: session.sid } }),
