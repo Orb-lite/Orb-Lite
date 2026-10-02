@@ -1,10 +1,9 @@
 import * as React from "react";
 import { render } from "@react-email/render";
-import nodemailer from "nodemailer";
 import { TEMPLATES } from "./registry";
 
 const SITE_NAME = "ORB-LITE";
-const DEFAULT_FROM = process.env.EMAIL_FROM || `${SITE_NAME} <ventas@orb-lite.com>`;
+const DEFAULT_FROM = process.env.RESEND_FROM || process.env.EMAIL_FROM || `${SITE_NAME} <ventas@orb-lite.com>`;
 
 export type SendTemplateEmailResult =
   | { sent: true; id?: string }
@@ -18,15 +17,15 @@ export interface SendTemplateEmailOptions {
 }
 
 /**
- * Módulo de envío de correos 100% compatible con Vercel.
+ * Módulo de envío de correos con Resend (100% compatible con Vercel).
  *
- * Detecta y utiliza automáticamente en orden de preferencia:
- * 1. Resend (Recomendado oficial en Vercel -> RESEND_API_KEY)
- * 2. Servidor SMTP propio (Google Workspace, Titan, cPanel, Outlook -> SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_PORT)
- * 3. SendGrid (SENDGRID_API_KEY)
- * 4. Brevo / Sendinblue (BREVO_API_KEY)
- * 5. Lovable Managed API (LOVABLE_API_KEY como fallback)
- * 6. Simulación segura en consola si aún no configuras variables en Vercel
+ * Utiliza la API HTTP oficial de Resend (https://api.resend.com/emails)
+ * mediante `fetch`, garantizando máxima velocidad, sin dependencias pesadas
+ * y compatibilidad nativa con Serverless / Edge en Vercel.
+ *
+ * Variables de entorno requeridas en Vercel:
+ * - RESEND_API_KEY: Tu clave API de Resend (empieza con "re_...")
+ * - EMAIL_FROM o RESEND_FROM: Remitente verificado en Resend (ej: "ORB-LITE <ventas@orb-lite.com>" o "onboarding@resend.dev")
  */
 export async function sendTemplateEmail(
   templateName: string,
@@ -36,7 +35,7 @@ export async function sendTemplateEmail(
   const template = TEMPLATES[templateName];
   if (!template) {
     throw new Error(
-      `Template '${templateName}' no encontrado. Disponibles: ${Object.keys(TEMPLATES).join(", ")}`,
+      `Template \x27${templateName}\x27 no encontrado. Disponibles: ${Object.keys(TEMPLATES).join(", ")}`,
     );
   }
 
@@ -52,17 +51,17 @@ export async function sendTemplateEmail(
   const subject =
     typeof template.subject === "function" ? template.subject(templateData) : template.subject;
 
-  const fromAddress = process.env.EMAIL_FROM || DEFAULT_FROM;
-
-  // 1. Resend (Opción estándar y recomendada en Vercel)
+  const fromAddress = process.env.RESEND_FROM || process.env.EMAIL_FROM || DEFAULT_FROM;
   const resendApiKey = process.env.RESEND_API_KEY;
+
   if (resendApiKey) {
     try {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${resendApiKey}`,
+          Authorization: `Bearer ${resendApiKey.trim()}`,
           "Content-Type": "application/json",
+          ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
         },
         body: JSON.stringify({
           from: fromAddress,
@@ -76,119 +75,25 @@ export async function sendTemplateEmail(
 
       const data = await response.json();
       if (!response.ok) {
-        console.error("[send-email] Error en Resend API:", data);
-        return { sent: false, reason: data.message || "Error al enviar con Resend" };
+        console.error("[Resend] Error al enviar correo:", data);
+        return {
+          sent: false,
+          reason: data.message || data.error?.message || "Error al enviar correo con Resend",
+        };
       }
+
+      console.log(`[Resend] Correo enviado exitosamente a: ${recipient} (ID: ${data.id})`);
       return { sent: true, id: data.id };
     } catch (err: any) {
-      console.error("[send-email] Excepción al llamar a Resend:", err);
+      console.error("[Resend] Excepción al llamar a Resend API:", err);
       return { sent: false, reason: err.message };
     }
   }
 
-  // 2. SMTP / Nodemailer (Google Workspace, Titan, cPanel, Outlook, Amazon SES)
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPass = process.env.SMTP_PASS || process.env.SMTP_PASSWORD;
-  if (smtpHost && smtpUser && smtpPass) {
-    try {
-      const port = Number(process.env.SMTP_PORT || 465);
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port,
-        secure: port === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
-
-      const info = await transporter.sendMail({
-        from: fromAddress,
-        to: recipient,
-        subject,
-        html,
-        text,
-        replyTo: options.replyTo,
-      });
-
-      return { sent: true, id: info.messageId };
-    } catch (err: any) {
-      console.error("[send-email] Error en envío SMTP:", err);
-      return { sent: false, reason: err.message };
-    }
-  }
-
-  // 3. SendGrid
-  const sendgridApiKey = process.env.SENDGRID_API_KEY;
-  if (sendgridApiKey) {
-    try {
-      const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${sendgridApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          personalizations: [{ to: [{ email: recipient }] }],
-          from: { email: fromAddress.match(/<([^>]+)>/)?.[1] || fromAddress, name: SITE_NAME },
-          subject,
-          content: [
-            { type: "text/plain", value: text },
-            { type: "text/html", value: html },
-          ],
-          ...(options.replyTo ? { reply_to: { email: options.replyTo } } : {}),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[send-email] Error en SendGrid:", errorText);
-        return { sent: false, reason: errorText };
-      }
-      return { sent: true };
-    } catch (err: any) {
-      console.error("[send-email] Excepción en SendGrid:", err);
-      return { sent: false, reason: err.message };
-    }
-  }
-
-  // 4. Brevo (Sendinblue)
-  const brevoApiKey = process.env.BREVO_API_KEY;
-  if (brevoApiKey) {
-    try {
-      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-        method: "POST",
-        headers: {
-          "api-key": brevoApiKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sender: { name: SITE_NAME, email: fromAddress.match(/<([^>]+)>/)?.[1] || fromAddress },
-          to: [{ email: recipient }],
-          subject,
-          htmlContent: html,
-          textContent: text,
-          ...(options.replyTo ? { replyTo: { email: options.replyTo } } : {}),
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        console.error("[send-email] Error en Brevo:", data);
-        return { sent: false, reason: data.message || "Error en Brevo" };
-      }
-      return { sent: true, id: data.messageId };
-    } catch (err: any) {
-      console.error("[send-email] Excepción en Brevo:", err);
-      return { sent: false, reason: err.message };
-    }
-  }
-
-  // 5. Modo Simulado / Registro: No bloquea el sistema si aún no agregas tus claves en Vercel
+  // Si no se ha configurado RESEND_API_KEY en Vercel, mostrar aviso y registrar
   console.warn(
-    `[send-email] ⚠️ No se detectaron credenciales de correo (RESEND_API_KEY, SMTP_HOST, SENDGRID_API_KEY o BREVO_API_KEY).`,
+    "[Resend] ⚠️ RESEND_API_KEY no está configurada en las variables de entorno de Vercel.",
   );
-  console.log(`[send-email] Correo simulado exitoso para: ${recipient} | Asunto: "${subject}"`);
+  console.log(`[Resend] Simulación: correo no enviado a ${recipient} | Asunto: \x22${subject}\x22`);
   return { sent: true };
 }

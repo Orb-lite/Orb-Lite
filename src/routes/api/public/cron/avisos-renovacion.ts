@@ -11,7 +11,7 @@ function daysBetween(from: Date, to: Date) {
 }
 
 async function handle(request: Request) {
-  const secret = process.env["CRON_RESUMEN_SECRET"] ?? process.env["LOVABLE_CRON_SECRET"];
+  const secret = process.env["CRON_RESUMEN_SECRET"] ?? process.env["CRON_SECRET"];
   const provided =
     request.headers.get("x-cron-secret") ??
     (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
