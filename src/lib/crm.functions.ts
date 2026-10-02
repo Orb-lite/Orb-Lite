@@ -5,10 +5,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const STATUSES = ["pendiente", "vendido", "no_vendido"] as const;
 
 export const CRM_EMAIL = "ventas@orb-lite.com";
+export const ALLOWED_CRM_EMAILS = ["ventas@orb-lite.com", "isaacgomezestrada60@gmail.com"];
 
 function assertCrmUser(claims: any) {
   const email = String(claims?.email ?? "").toLowerCase();
-  if (email !== CRM_EMAIL) throw new Error("Acceso restringido");
+  if (!ALLOWED_CRM_EMAILS.includes(email)) throw new Error("Acceso restringido");
 }
 
 export const crmListSolicitudes = createServerFn({ method: "POST" })
