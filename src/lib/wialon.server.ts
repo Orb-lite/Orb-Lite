@@ -1,10 +1,11 @@
-import * as fs from "node:fs";
+﻿import * as fs from "node:fs";
 
 function logDebug(line: string) {
   try {
-    fs.appendFileSync("/tmp/wialon_debug.log", `[${new Date().toISOString()}] ${line}\n`);
+    fs.appendFileSync("wialon.log", `[${new Date().toISOString()}] ${line}\n`);
   } catch {}
 }
+
 export type WialonHost = "lite" | "full";
 
 // Los dominios de la interfaz (lite.wialon.us / hosting.wialon.com) no aceptan
@@ -53,18 +54,28 @@ export function wialonErrorText(code: number, reason?: string): string {
   return ERRORS[code] ?? `Error de la plataforma (${code})${reason ? `: ${reason}` : ""}`;
 }
 
-/** Error con el código original de Wialon para poder reaccionar (sesión vencida, permisos, etc.). */
+/**
+ * Error con el código original de Wialon para poder reaccionar (sesión vencida, permisos, etc.).
+ * Añadimos `recoverable` para distinguir errores que pueden resolverse con re-autenticación.
+ */
 export class WialonError extends Error {
   code: number;
-  constructor(code: number, reason?: string) {
+  recoverable: boolean;
+
+  constructor(code: number, reason?: string, recoverable?: boolean) {
     super(wialonErrorText(code, reason));
     this.name = "WialonError";
     this.code = code;
+    this.recoverable = recoverable ?? (code === 1 || code === 7);
   }
 }
 
 export function isSessionExpired(error: unknown): boolean {
   return error instanceof WialonError && (error.code === 1 || error.code === 7);
+}
+
+export function isRecoverableError(error: unknown): boolean {
+  return error instanceof WialonError && error.recoverable;
 }
 
 const TIMEOUT_MS = 20000;
@@ -74,6 +85,12 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * wialonCall centralizado:
+ * - Detecta la respuesta con HTTP 200 pero body { error: code }
+ * - Reintenta errores de rate limit
+ * - Detecta errores de sesión inválida/denegada y los marca como recuperables
+ */
 export async function wialonCall<T = unknown>(
   host: WialonHost,
   svc: string,
@@ -85,7 +102,10 @@ export async function wialonCall<T = unknown>(
   url.searchParams.set("svc", svc);
   if (sid) url.searchParams.set("sid", sid);
 
-  logDebug(`CALL svc=${svc} host=${host} sid=${sid ? sid.slice(0, 12) + "..." : "none"} params=${JSON.stringify(params ?? {}).slice(0, 150)}`);
+  logDebug(
+    `CALL svc=${svc} host=${host} sid=${sid ? sid.slice(0, 12) + "..." : "none"} attempt=${attempt} params=${JSON.stringify(params ?? {}).slice(0, 150)}`,
+  );
+
   let res: Response;
   try {
     res = await fetch(url.toString(), {
@@ -111,15 +131,26 @@ export async function wialonCall<T = unknown>(
   }
 
   const json = (await res.json()) as unknown;
-  logDebug(`RESP svc=${svc} host=${host} status=${res.status} json=${JSON.stringify(json).slice(0, 250)}`);
+  logDebug(
+    `RESP svc=${svc} host=${host} status=${res.status} json=${JSON.stringify(json).slice(0, 250)}`,
+  );
+
+  // Wialon puede devolver HTTP 200 con payload { error: 1 } / { error: 7 }
   if (json && typeof json === "object" && "error" in json) {
     const code = Number((json as { error: unknown }).error);
     if (Number.isFinite(code) && code !== 0) {
+      const reason = (json as { reason?: string }).reason;
+      logDebug(
+        `[wialonCall] Error detectado: code=${code}, reason=${reason}, svc=${svc}, attempt=${attempt}`,
+      );
+
       if (RETRY_CODES.has(code) && attempt < 2) {
+        logDebug(`[wialonCall] Reintentando por rate-limit (código ${code})...`);
         await sleep(900 * (attempt + 1));
         return wialonCall<T>(host, svc, params, sid, attempt + 1);
       }
-      throw new WialonError(code, (json as { reason?: string }).reason);
+
+      throw new WialonError(code, reason);
     }
   }
 

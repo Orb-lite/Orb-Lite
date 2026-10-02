@@ -1,4 +1,4 @@
-import * as React from "react";
+﻿import * as React from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { wialonLogout, wialonPing } from "@/lib/wialon.functions";
@@ -46,8 +46,6 @@ function clearWialonBrowserState() {
   window.localStorage.removeItem(STORAGE_KEY);
   window.sessionStorage.removeItem(LEGACY_SESSION_KEY);
 
-  // Solo se pueden borrar cookies de este dominio. Las cookies HttpOnly o de
-  // wialon.com las administra Wialon en su propio dominio.
   for (const name of ["orblite.wialon.sid", "orblite.wialon.session"]) {
     document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
   }
@@ -59,13 +57,13 @@ function errorMessage(error: unknown, fallback: string) {
 }
 
 /**
- * Administra una sesión persistente de Wialon iniciada a través de la Edge
- * Function `wialon-proxy`. El token solo viaja al proxy para obtener el SID;
- * nunca se guarda en el navegador.
+ * Administra una sesión persistente de Wialon y asegura que el estado de UI
+ * refleje expiración/invalidez sin romper render.
  */
 export function useWialonSession() {
   const pingServer = useServerFn(wialonPing);
   const logoutServer = useServerFn(wialonLogout);
+
   const [session, setSession] = React.useState<StoredSession | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -92,24 +90,30 @@ export function useWialonSession() {
 
   const ping = React.useCallback(async () => {
     if (!session) return false;
+
     try {
       const result = await pingServer({ data: { host: session.host, sid: session.sid } });
+
       if (!result.valid) {
         persist(null);
         setError("La sesión de Wialon expiró. Inicia sesión de nuevo.");
+        return false;
       }
-      return result.valid;
+
+      if (error) setError(null);
+      return true;
     } catch (cause) {
-      // Una falla temporal de red no invalida una sesión persistida.
-      setError(errorMessage(cause, "No se pudo verificar la sesión de Wialon."));
+      const msg = errorMessage(cause, "No se pudo verificar la sesión de Wialon.");
+      setError(msg);
       return false;
     }
-  }, [persist, pingServer, session]);
+  }, [error, persist, pingServer, session]);
 
   React.useEffect(() => {
     if (!session) return;
-    const interval = window.setInterval(() => void ping(), PING_INTERVAL_MS);
+
     void ping();
+    const interval = window.setInterval(() => void ping(), PING_INTERVAL_MS);
     return () => window.clearInterval(interval);
   }, [ping, session]);
 
@@ -124,6 +128,7 @@ export function useWialonSession() {
 
       setIsLoading(true);
       setError(null);
+
       try {
         const { data, error: invokeError } = await supabase.functions.invoke<ProxyLoginResponse>(
           "wialon-proxy",
@@ -131,13 +136,16 @@ export function useWialonSession() {
             body: {
               target: TARGETS[host],
               service: "token/login",
-              // El proxy controla el token de aplicación. El token de acceso
-              // se entrega solo para la autenticación y no se persiste.
               params: { access_token: token },
             },
           },
         );
+
         if (invokeError) throw invokeError;
+
+        if (data?.error) {
+          throw new Error(`Wialon error ${data.error}: ${data.reason ?? "Desconocido"}`);
+        }
 
         const sid = data?.eid ?? data?.sid;
         if (!sid) throw new Error(data?.reason ?? "Wialon no devolvió un SID válido.");
@@ -148,6 +156,7 @@ export function useWialonSession() {
           userId: data?.user?.id ?? 0,
           userName: data?.user?.nm ?? "Usuario",
         };
+
         persist(next);
         return next;
       } catch (cause) {
@@ -165,6 +174,7 @@ export function useWialonSession() {
     const current = session;
     persist(null);
     setError(null);
+
     if (!current) return;
     try {
       await logoutServer({ data: { host: current.host, sid: current.sid } });
