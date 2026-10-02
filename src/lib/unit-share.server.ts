@@ -346,6 +346,9 @@ export async function deleteSharedUnitLink(token: string): Promise<boolean> {
   }
 
   try {
+    if (link) {
+      await supabaseAdmin.from("shared_link_assignments").delete().eq("shared_link_id", link.id);
+    }
     await supabaseAdmin.from("shared_links").delete().eq("token", token);
   } catch {
     // Ignorar

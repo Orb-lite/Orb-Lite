@@ -1,1 +1,0 @@
-import{i as e}from"./rolldown-runtime-Dd_uD5pT.js";import{n as t}from"./jsx-dev-runtime-QuDwkETu.js";var n=e(t(),1),r=n.createContext(null);function i(e){let t=n.useContext(r);return(e?.warn??!0)&&!t&&console.warn(`Warning: useRouter must be used inside a <RouterProvider> component!`),t}export{r as n,i as t};

@@ -332,3 +332,68 @@ export async function rememberReportEmail(_userId: number, _email: string) {
   // Los correos se derivan de las rutas guardadas (getSavedReportEmails);
   // no hace falta un almacenamiento aparte.
 }
+
+/** Asigna una ruta a un usuario operativo o chofer en user_route_assignments */
+export async function assignRouteToUser(
+  routeId: string,
+  assignedUserId: string,
+): Promise<{ ok: boolean; id?: string }> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_route_assignments")
+      .insert({
+        route_id: routeId,
+        assigned_user_id: assignedUserId,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.warn("[user-routes] Error assigning route to user:", error);
+      return { ok: false };
+    }
+    return { ok: true, id: data.id };
+  } catch (err) {
+    console.warn("[user-routes] Exception assigning route:", err);
+    return { ok: false };
+  }
+}
+
+/** Desvincula la asignación de una ruta para un usuario */
+export async function unassignRouteFromUser(
+  routeId: string,
+  assignedUserId: string,
+): Promise<{ ok: boolean }> {
+  try {
+    const { error } = await supabaseAdmin
+      .from("user_route_assignments")
+      .delete()
+      .eq("route_id", routeId)
+      .eq("assigned_user_id", assignedUserId);
+
+    if (error) {
+      console.warn("[user-routes] Error unassigning route:", error);
+      return { ok: false };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.warn("[user-routes] Exception unassigning route:", err);
+    return { ok: false };
+  }
+}
+
+/** Obtiene las asignaciones de una ruta */
+export async function getRouteAssignments(routeId: string): Promise<string[]> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("user_route_assignments")
+      .select("assigned_user_id")
+      .eq("route_id", routeId);
+
+    if (error || !data) return [];
+    return data.map((r) => r.assigned_user_id);
+  } catch {
+    return [];
+  }
+}
+

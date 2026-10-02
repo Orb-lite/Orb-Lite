@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SiteHeader, SiteFooter } from "../components/site-chrome";
 import { Toaster } from "../components/ui/sonner";
+import { AssistantChat } from "../components/assistant/assistant-chat";
 
 function NotFoundComponent() {
   return (
@@ -93,12 +94,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "theme-color", content: "#020617" },
-      { name: "mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "ORB-LITE" },
-      { name: "application-name", content: "ORB-LITE" },
     ],
     links: [
       {
@@ -111,9 +106,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&display=swap",
       },
-      { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
-      { rel: "icon", type: "image/png", sizes: "192x192", href: "/pwa-192x192.png" },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
     ],
   }),
@@ -140,41 +132,18 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const routerState = useRouterState();
-  const pathname = routerState.location.pathname;
-
-  // Detectar si está en el subdominio de la plataforma (plataforma.orb-lite.com)
-  const [isPlatformSubdomain, setIsPlatformSubdomain] = React.useState(false);
-
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const host = window.location.hostname.toLowerCase();
-      const isPlat = host.startsWith("plataforma.") || host.includes("plataforma");
-      setIsPlatformSubdomain(isPlat);
-      if (isPlat && pathname === "/") {
-        window.location.replace("/wialon");
-      }
-    }
-  }, [pathname]);
-
-  // Si está en el subdominio de plataforma O en una ruta de la plataforma (/wialon, /plataforma, /rastreo):
-  // Ocultar por completo la barra de marketing (SiteHeader) y el pie de página (SiteFooter).
-  const isPlatformRoute =
-    pathname.startsWith("/wialon") ||
-    pathname.startsWith("/plataforma") ||
-    pathname.startsWith("/rastreo");
-
-  const showMarketingChrome = !isPlatformSubdomain && !isPlatformRoute;
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen surface-deep flex flex-col">
-        {showMarketingChrome && <SiteHeader />}
-        <div className="flex-1 flex flex-col">
-          <Outlet />
-        </div>
-        {showMarketingChrome && <SiteFooter />}
+      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+      <div className="min-h-screen surface-deep">
+        <SiteHeader />
+        <Outlet />
+        <SiteFooter />
         <Toaster position="top-center" />
+        <ClientOnly>
+          <AssistantChat />
+        </ClientOnly>
       </div>
     </QueryClientProvider>
   );

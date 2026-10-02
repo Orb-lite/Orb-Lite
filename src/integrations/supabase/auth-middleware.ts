@@ -33,8 +33,18 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 export const requireSupabaseAuth = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
-    const SUPABASE_URL = process.env["SUPABASE_URL"];
-    const SUPABASE_PUBLISHABLE_KEY = process.env["SUPABASE_PUBLISHABLE_KEY"];
+    const SUPABASE_URL =
+      process.env["SUPABASE_URL"] ||
+      process.env["NEXT_PUBLIC_SUPABASE_URL"] ||
+      process.env["VITE_SUPABASE_URL"] ||
+      "https://bcldjdkihkoqmqamjuzz.supabase.co";
+
+    const SUPABASE_PUBLISHABLE_KEY =
+      process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+      process.env["SUPABASE_ANON_KEY"] ||
+      process.env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] ||
+      process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+      "sb_publishable_VRlE4IZzNbWISqqomeZKZQ_BPNRaVaw";
 
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY || SUPABASE_URL.includes("false123.com")) {
       console.warn("[Supabase] Running middleware in local preview mode");

@@ -195,34 +195,6 @@ function RutasView({ session }: { session: WialonSession }) {
   const [message, setMessage] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const sp = new URLSearchParams(window.location.search);
-      const qOrigin = sp.get("origin");
-      const qDest = sp.get("dest");
-      const qName = sp.get("name");
-      const qEmail = sp.get("email");
-      const qReturn = sp.get("return");
-      const qSync = sp.get("sync");
-
-      if (qOrigin) setOrigin(qOrigin);
-      if (qName) setName(qName);
-      if (qEmail) setShareEmail(qEmail);
-      if (qReturn !== null) setReturnToOrigin(qReturn === "true");
-      if (qSync !== null) setSyncToWialon(qSync === "true");
-
-      if (qDest) {
-        const lines = qDest
-          .split(/[\n,;]+/)
-          .map((s) => s.trim().replace(/^\d+[\.\-\)]\s*/, ""))
-          .filter(Boolean);
-        if (lines.length > 0) {
-          setAddresses(lines);
-        }
-      }
-    }
-  }, []);
-
   // Rutas privadas de la cuenta de usuario (guardadas en nuestro servidor)
   const userRoutesQuery = useQuery({
     queryKey: ["user-routes", session.userId],
@@ -557,7 +529,6 @@ function RutasView({ session }: { session: WialonSession }) {
           host: session.host,
           sid: session.sid,
           resourceId: syncToWialon && selectedResourceId ? selectedResourceId : undefined,
-          ...(shareEmail.trim() ? { reportEmail: shareEmail.trim() } : {}),
         },
       });
 
@@ -1080,19 +1051,6 @@ function RutasView({ session }: { session: WialonSession }) {
             />
           </label>
 
-          <label className="mt-4 block text-sm">
-            Email a donde tiene que llegar el reporte
-            <input
-              type="email"
-              value={shareEmail}
-              onChange={(e) => setShareEmail(e.target.value)}
-              className={inputClass}
-              placeholder="Ej. logistica@empresa.com"
-            />
-            <span className="mt-1 block text-xs text-muted-foreground">
-              A este correo se notificarán las paradas, avance y reporte final de la ruta.
-            </span>
-          </label>
           <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-foreground">
             <input
               type="checkbox"

@@ -106,3 +106,96 @@ export const saveDatabaseGeofence = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, geofence: inserted };
   });
+
+/** Actualiza una geocerca existente */
+export const updateDatabaseGeofence = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().trim().min(2).max(100),
+        description: z.string().trim().max(500).optional().or(z.literal("")),
+        color: z.string().trim().max(20).default("#3b82f6"),
+        type: z.enum(["polygon", "circle", "line"]).default("polygon"),
+        geometry: z.any(),
+        userId: z.string().min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: updated, error } = await supabaseAdmin
+      .from("geofences")
+      .update({
+        name: data.name,
+        description: data.description || null,
+        color: data.color,
+        type: data.type,
+        geometry: data.geometry,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.id)
+      .eq("created_by_id", data.userId)
+      .select("*")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return { ok: true, geofence: updated };
+  });
+
+/** Elimina una geocerca y sus asignaciones */
+export const deleteDatabaseGeofence = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        userId: z.string().min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Limpiar asignaciones primero por integridad referencial
+    await supabaseAdmin
+      .from("geofence_assignments")
+      .delete()
+      .eq("geofence_id", data.id);
+
+    const { error } = await supabaseAdmin
+      .from("geofences")
+      .delete()
+      .eq("id", data.id)
+      .eq("created_by_id", data.userId);
+
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Asigna una geocerca a otro usuario */
+export const assignGeofenceToUser = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        geofenceId: z.string().uuid(),
+        targetUserId: z.string().min(1),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: inserted, error } = await supabaseAdmin
+      .from("geofence_assignments")
+      .insert({
+        geofence_id: data.geofenceId,
+        assigned_user_id: data.targetUserId,
+      })
+      .select("*")
+      .single();
+
+    if (error) throw new Error(error.message);
+    return { ok: true, assignment: inserted };
+  });
+
