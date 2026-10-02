@@ -255,10 +255,32 @@ function MapaView({ session }: { session: WialonSession }) {
             );
           })}
           {!query.isLoading && filtered.length === 0 ? (
-            <li className="text-muted-foreground">
-              {units.length === 0
-                ? "No hay unidades en esta cuenta."
-                : "Ninguna unidad coincide con la búsqueda."}
+            <li className="py-2">
+              {units.length === 0 ? (
+                <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-center space-y-3">
+                  <div className="flex items-center justify-center gap-2 text-destructive font-bold text-xs uppercase tracking-wider">
+                    <span>Sin unidades conectadas</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    La sesión actual no tiene unidades vinculadas o los permisos de Wialon no se sincronizaron. Pulsa el botón para renovar tu acceso.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      writeSession(null);
+                      localStorage.removeItem("wialon_session");
+                      localStorage.removeItem("wialon_token");
+                      sessionStorage.clear();
+                      window.location.href = "/wialon";
+                    }}
+                    className="w-full rounded-lg bg-primary py-2.5 px-3 font-display text-xs font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90 transition-opacity"
+                  >
+                    Cerrar Sesión y Entrar de Nuevo
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Ninguna unidad coincide con la búsqueda.</p>
+              )}
             </li>
           ) : null}
         </ul>

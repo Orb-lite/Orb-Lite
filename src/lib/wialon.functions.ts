@@ -352,8 +352,60 @@ export const wialonUnits = createServerFn({ method: "POST" })
           );
         } catch (finalErr) {
           console.warn("[wialonUnits] Error al obtener unidades:", finalErr);
+          if (isSessionExpired(finalErr)) {
+            throw new Error("Tu sesión de Wialon ha expirado. Por favor cierra sesión y vuelve a ingresar.");
+          }
           return { units: [], sid, host };
         }
+      }
+    }
+
+    // Si no devolvió unidades directas, buscar si las unidades están asignadas en grupos
+    if (!unitsRes.items || unitsRes.items.length === 0) {
+      try {
+        const groupsRes = await wialonCall<{ items?: Array<{ id: number; nm: string; u?: number[] }> }>(
+          host,
+          "core/search_items",
+          {
+            spec: searchSpec("avl_unit_group"),
+            force: 1,
+            flags: 1 + 256,
+            from: 0,
+            to: 0,
+          },
+          sid,
+        );
+        const unitIds = new Set<number>();
+        for (const g of groupsRes.items ?? []) {
+          for (const uid of g.u ?? []) {
+            unitIds.add(uid);
+          }
+        }
+        if (unitIds.size > 0) {
+          const idList = Array.from(unitIds).join(",");
+          const byIdsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
+            host,
+            "core/search_items",
+            {
+              spec: {
+                itemsType: "avl_unit",
+                propName: "sys_id",
+                propValueMask: idList,
+                sortType: "sys_name",
+              },
+              force: 1,
+              flags: 1 + 256 + 1024,
+              from: 0,
+              to: 0,
+            },
+            sid,
+          );
+          if (byIdsRes.items && byIdsRes.items.length > 0) {
+            unitsRes = byIdsRes;
+          }
+        }
+      } catch (gErr) {
+        console.warn("[wialonUnits] Búsqueda en grupos omitida:", gErr);
       }
     }
 

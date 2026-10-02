@@ -1,3 +1,10 @@
+import * as fs from "node:fs";
+
+function logDebug(line: string) {
+  try {
+    fs.appendFileSync("/tmp/wialon_debug.log", `[${new Date().toISOString()}] ${line}\n`);
+  } catch {}
+}
 export type WialonHost = "lite" | "full";
 
 // Los dominios de la interfaz (lite.wialon.us / hosting.wialon.com) no aceptan
@@ -78,6 +85,7 @@ export async function wialonCall<T = unknown>(
   url.searchParams.set("svc", svc);
   if (sid) url.searchParams.set("sid", sid);
 
+  logDebug(`CALL svc=${svc} host=${host} sid=${sid ? sid.slice(0, 12) + "..." : "none"} params=${JSON.stringify(params ?? {}).slice(0, 150)}`);
   let res: Response;
   try {
     res = await fetch(url.toString(), {
@@ -103,6 +111,7 @@ export async function wialonCall<T = unknown>(
   }
 
   const json = (await res.json()) as unknown;
+  logDebug(`RESP svc=${svc} host=${host} status=${res.status} json=${JSON.stringify(json).slice(0, 250)}`);
   if (json && typeof json === "object" && "error" in json) {
     const code = Number((json as { error: unknown }).error);
     if (Number.isFinite(code) && code !== 0) {

@@ -86,11 +86,15 @@ function WialonLoginPage() {
         void navigate({ to: "/wialon/callback" });
         return;
       }
+      if (search.get("reset") || search.get("logout")) {
+        writeSession(null);
+        localStorage.removeItem("wialon_session");
+        localStorage.removeItem("wialon_token");
+        sessionStorage.clear();
+        return;
+      }
     }
-    if (session) {
-      void navigate({ to: "/wialon/mapa" });
-    }
-  }, [session, navigate]);
+  }, [navigate]);
 
   function startWialonOAuthLogin() {
     const base = PLATFORM_URLS[host].app.replace(/\/$/, "");
