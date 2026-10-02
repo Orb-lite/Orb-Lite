@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { writeSession } from "@/lib/wialon-session";
+import { writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin } from "@/lib/wialon.functions";
 
 export const Route = createFileRoute("/wialon/callback")({
@@ -18,12 +18,33 @@ export const Route = createFileRoute("/wialon/callback")({
   component: WialonCallbackPage,
 });
 
-function readParams(): { token: string | null; host: "lite" | "full" } {
+const WIALON_ERRORS: Record<string, string> = {
+  "1": "Sesión inválida o expirada. Vuelve a iniciar sesión.",
+  "2": "Servicio no disponible temporalmente en Wialon.",
+  "3": "Sin permisos suficientes para acceder a la cuenta.",
+  "4": "Parámetros o credenciales inválidas.",
+  "7": "Acceso denegado. Revisa que tu usuario y contraseña sean correctos.",
+  "8": "Usuario o contraseña de Wialon incorrectos.",
+  "1002": "La cuenta de Wialon se encuentra suspendida o bloqueada.",
+};
+
+function readParams(): {
+  token: string | null;
+  host: "lite" | "full";
+  wialonError: string | null;
+} {
   if (typeof window === "undefined") {
-    return { token: null, host: "lite" };
+    return { token: null, host: "lite", wialonError: null };
   }
   const search = new URLSearchParams(window.location.search);
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+
+  const errorCode =
+    search.get("error") ??
+    hash.get("error") ??
+    search.get("svc_error") ??
+    hash.get("svc_error");
+
   const token =
     search.get("access_token") ??
     hash.get("access_token") ??
@@ -31,9 +52,50 @@ function readParams(): { token: string | null; host: "lite" | "full" } {
     hash.get("token") ??
     search.get("eid") ??
     hash.get("eid");
-  const stored = window.sessionStorage.getItem("orblite.wialon.oauth-host");
+
+  const stored =
+    window.sessionStorage.getItem("orblite.wialon.oauth-host") ||
+    window.localStorage.getItem("orblite.wialon.oauth-host");
   const host = stored === "full" ? "full" : "lite";
-  return { token, host };
+
+  const wialonError = errorCode
+    ? WIALON_ERRORS[errorCode] || `Error de la plataforma Wialon (Código ${errorCode})`
+    : null;
+
+  return { token, host, wialonError };
+}
+
+async function directClientLogin(
+  host: "lite" | "full",
+  token: string,
+): Promise<WialonSession | null> {
+  const hosts: Array<"lite" | "full"> = host === "full" ? ["full", "lite"] : ["lite", "full"];
+
+  for (const h of hosts) {
+    const base = h === "full" ? "https://hst-api.wialon.com" : "https://hst-api.wialon.us";
+    try {
+      const url = `${base}/wialon/ajax.html?svc=token/login`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          params: JSON.stringify({ token, fl: 1 }),
+        }).toString(),
+      });
+      const data = (await res.json()) as any;
+      if (data?.eid) {
+        return {
+          sid: data.eid,
+          host: h,
+          userId: data.user?.id ?? 0,
+          userName: data.user?.nm ?? "Usuario",
+        };
+      }
+    } catch (e) {
+      console.warn(`[Wialon] Direct client login failed on host ${h}:`, e);
+    }
+  }
+  return null;
 }
 
 function WialonCallbackPage() {
@@ -45,23 +107,46 @@ function WialonCallbackPage() {
     let cancelled = false;
 
     async function run() {
-      const { token, host } = readParams();
+      const { token, host, wialonError } = readParams();
+
+      if (wialonError) {
+        setError(wialonError);
+        return;
+      }
+
       if (!token) {
-        setError("La plataforma no devolvió un acceso válido. Intenta entrar de nuevo.");
+        setError("La plataforma no devolvió un token de acceso válido. Por favor intenta entrar de nuevo.");
         return;
       }
 
       try {
-        const result = await login({ data: { host, token } });
+        // 1. Intento por función de servidor
+        try {
+          const result = await login({ data: { host, token } });
+          if (cancelled) return;
+          writeSession(result);
+          localStorage.setItem("wialon_token", token);
+          void navigate({ to: "/wialon/mapa" });
+          return;
+        } catch (serverErr) {
+          console.warn("[Wialon Callback] ServerFn falló, probando conexión directa cliente:", serverErr);
+        }
+
+        // 2. Respaldo directo en el navegador (en caso de fallo en SSR / Serverless)
+        const directResult = await directClientLogin(host, token);
         if (cancelled) return;
 
-        // Guarda la sesión en el almacenamiento local y de sesión
-        writeSession(result);
-        localStorage.setItem("wialon_token", token);
+        if (directResult) {
+          writeSession(directResult);
+          localStorage.setItem("wialon_token", token);
+          void navigate({ to: "/wialon/mapa" });
+          return;
+        }
 
-        // Redirige directamente al mapa en vivo de la plataforma
-        void navigate({ to: "/wialon/mapa" });
-      } catch (err) {
+        setError(
+          "El token de acceso no fue aceptado por los servidores de Wialon (Wialon Lite ni Wialon Full). Verifica que tu usuario y contraseña pertenezcan a la plataforma seleccionada.",
+        );
+      } catch (err: any) {
         if (!cancelled) {
           setError(
             err instanceof Error
