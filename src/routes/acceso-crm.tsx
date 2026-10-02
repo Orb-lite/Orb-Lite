@@ -1,8 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { requestCrmAccessCode, redeemCrmAccessCode } from "@/lib/crm-access.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,64 +17,64 @@ export const Route = createFileRoute("/acceso-crm")({
       {
         name: "description",
         content:
-          "Página privada de ORB-LITE para crear la contraseña del CRM con un código de un solo uso enviado por correo.",
+          "Página privada de ORB-LITE para crear la contraseña del CRM con un código de verificación.",
       },
     ],
   }),
   component: AccesoCrmPage,
 });
 
+async function sha256(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function random6Digit() {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return String(100000 + (buf[0]! % 900000));
+}
+
 function AccesoCrmPage() {
   const navigate = useNavigate();
   const { olvide } = Route.useSearch();
-  const request = useServerFn(requestCrmAccessCode);
-  const redeem = useServerFn(redeemCrmAccessCode);
 
   const [code, setCode] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
-  const [sending, setSending] = React.useState(false);
+  const [generating, setGenerating] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const [infoBanner, setInfoBanner] = React.useState<string | null>(null);
+  const [generatedCode, setGeneratedCode] = React.useState<string | null>(null);
 
-  const autoSent = React.useRef(false);
-
-  React.useEffect(() => {
-    if (olvide && !autoSent.current) {
-      autoSent.current = true;
-      void sendCode();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [olvide]);
-
-  async function sendCode() {
-    setSending(true);
-    setInfoBanner(null);
+  async function generateCode() {
+    setGenerating(true);
     try {
-      const res = await request();
-      if (res.ok) {
-        if (res.hasEmailService && res.emailSent) {
-          toast.success("Código enviado a ventas@orb-lite.com");
-        } else if (res.backupCode) {
-          toast.success("Código de verificación generado");
-          setCode(res.backupCode);
-          setInfoBanner(
-            `Aviso técnico: No se detectó RESEND_API_KEY en variables de entorno. Tu código generado es: ${res.backupCode}`,
-          );
-        } else {
-          toast.info("Código generado en el sistema.");
-        }
-      } else {
-        toast.error(res.message || "Espera un minuto antes de pedir otro código");
-        if (res.message) setInfoBanner(res.message);
+      const newCode = random6Digit();
+      const codeHash = await sha256(newCode);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
+
+      const { error: insErr } = await supabase.from("crm_access_codes").insert({
+        email: "ventas@orb-lite.com",
+        code_hash: codeHash,
+        expires_at: expiresAt,
+      });
+
+      if (insErr) {
+        throw new Error(insErr.message);
       }
-    } catch (e) {
-      console.error("Error al enviar código:", e);
-      const errMsg = e instanceof Error ? e.message : "Error de comunicación con el servidor";
-      toast.error(`No se pudo enviar el código: ${errMsg}`);
-      setInfoBanner(errMsg);
+
+      setGeneratedCode(newCode);
+      setCode(newCode);
+      toast.success(`Código generado con éxito: ${newCode}`);
+    } catch (e: any) {
+      console.error("Error al generar código:", e);
+      toast.error(`No se pudo generar el código: ${e?.message || "Error desconocido"}`);
+    } finally {
+      setGenerating(false);
     }
-    setSending(false);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -85,57 +83,121 @@ function AccesoCrmPage() {
       toast.error("Las contraseñas no coinciden");
       return;
     }
+    if (password.length < 8) {
+      toast.error("La contraseña debe tener mínimo 8 caracteres");
+      return;
+    }
+
     setSaving(true);
     try {
-      await redeem({ data: { code: code.trim(), password } });
-      await supabase.auth.signInWithPassword({
+      const cleanCode = code.trim();
+      const hash = await sha256(cleanCode);
+
+      // 1. Validar el código en Supabase
+      const { data: rows, error: readError } = await supabase
+        .from("crm_access_codes")
+        .select("id, expires_at, used_at")
+        .eq("email", "ventas@orb-lite.com")
+        .eq("code_hash", hash)
+        .is("used_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (readError) {
+        throw new Error(`Error validando código: ${readError.message}`);
+      }
+
+      const activeRow = rows?.[0];
+      if (!activeRow || new Date(activeRow.expires_at).getTime() < Date.now()) {
+        throw new Error("Código incorrecto, vencido o ya utilizado.");
+      }
+
+      // 2. Marcar código como usado
+      await supabase
+        .from("crm_access_codes")
+        .update({ used_at: new Date().toISOString() })
+        .eq("id", activeRow.id);
+
+      // 3. Iniciar sesión o registrar usuario
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
         email: "ventas@orb-lite.com",
         password,
       });
-      toast.success("Contraseña creada. Entrando al CRM…");
-      navigate({ to: "/crm", replace: true });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Código inválido o vencido");
+
+      if (!signInErr) {
+        toast.success("¡Sesión iniciada! Entrando al CRM…");
+        navigate({ to: "/crm", replace: true });
+        return;
+      }
+
+      // Si falla inicio con contraseña, intentar signUp
+      const { error: signUpErr } = await supabase.auth.signUp({
+        email: "ventas@orb-lite.com",
+        password,
+      });
+
+      if (!signUpErr) {
+        toast.success("Contraseña configurada. Entrando al CRM…");
+        const { error: retrySignIn } = await supabase.auth.signInWithPassword({
+          email: "ventas@orb-lite.com",
+          password,
+        });
+        if (!retrySignIn) {
+          navigate({ to: "/crm", replace: true });
+          return;
+        }
+      }
+
+      // Si el usuario ya existe en Supabase Auth y requiere actualización desde Supabase:
+      toast.info(
+        "Código validado. Para terminar de activar tu contraseña, confirma al usuario en Supabase > Authentication > Users.",
+        { duration: 7000 },
+      );
+      navigate({ to: "/auth" });
+    } catch (err: any) {
+      toast.error(err?.message || "Código inválido o vencido");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-16">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm space-y-5 rounded-2xl border border-border bg-card p-7 shadow-lg"
+        className="w-full max-w-sm space-y-5 rounded-2xl border border-border bg-card p-7 shadow-xl"
       >
         <div className="space-y-1">
-          <p className="text-xs tracking-[0.2em] text-primary">ORB-LITE</p>
+          <p className="text-xs font-semibold tracking-[0.2em] text-primary">ORB-LITE</p>
           <h1 className="font-display text-2xl text-foreground">
             {olvide ? "Restablecer contraseña" : "Crear contraseña del CRM"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {olvide
-              ? "Genera un código de un solo uso para restablecer la contraseña de ventas@orb-lite.com."
-              : "Genera un código de un solo uso para ventas@orb-lite.com."}
+            Acceso administrativo para <span className="font-medium text-foreground">ventas@orb-lite.com</span>.
           </p>
         </div>
 
-        {infoBanner ? (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-            {infoBanner}
+        {/* Alerta con el código generado para el usuario */}
+        {generatedCode ? (
+          <div className="rounded-xl border border-primary/30 bg-primary/10 p-4 text-center">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Tu código de verificación es:</p>
+            <p className="mt-1 font-mono text-3xl font-bold tracking-widest text-primary">
+              {generatedCode}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ya se ha completado automáticamente en el formulario.
+            </p>
           </div>
         ) : null}
 
         <Button
           type="button"
           variant="outline"
-          className="w-full"
-          onClick={sendCode}
-          disabled={sending}
+          className="w-full border-primary/40 text-primary hover:bg-primary/10"
+          onClick={generateCode}
+          disabled={generating}
         >
-          {sending
-            ? "Generando código…"
-            : olvide
-              ? "Reenviar el código por correo"
-              : "Enviarme el código por correo"}
+          {generating ? "Generando código seguro…" : "Generar código de acceso"}
         </Button>
 
         <div className="space-y-2">
@@ -146,7 +208,7 @@ function AccesoCrmPage() {
             maxLength={6}
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            placeholder="123456"
+            placeholder="Ej: 741852"
             required
           />
         </div>
@@ -160,6 +222,7 @@ function AccesoCrmPage() {
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder="Mínimo 8 caracteres"
             required
           />
         </div>
@@ -173,13 +236,14 @@ function AccesoCrmPage() {
             minLength={8}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
+            placeholder="Repite la contraseña"
             required
           />
         </div>
 
         <Button type="submit" className="w-full" disabled={saving}>
           {saving
-            ? "Guardando…"
+            ? "Guardando contraseña…"
             : olvide
               ? "Restablecer contraseña y entrar"
               : "Crear contraseña y entrar"}
@@ -193,10 +257,6 @@ function AccesoCrmPage() {
         >
           Volver a iniciar sesión
         </Button>
-
-        <p className="text-xs text-muted-foreground">
-          El código vence en 20 minutos y solo funciona una vez.
-        </p>
       </form>
     </main>
   );
