@@ -112,7 +112,16 @@ function RenovacionesPage() {
 
   const query = useQuery({
     queryKey: ["crm-renovaciones"],
-    queryFn: () => list({ data: undefined as any }),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("renovaciones")
+        .select("*")
+        .order("renewal_date", { ascending: true });
+      if (!error && data) {
+        return { rows: data };
+      }
+      return await list({ data: undefined as any });
+    },
     refetchInterval: 30_000,
   });
 

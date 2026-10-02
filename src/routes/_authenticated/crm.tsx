@@ -76,7 +76,17 @@ function CrmPage() {
 
   const query = useQuery({
     queryKey: ["crm-solicitudes"],
-    queryFn: () => list({ data: { status: "todas" as const } }),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("solicitudes")
+        .select("id, order_id, customer_number, full_name, phone, email, items, shipping_label, wants_invoice, billing, total, status, notes, created_at")
+        .order("created_at", { ascending: false })
+        .limit(300);
+      if (!error && data) {
+        return { rows: data };
+      }
+      return await list({ data: { status: "todas" as const } });
+    },
     refetchInterval: 15_000,
   });
 

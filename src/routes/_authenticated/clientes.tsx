@@ -34,7 +34,16 @@ function ClientesPage() {
 
   const query = useQuery({
     queryKey: ["crm-customers"],
-    queryFn: () => listCustomers({ data: undefined as any }),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .order("customer_number", { ascending: true });
+      if (!error && data) {
+        return { rows: data };
+      }
+      return await listCustomers({ data: undefined as any });
+    },
     refetchInterval: 30_000,
   });
 

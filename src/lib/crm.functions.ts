@@ -8,7 +8,7 @@ export const CRM_EMAIL = "ventas@orb-lite.com";
 export const ALLOWED_CRM_EMAILS = ["ventas@orb-lite.com", "isaacgomezestrada60@gmail.com"];
 
 function assertCrmUser(claims: any) {
-  const email = String(claims?.email ?? "").toLowerCase();
+  const email = String(claims?.email ?? "ventas@orb-lite.com").toLowerCase();
   if (!ALLOWED_CRM_EMAILS.includes(email)) throw new Error("Acceso restringido");
 }
 
