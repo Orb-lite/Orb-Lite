@@ -7,7 +7,7 @@ import { WialonGuard } from "@/components/wialon-guard";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { wialonGeofences, wialonUnits } from "@/lib/wialon.functions";
-import type { WialonSession } from "@/lib/wialon-session";
+import { writeSession, type WialonSession } from "@/lib/wialon-session";
 import { matchesUnitSearch, selectAllState, useHiddenUnits } from "@/lib/wialon-visibility";
 
 const WialonMap = React.lazy(() => import("@/components/wialon-map"));
@@ -33,6 +33,16 @@ function MapaView({ session }: { session: WialonSession }) {
   const [geofenceMenuOpen, setGeofenceMenuOpen] = React.useState(false);
   const [selectedGeofenceKeys, setSelectedGeofenceKeys] = React.useState<string[] | null>(null);
   const { hidden, setVisible } = useHiddenUnits(session);
+
+  React.useEffect(() => {
+    if (query.data && "sid" in query.data && query.data.sid && query.data.sid !== session.sid) {
+      writeSession({
+        ...session,
+        sid: query.data.sid as string,
+        host: ((query.data as any).host as any) || session.host,
+      });
+    }
+  }, [query.data, session]);
 
   const query = useQuery({
     queryKey: ["wialon-units", session.sid],

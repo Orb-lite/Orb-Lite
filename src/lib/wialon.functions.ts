@@ -270,9 +270,41 @@ export const wialonLogout = createServerFn({ method: "POST" })
 
 /** Lista de unidades con su última posición, IMEI y usuario creador. */
 export const wialonUnits = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .inputValidator((input: unknown) =>
+    sessionSchema
+      .extend({
+        token: z.string().optional(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost;
+    let host = data.host as WialonHost;
+    let sid = data.sid;
+
+    // Si sid es un token largo (>= 40 caracteres) o si la sesión venció, auto-obtener un eid fresco
+    if (sid.length >= 40) {
+      const allBases: WialonHost[] = host === "full" ? ["full", "lite"] : ["lite", "full"];
+      for (const h of allBases) {
+        try {
+          const authRes = await wialonCall<{ eid?: string }>(h, "token/login", { token: sid, fl: 1 });
+          if (authRes?.eid) {
+            sid = authRes.eid;
+            host = h;
+            break;
+          }
+        } catch {
+          try {
+            const authNoFl = await wialonCall<{ eid?: string }>(h, "token/login", { token: sid });
+            if (authNoFl?.eid) {
+              sid = authNoFl.eid;
+              host = h;
+              break;
+            }
+          } catch {}
+        }
+      }
+    }
+
     const searchSpec = (itemsType: string) => ({
       itemsType,
       propName: "sys_name",
@@ -280,39 +312,76 @@ export const wialonUnits = createServerFn({ method: "POST" })
       sortType: "sys_name",
     });
 
-    // 1 = base, 4 = facturación (creador), 256 = propiedades avanzadas (IMEI), 1024 = posición
-    const [unitsRes, usersRes] = await Promise.all([
-      wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
+    // Consultar unidades con fallback de flags (1 = base, 256 = IMEI, 1024 = posición)
+    // No pedir flag 4 (facturación) porque los sub-usuarios y clientes no tienen permiso y da Error 7
+    let unitsRes: { items?: Array<Parameters<typeof normalizeUnit>[0]> } = { items: [] };
+
+    try {
+      unitsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
         host,
         "core/search_items",
         {
           spec: searchSpec("avl_unit"),
           force: 1,
-          flags: 1 + 4 + 256 + 1024,
+          flags: 1 + 256 + 1024,
           from: 0,
           to: 0,
         },
-        data.sid,
-      ),
-      // Si la cuenta no puede listar usuarios, solo se omite el nombre del creador.
-      wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
+        sid,
+      );
+    } catch {
+      try {
+        unitsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
+          host,
+          "core/search_items",
+          {
+            spec: searchSpec("avl_unit"),
+            force: 1,
+            flags: 1 + 1024,
+            from: 0,
+            to: 0,
+          },
+          sid,
+        );
+      } catch {
+        try {
+          unitsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
+            host,
+            "core/search_items",
+            {
+              spec: searchSpec("avl_unit"),
+              force: 1,
+              flags: 1,
+              from: 0,
+              to: 0,
+            },
+            sid,
+          );
+        } catch (finalErr) {
+          console.warn("[wialonUnits] Error al obtener unidades:", finalErr);
+          return { units: [], sid, host };
+        }
+      }
+    }
+
+    // Consulta de nombres de usuarios (opcional, sin romper si no hay permisos)
+    let userNames = new Map<number, string>();
+    try {
+      const usersRes = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
         host,
         "core/search_items",
         { spec: searchSpec("user"), force: 1, flags: 1, from: 0, to: 0 },
-        data.sid,
-      ).catch((error) => {
-        if (isSessionExpired(error)) throw error;
-        return { items: [] as Array<{ id: number; nm?: string }> };
-      }),
-    ]);
-
-    const userNames = new Map<number, string>();
-    for (const user of usersRes.items ?? []) {
-      if (user.nm) userNames.set(user.id, user.nm);
-    }
+        sid,
+      );
+      for (const u of usersRes.items ?? []) {
+        if (u.nm) userNames.set(u.id, u.nm);
+      }
+    } catch {}
 
     return {
       units: (unitsRes.items ?? []).map((item) => normalizeUnit(item, userNames)),
+      sid,
+      host,
     };
   });
 
