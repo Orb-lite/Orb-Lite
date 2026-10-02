@@ -5,6 +5,7 @@ import { ShieldCheck, MapPin, Video, KeyRound, ArrowRight, User, Lock } from "lu
 import { toast } from "sonner";
 import { PLATFORM_URLS, useWialonSession, writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin, wialonLoginWithCredentials } from "@/lib/wialon.functions";
+import { syncWialonPlatformUser } from "@/lib/platform-user.functions";
 
 export const Route = createFileRoute("/wialon/")({
   head: () => ({
@@ -66,6 +67,7 @@ function WialonLoginPage() {
   const session = useWialonSession();
   const loginCredentials = useServerFn(wialonLoginWithCredentials);
   const loginToken = useServerFn(wialonLogin);
+  const syncUser = useServerFn(syncWialonPlatformUser);
 
   const [host, setHost] = React.useState<"lite" | "full">("lite");
   const [activeTab, setActiveTab] = React.useState<"wialon-oauth" | "direct" | "token">("wialon-oauth");
@@ -76,7 +78,6 @@ function WialonLoginPage() {
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    // Si viene con un access_token en el hash o query, enviar inmediatamente a callback
     if (typeof window !== "undefined") {
       const search = new URLSearchParams(window.location.search);
       const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -134,8 +135,25 @@ function WialonLoginPage() {
       }
 
       if (sess) {
+        // Sincronizar datos de usuario en Supabase (verificar si existe, crearlo y cargar tablas relacionadas)
+        try {
+          const profile = await syncUser({
+            data: {
+              wialonUserId: sess.userId,
+              wialonUsername: sess.userName || user.trim(),
+              host,
+            },
+          });
+          sess.profile = profile;
+          if (profile?.fullName) {
+            sess.userName = profile.fullName;
+          }
+        } catch (sErr) {
+          console.warn("[Login Directo] Error al sincronizar usuario:", sErr);
+        }
+
         writeSession(sess);
-        toast.success(`¡Bienvenido, ${sess.userName || user}!`);
+        toast.success(`¡Bienvenido, ${sess.userName}!`);
         void navigate({ to: "/wialon/mapa" });
         return;
       }
@@ -168,6 +186,17 @@ function WialonLoginPage() {
         data: { host, token: token.trim() },
       });
       if (res?.sid) {
+        try {
+          const profile = await syncUser({
+            data: {
+              wialonUserId: res.userId,
+              wialonUsername: res.userName,
+              host,
+            },
+          });
+          res.profile = profile;
+        } catch {}
+
         writeSession(res);
         localStorage.setItem("wialon_token", token.trim());
         toast.success(`¡Sesión iniciada con éxito!`);
@@ -274,7 +303,7 @@ function WialonLoginPage() {
           {activeTab === "wialon-oauth" && (
             <div className="space-y-4">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Inicia sesión en la página oficial de Wialon. Una vez autenticado, se abrirá automáticamente tu sesión dentro de la plataforma ORB-LITE con tu mapa y unidades.
+                Inicia sesión en la página oficial de Wialon. Una vez autenticado, se abrirá automáticamente tu sesión dentro de la plataforma ORB-LITE vinculando tus datos y unidades registradas.
               </p>
 
               <button

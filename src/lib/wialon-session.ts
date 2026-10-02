@@ -1,10 +1,14 @@
 import * as React from "react";
+import type { PlatformUserProfile } from "@/lib/platform-user.functions";
+
+export type { PlatformUserProfile };
 
 export type WialonSession = {
   sid: string;
   host: "lite" | "full";
   userId: number;
   userName: string;
+  profile?: PlatformUserProfile | null;
 };
 
 const KEY = "orblite.wialon.session";
@@ -74,6 +78,7 @@ export function useWialonKeepAlive(
   React.useEffect(() => {
     if (!session) return;
     let cancelled = false;
+
     async function check() {
       try {
         const result = await ping({ data: { host: session!.host, sid: session!.sid } });
@@ -82,8 +87,10 @@ export function useWialonKeepAlive(
         // error temporal de red: se reintenta en el siguiente ciclo
       }
     }
+
     const timer = window.setInterval(check, 4 * 60 * 1000);
     void check();
+
     return () => {
       cancelled = true;
       window.clearInterval(timer);

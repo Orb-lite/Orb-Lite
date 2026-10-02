@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin } from "@/lib/wialon.functions";
+import { syncWialonPlatformUser } from "@/lib/platform-user.functions";
 
 export const Route = createFileRoute("/wialon/callback")({
   head: () => ({
@@ -48,7 +49,6 @@ function readParams(): {
     search.get("svc_error") ??
     hash.get("svc_error");
 
-  // Código 0 en Wialon significa ÉXITO. Solo valores mayores a 0 son errores.
   const errorCode =
     rawError &&
     rawError !== "0" &&
@@ -73,7 +73,6 @@ function readParams(): {
     search.get("user") ??
     null;
 
-  // Priorizar el host pasado en la URL de retorno
   const urlHost = search.get("host") ?? hash.get("host");
   const storedHost =
     window.sessionStorage.getItem("orblite.wialon.oauth-host") ||
@@ -91,6 +90,7 @@ function readParams(): {
 
 function WialonCallbackPage() {
   const login = useServerFn(wialonLogin);
+  const syncUser = useServerFn(syncWialonPlatformUser);
   const navigate = useNavigate();
   const [status, setStatus] = React.useState<"loading" | "error">("loading");
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
@@ -109,7 +109,7 @@ function WialonCallbackPage() {
 
       if (!token) {
         setStatus("error");
-        setErrorMessage("No se recibió el token de Wialon. Por favor intenta entrar de nuevo.");
+        setErrorMessage("No se detectó un token de acceso de Wialon. Por favor intenta entrar de nuevo.");
         return;
       }
 
@@ -117,35 +117,50 @@ function WialonCallbackPage() {
         const result = await login({ data: { host, token } });
         if (cancelled) return;
 
-        const displayName = userName || result.userName || "Usuario";
+        const effectiveUserId = result.userId || 0;
+        const effectiveUserName = userName || result.userName || "Usuario";
+
+        // Sincronizar / verificar usuario en base de datos ORB-LITE (sin pasar login por Supabase)
+        let profile = null;
+        try {
+          profile = await syncUser({
+            data: {
+              wialonUserId: effectiveUserId,
+              wialonUsername: effectiveUserName,
+              host,
+            },
+          });
+        } catch (syncErr) {
+          console.warn("[Wialon Callback] Error al sincronizar datos de usuario:", syncErr);
+        }
+
         const session: WialonSession = {
           sid: result.sid,
           host: result.host,
-          userId: result.userId,
-          userName: displayName,
+          userId: effectiveUserId,
+          userName: profile?.fullName || effectiveUserName,
+          profile,
         };
 
         writeSession(session);
         localStorage.setItem("wialon_token", token);
-        toast.success(`¡Bienvenido a tu plataforma, ${displayName}!`);
+        toast.success(`¡Bienvenido a la plataforma, ${session.userName}!`);
         void navigate({ to: "/wialon/mapa" });
       } catch (err: any) {
         if (cancelled) return;
-        console.warn("[Wialon Callback] login ServerFn fallo, estableciendo sesión con token directo:", err);
+        console.warn("[Wialon Callback] login con ServerFn falló, usando sesión directa:", err);
 
-        // Si Wialon ya emitió el token exitosamente, no bloqueamos al usuario:
-        // Guardamos la sesión y abrimos el mapa directamente
-        const displayName = userName || "Usuario Wialon";
         const fallbackSession: WialonSession = {
           sid: token,
           host,
           userId: 0,
-          userName: displayName,
+          userName: userName || "Usuario Wialon",
+          profile: null,
         };
 
         writeSession(fallbackSession);
         localStorage.setItem("wialon_token", token);
-        toast.success(`¡Bienvenido a tu plataforma!`);
+        toast.success(`¡Bienvenido a la plataforma!`);
         void navigate({ to: "/wialon/mapa" });
       }
     }
@@ -155,7 +170,7 @@ function WialonCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [login, navigate]);
+  }, [login, syncUser, navigate]);
 
   return (
     <div className="flex min-h-[65vh] flex-col items-center justify-center p-6 text-center">
@@ -167,7 +182,7 @@ function WialonCallbackPage() {
               Abriendo tu plataforma de rastreo…
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Conectando con tus unidades satelitales y cargando el mapa en vivo.
+              Verificando usuario, sincronizando datos registrados y cargando el mapa en vivo.
             </p>
           </>
         ) : (

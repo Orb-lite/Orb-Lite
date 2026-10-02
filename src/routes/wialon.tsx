@@ -1,6 +1,7 @@
+import * as React from "react";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { LogOut } from "lucide-react";
+import { LogOut, User, Calendar, ShieldCheck, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import {
   PLATFORM_LABEL,
   useWialonKeepAlive,
@@ -32,6 +33,7 @@ function WialonLayout() {
   const logout = useServerFn(wialonLogout);
   const ping = useServerFn(wialonPing);
   const navigate = useNavigate();
+  const [showAccountDetails, setShowAccountDetails] = React.useState(false);
 
   useWialonKeepAlive(session, ping);
 
@@ -47,6 +49,8 @@ function WialonLayout() {
     void navigate({ to: "/wialon" });
   }
 
+  const profile = session?.profile;
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -60,25 +64,125 @@ function WialonLayout() {
             <h1 className="font-display text-3xl font-bold uppercase tracking-wide">
               Plataforma de rastreo
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {session
-                ? `${session.userName} · ${PLATFORM_LABEL[session.host]}`
-                : "Entra con tu cuenta para ver tus unidades en tiempo real."}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              {session ? (
+                <>
+                  <span className="font-semibold text-foreground">
+                    {profile?.fullName || session.userName}
+                  </span>
+                  {profile?.customerNumber && (
+                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-mono font-bold text-primary">
+                      Cliente #{profile.customerNumber}
+                    </span>
+                  )}
+                  {profile?.company && (
+                    <span className="text-xs text-muted-foreground">({profile.company})</span>
+                  )}
+                  <span>·</span>
+                  <span className="text-xs">{PLATFORM_LABEL[session.host]}</span>
+                </>
+              ) : (
+                <span>Entra con tu cuenta para ver tus unidades en tiempo real.</span>
+              )}
+            </div>
           </div>
         </div>
+
         {session ? (
-          <button
-            onClick={onLogout}
-            className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm hover:border-primary hover:text-primary"
-          >
-            <LogOut className="size-4" /> Salir
-          </button>
+          <div className="flex items-center gap-2">
+            {profile && (
+              <button
+                type="button"
+                onClick={() => setShowAccountDetails((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+              >
+                <User className="size-3.5 text-primary" />
+                <span>Mi Cuenta</span>
+                {showAccountDetails ? (
+                  <ChevronUp className="size-3 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="size-3 text-muted-foreground" />
+                )}
+              </button>
+            )}
+
+            <button
+              onClick={onLogout}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-xs font-bold uppercase text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+            >
+              <LogOut className="size-3.5" /> Salir
+            </button>
+          </div>
         ) : null}
       </div>
 
+      {/* Panel desplegable con datos registrados y tablas vinculadas al usuario */}
+      {session && profile && showAccountDetails && (
+        <section className="mt-4 rounded-xl border border-primary/30 bg-card/95 p-4 shadow-md backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between border-b border-border/60 pb-3">
+            <div>
+              <p className="text-xs font-mono text-primary font-semibold">
+                USUARIO VERIFICADO EN SISTEMA
+              </p>
+              <h2 className="text-sm font-bold text-foreground sm:text-base">
+                {profile.fullName} {profile.company ? `· ${profile.company}` : ""}
+              </h2>
+            </div>
+            {profile.customerNumber && (
+              <div className="text-right">
+                <span className="text-xs text-muted-foreground">ID CRM:</span>{" "}
+                <span className="font-mono font-bold text-primary">#{profile.customerNumber}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-3 grid gap-3 sm:grid-cols-3 text-xs">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
+              <span className="text-muted-foreground">Wialon User ID:</span>
+              <p className="font-mono font-semibold text-foreground">{profile.wialonUserId}</p>
+              <span className="mt-1 block text-muted-foreground">Usuario satelital:</span>
+              <p className="font-mono text-foreground">{profile.wialonUsername}</p>
+            </div>
+
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Calendar className="size-3 text-primary" />
+                Renovaciones activas:
+              </span>
+              <p className="font-semibold text-foreground">
+                {profile.renewals.length > 0
+                  ? `${profile.renewals.length} unidad(es) registrada(s)`
+                  : "Sin renovaciones pendientes"}
+              </p>
+              {profile.renewals.slice(0, 2).map((r) => (
+                <p key={r.id} className="mt-0.5 text-[11px] text-muted-foreground truncate">
+                  • {r.unit_name || "Equipo"}: vence {r.renewal_date || "N/A"}
+                </p>
+              ))}
+            </div>
+
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <FileText className="size-3 text-primary" />
+                Historial de compras:
+              </span>
+              <p className="font-semibold text-foreground">
+                {profile.orders.length > 0
+                  ? `${profile.orders.length} pedido(s) en CRM`
+                  : "Cuenta sin compras directas"}
+              </p>
+              {profile.orders.slice(0, 1).map((o) => (
+                <p key={o.order_id} className="mt-0.5 text-[11px] text-muted-foreground truncate">
+                  Último: {o.order_id} (${o.total} MXN)
+                </p>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {session ? (
-        <nav className="sticky top-[8rem] z-40 -mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto border-b border-border/60 bg-background/95 px-4 py-3 text-sm font-semibold uppercase tracking-wide shadow-[0_8px_20px_-18px_var(--primary)] backdrop-blur sm:top-24 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+        <nav className="sticky top-[8rem] z-40 -mx-4 mt-6 flex snap-x snap-mandatory gap-2 overflow-x-auto border-b border-border/60 bg-background/95 px-4 py-3 text-sm font-semibold uppercase tracking-wide shadow-[0_8px_20px_-18px_var(--primary)] backdrop-blur sm:top-24 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           {tabs
             .filter((tab) => !tab.fullOnly || session.host === "full")
             .map((tab) => (
