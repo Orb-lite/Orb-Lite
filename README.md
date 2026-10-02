@@ -1,26 +1,24 @@
-# Orb-Lite
+# ORB-LITE | Rastreo Satelital GPS
 
-haz una pagina en base al flyer y el logotipo
+Plataforma integral de monitoreo satelital en tiempo real, gestión de unidades, geocercas, trazado y compartición de rutas seguras, renovaciones y CRM de clientes.
 
-This project was built with [Lovable](https://lovable.dev).
+## Características
 
-**Live app**: https://visual-flyer-builder.lovable.app
+- **Rastreo en Tiempo Real:** Integración completa con Wialon API para visualización y control de unidades.
+- **Compartición de Rutas y Enlaces Seguros:** Generación de enlaces con caducidad para clientes y logística.
+- **Gestión de Geocercas y Alertas:** Delimitación de zonas seguras y notificaciones.
+- **Cotizador y Solicitudes:** Proceso de compra, alta de clientes y validación de Constancias de Situación Fiscal con IA.
+- **CRM y Renovaciones:** Panel administrativo para control de clientes, fechas de corte y pagos.
 
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/10f76478-fa8c-4683-b688-ea8db9a49f72).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## Desarrollo
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+npm install
 npm run dev
+```
+
+## Producción
+
+```sh
+npm run build
 ```

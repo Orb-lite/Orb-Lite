@@ -40,7 +40,6 @@ import { Route as WialonUnidadesRouteImport } from './routes/wialon.unidades'
 import { Route as WialonVideoRouteImport } from './routes/wialon.video'
 import { Route as ApiPublicCronAvisosRenovacionRouteImport } from './routes/api/public/cron/avisos-renovacion'
 import { Route as ApiPublicCronResumenPendientesRouteImport } from './routes/api/public/cron/resumen-pendientes'
-import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -199,12 +198,6 @@ const ApiPublicCronResumenPendientesRoute =
     path: '/api/public/cron/resumen-pendientes',
     getParentRoute: () => rootRouteImport,
   } as any)
-const LovableEmailTransactionalPreviewRoute =
-  LovableEmailTransactionalPreviewRouteImport.update({
-    id: '/lovable/email/transactional/preview',
-    path: '/lovable/email/transactional/preview',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -237,7 +230,6 @@ export interface FileRoutesByFullPath {
   '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
-  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -269,7 +261,6 @@ export interface FileRoutesByTo {
   '/wialon': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
-  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -304,7 +295,6 @@ export interface FileRoutesById {
   '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
   '/api/public/cron/resumen-pendientes': typeof ApiPublicCronResumenPendientesRoute
-  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -339,7 +329,6 @@ export interface FileRouteTypes {
     | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
-    | '/lovable/email/transactional/preview'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -371,7 +360,6 @@ export interface FileRouteTypes {
     | '/wialon'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
-    | '/lovable/email/transactional/preview'
   id:
     | '__root__'
     | '/'
@@ -405,7 +393,6 @@ export interface FileRouteTypes {
     | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
     | '/api/public/cron/resumen-pendientes'
-    | '/lovable/email/transactional/preview'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -426,7 +413,6 @@ export interface RootRouteChildren {
   RutaTokenRoute: typeof RutaTokenRoute
   ApiPublicCronAvisosRenovacionRoute: typeof ApiPublicCronAvisosRenovacionRoute
   ApiPublicCronResumenPendientesRoute: typeof ApiPublicCronResumenPendientesRoute
-  LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -648,13 +634,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronResumenPendientesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/lovable/email/transactional/preview': {
-      id: '/lovable/email/transactional/preview'
-      path: '/lovable/email/transactional/preview'
-      fullPath: '/lovable/email/transactional/preview'
-      preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -722,7 +701,6 @@ const rootRouteChildren: RootRouteChildren = {
   RutaTokenRoute: RutaTokenRoute,
   ApiPublicCronAvisosRenovacionRoute: ApiPublicCronAvisosRenovacionRoute,
   ApiPublicCronResumenPendientesRoute: ApiPublicCronResumenPendientesRoute,
-  LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

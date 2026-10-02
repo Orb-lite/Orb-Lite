@@ -1,19 +1,15 @@
 /**
  * Acceso server-side a Google Maps Platform (Places New + Routes API)
- * a través del gateway de conectores. Solo se usa en el backend.
+ * usando directamente las APIs oficiales de Google. Solo se usa en el backend.
  */
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/google_maps";
-
-function gatewayHeaders(): Record<string, string> {
-  const lovableKey = process.env["LOVABLE_API_KEY"];
-  const mapsKey = process.env["GOOGLE_MAPS_API_KEY"];
-  if (!lovableKey || !mapsKey) {
-    throw new Error("La conexión de Google Maps no está configurada.");
+function googleMapsHeaders(): Record<string, string> {
+  const mapsKey = process.env["GOOGLE_MAPS_API_KEY"] || process.env["VITE_GOOGLE_MAPS_API_KEY"];
+  if (!mapsKey) {
+    throw new Error("La clave de Google Maps (GOOGLE_MAPS_API_KEY) no está configurada.");
   }
   return {
-    Authorization: `Bearer ${lovableKey}`,
-    "X-Connection-Api-Key": mapsKey,
+    "X-Goog-Api-Key": mapsKey,
     "Content-Type": "application/json",
   };
 }
@@ -35,10 +31,10 @@ export type GoogleGeocodedPlace = {
 
 /** Busca una dirección con Places API (New): nombres de lugares, calles y negocios. */
 export async function googleGeocodePlace(query: string): Promise<GoogleGeocodedPlace | null> {
-  const response = await fetch(`${GATEWAY_URL}/places/v1/places:searchText`, {
+  const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
     method: "POST",
     headers: {
-      ...gatewayHeaders(),
+      ...googleMapsHeaders(),
       "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.location",
     },
     body: JSON.stringify({ textQuery: query, pageSize: 1 }),
@@ -129,10 +125,10 @@ export async function googleComputeOptimizedRoute(input: {
     ? input.intermediates
     : input.intermediates.slice(0, -1);
 
-  const response = await fetch(`${GATEWAY_URL}/routes/directions/v2:computeRoutes`, {
+  const response = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
     method: "POST",
     headers: {
-      ...gatewayHeaders(),
+      ...googleMapsHeaders(),
       "X-Goog-FieldMask":
         "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.optimizedIntermediateWaypointIndex",
     },

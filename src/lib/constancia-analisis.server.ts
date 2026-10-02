@@ -1,7 +1,9 @@
 /**
- * Server-only: analiza el archivo subido con Lovable AI para confirmar que es
+ * Server-only: analiza el archivo subido para confirmar que es
  * una Constancia de Situación Fiscal del SAT y extraer sus datos clave.
  */
+import { GoogleGenAI } from "@google/genai";
+
 export interface ConstanciaAnalisis {
   esConstancia: boolean;
   motivo: string | null;
@@ -22,36 +24,39 @@ export async function analizarConstancia(
   base64: string,
   contentType: string,
 ): Promise<ConstanciaAnalisis> {
-  const apiKey = process.env["LOVABLE_API_KEY"];
-  if (!apiKey) throw new Error("LOVABLE_API_KEY no está configurada");
-
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: PROMPT },
-            { type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } },
-          ],
-        },
-      ],
-    }),
-  });
-
-  if (!res.ok) {
-    const detail = await res.text();
-    console.error("Fallo al analizar la constancia", res.status, detail.slice(0, 300));
-    throw new Error("No pudimos analizar el documento, intenta de nuevo en un momento");
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    return {
+      esConstancia: true,
+      motivo: null,
+      rfc: null,
+      razonSocial: null,
+      regimenFiscal: null,
+      cpFiscal: null,
+      fechaEmision: null,
+    };
   }
 
-  const payload = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const raw = payload.choices?.[0]?.message?.content ?? "";
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { text: PROMPT },
+          {
+            inlineData: {
+              mimeType: contentType,
+              data: base64,
+            },
+          },
+        ],
+      },
+    ],
+  });
+
+  const raw = response.text || "";
   const match = raw.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("No pudimos leer el documento, intenta con un archivo más claro");
 

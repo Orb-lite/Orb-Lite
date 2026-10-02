@@ -10,7 +10,7 @@ import { loadEnv } from "vite";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { prepareDist } from "./scripts/prepare-dist.mjs";
 
-// Server routes need non-VITE_ env vars (e.g. LOVABLE_API_KEY); load them into
+// Server routes need non-VITE_ env vars; load them into
 // process.env for server-side code only. Never expose these via envDefine.
 const serverEnv = loadEnv(process.env["NODE_ENV"] ?? "development", process.cwd(), "");
 Object.assign(process.env, serverEnv);

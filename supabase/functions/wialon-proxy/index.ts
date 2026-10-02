@@ -17,8 +17,8 @@ const ALLOWED_HOSTS = new Set([
 const ALLOWED_SERVICES = new Set(["token/login", "wialon.api.sign_in"]);
 
 const LOCALHOST_ORIGIN = /^https?:\/\/localhost(?::\d+)?$/;
-const LOVABLE_ORIGIN =
-  /^https:\/\/(?:[a-z0-9-]+\.)?(?:lovable\.app|lovable\.dev|lovableproject\.com)$/i;
+const APP_ORIGIN =
+  /^https:\/\/(?:[a-z0-9-]+\.)?(?:orb-lite\.com|vercel\.app|run\.app)$/i;
 
 type RequestBody = {
   target: string;
@@ -27,7 +27,7 @@ type RequestBody = {
 };
 
 function corsHeaders(origin: string | null): HeadersInit {
-  const allowedOrigin = origin && (LOCALHOST_ORIGIN.test(origin) || LOVABLE_ORIGIN.test(origin));
+  const allowedOrigin = origin && (LOCALHOST_ORIGIN.test(origin) || APP_ORIGIN.test(origin));
   return {
     "Access-Control-Allow-Origin": allowedOrigin ? origin : "null",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
