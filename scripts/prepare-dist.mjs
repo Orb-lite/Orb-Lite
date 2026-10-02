@@ -82,7 +82,7 @@ if (fs.existsSync(assetsDir)) {
 // Replace original dev script in index.html with the built bundles
 htmlContent = htmlContent.replace(/<script[^>]*src="\/src\/main\.[jt]sx?"[^>]*><\/script>/gi, "");
 
-if (cssLinks && !htmlContent.includes("rel=\"stylesheet\"")) {
+if (cssLinks && !htmlContent.includes('rel="stylesheet"')) {
   htmlContent = htmlContent.replace("</head>", `${cssLinks}\n  </head>`);
 }
 
@@ -92,6 +92,30 @@ if (jsScripts) {
 
 fs.writeFileSync(distIndexHtml, htmlContent, "utf8");
 console.log("[prepare-dist] dist/index.html generated successfully.");
+
+// Patch Nitro renderer-template.mjs so SSR responses never send /src/main.js to the browser
+const templateLocations = [
+  path.join(outputServerDir, "_chunks", "renderer-template.mjs"),
+  path.join(distDir, "server", "_chunks", "renderer-template.mjs"),
+  path.join(distDir, ".output", "server", "_chunks", "renderer-template.mjs"),
+];
+
+for (const tmplPath of templateLocations) {
+  if (fs.existsSync(tmplPath)) {
+    try {
+      const code = fs.readFileSync(tmplPath, "utf8");
+      // Replace raw HTML string in rendererTemplate with the actual compiled htmlContent
+      const updatedCode = code.replace(
+        /var rendererTemplate = \(\) => new HTTPResponse\("[\s\S]*?", \{ headers: \{ "content-type": "text\/html; charset=utf-8" \} \}\);/,
+        `var rendererTemplate = () => new HTTPResponse(${JSON.stringify(htmlContent)}, { headers: { "content-type": "text/html; charset=utf-8" } });`,
+      );
+      fs.writeFileSync(tmplPath, updatedCode, "utf8");
+      console.log(`[prepare-dist] Patched renderer template at ${tmplPath}`);
+    } catch (err) {
+      console.warn(`[prepare-dist] Could not patch renderer template at ${tmplPath}:`, err);
+    }
+  }
+}
 
 // 5. Create a standalone start entry in dist/server.js
 const serverJsContent = `// Standalone entry for AI Studio and Cloud Run

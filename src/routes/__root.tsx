@@ -117,6 +117,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // If running on client DOM (mounted inside root element), don't nest <html>
+  if (typeof document !== "undefined") {
+    return <>{children}</>;
+  }
+
   return (
     <html lang="es">
       <head>
