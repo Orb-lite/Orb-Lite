@@ -7,17 +7,22 @@ export function prepareDist() {
   const outputPublicDir = path.join(outputDir, "public");
   const outputServerDir = path.join(outputDir, "server");
   const distDir = path.join(rootDir, "dist");
+  const vercelOutputDir = path.join(rootDir, ".vercel", "output");
+  const vercelStaticDir = path.join(vercelOutputDir, "static");
+  const vercelServerFuncDir = path.join(vercelOutputDir, "functions", "__server.func");
 
-  console.log("[prepare-dist] Creating dist directory...");
-  if (fs.existsSync(distDir)) {
-    fs.rmSync(distDir, { recursive: true, force: true });
+  console.log("[prepare-dist] Preparing build outputs for AI Studio and Vercel...");
+  if (!fs.existsSync(distDir)) {
+    fs.mkdirSync(distDir, { recursive: true });
   }
-  fs.mkdirSync(distDir, { recursive: true });
 
-  // 1. Copy all static/public files from .output/public to dist
+  // 1. Copy all static/public files from .output/public or .vercel/output/static to dist
   if (fs.existsSync(outputPublicDir)) {
     console.log("[prepare-dist] Copying .output/public to dist...");
     fs.cpSync(outputPublicDir, distDir, { recursive: true });
+  } else if (fs.existsSync(vercelStaticDir)) {
+    console.log("[prepare-dist] Copying .vercel/output/static to dist...");
+    fs.cpSync(vercelStaticDir, distDir, { recursive: true });
   }
 
   // 2. Also copy public/ directory if files were missed
@@ -25,6 +30,9 @@ export function prepareDist() {
   if (fs.existsSync(publicDir)) {
     console.log("[prepare-dist] Ensuring public/ assets are in dist...");
     fs.cpSync(publicDir, distDir, { recursive: true });
+    if (fs.existsSync(vercelStaticDir)) {
+      fs.cpSync(publicDir, vercelStaticDir, { recursive: true });
+    }
   }
 
   // 3. Copy server files to dist/server and dist/.output so full-stack / SSR works
@@ -39,10 +47,8 @@ export function prepareDist() {
     fs.cpSync(outputDir, path.join(distDir, ".output"), { recursive: true });
   }
 
-  // 4. Generate a valid, robust dist/index.html
+  // 4. Generate a valid, robust index.html
   const rootIndexHtml = path.join(rootDir, "index.html");
-  const distIndexHtml = path.join(distDir, "index.html");
-
   let htmlContent = "";
   if (fs.existsSync(rootIndexHtml)) {
     htmlContent = fs.readFileSync(rootIndexHtml, "utf8");
@@ -60,23 +66,32 @@ export function prepareDist() {
 </html>`;
   }
 
-  // Find built CSS and JS assets in dist/assets
-  const assetsDir = path.join(distDir, "assets");
+  // Find built CSS and JS assets across dist/assets, .vercel/output/static/assets, or .output/public/assets
+  const possibleAssetDirs = [
+    path.join(distDir, "assets"),
+    path.join(vercelStaticDir, "assets"),
+    path.join(outputPublicDir, "assets"),
+  ];
+
   let cssLinks = "";
   let jsScripts = "";
 
-  if (fs.existsSync(assetsDir)) {
-    const assetFiles = fs.readdirSync(assetsDir);
+  for (const assetDir of possibleAssetDirs) {
+    if (fs.existsSync(assetDir)) {
+      const assetFiles = fs.readdirSync(assetDir);
 
-    const cssFiles = assetFiles.filter((f) => f.endsWith(".css"));
-    for (const css of cssFiles) {
-      cssLinks += `\n    <link rel="stylesheet" href="/assets/${css}" />`;
-    }
+      const cssFiles = assetFiles.filter((f) => f.endsWith(".css"));
+      for (const css of cssFiles) {
+        if (!cssLinks.includes(css)) {
+          cssLinks += `\n    <link rel="stylesheet" href="/assets/${css}" />`;
+        }
+      }
 
-    // Find index-*.js or main bundle
-    const indexJs = assetFiles.find((f) => f.startsWith("index-") && f.endsWith(".js"));
-    if (indexJs) {
-      jsScripts += `\n    <script type="module" src="/assets/${indexJs}"></script>`;
+      // Find index-*.js or main bundle
+      const indexJs = assetFiles.find((f) => f.startsWith("index-") && f.endsWith(".js"));
+      if (indexJs && !jsScripts) {
+        jsScripts += `\n    <script type="module" src="/assets/${indexJs}"></script>`;
+      }
     }
   }
 
@@ -91,11 +106,25 @@ export function prepareDist() {
     htmlContent = htmlContent.replace("</body>", `${jsScripts}\n  </body>`);
   }
 
+  // Write compiled HTML to dist/index.html AND .vercel/output/static/index.html
+  const distIndexHtml = path.join(distDir, "index.html");
   fs.writeFileSync(distIndexHtml, htmlContent, "utf8");
   console.log("[prepare-dist] dist/index.html generated successfully.");
 
-  // Patch Nitro renderer-template.mjs so SSR responses never send /src/main.js or /src/main.tsx to the browser
+  if (fs.existsSync(vercelStaticDir)) {
+    const vercelIndexHtml = path.join(vercelStaticDir, "index.html");
+    fs.writeFileSync(vercelIndexHtml, htmlContent, "utf8");
+    console.log("[prepare-dist] .vercel/output/static/index.html generated successfully.");
+  }
+
+  // Also sync assets to .vercel/output/static/assets if needed
+  if (fs.existsSync(path.join(distDir, "assets")) && fs.existsSync(vercelStaticDir)) {
+    fs.cpSync(path.join(distDir, "assets"), path.join(vercelStaticDir, "assets"), { recursive: true });
+  }
+
+  // 5. Patch Nitro and Vercel renderer-template.mjs so SSR responses never send /src/main.js or /src/main.tsx
   const templateLocations = [
+    path.join(vercelServerFuncDir, "_chunks", "renderer-template.mjs"),
     path.join(outputServerDir, "_chunks", "renderer-template.mjs"),
     path.join(distDir, "server", "_chunks", "renderer-template.mjs"),
     path.join(distDir, ".output", "server", "_chunks", "renderer-template.mjs"),
@@ -105,7 +134,6 @@ export function prepareDist() {
     if (fs.existsSync(tmplPath)) {
       try {
         const code = fs.readFileSync(tmplPath, "utf8");
-        // Replace raw HTML string in rendererTemplate with the actual compiled htmlContent
         const updatedCode = code.replace(
           /var rendererTemplate = \(\) => new HTTPResponse\("[\s\S]*?", \{ headers: \{ "content-type": "text\/html; charset=utf-8" \} \}\);/,
           `var rendererTemplate = () => new HTTPResponse(${JSON.stringify(htmlContent)}, { headers: { "content-type": "text/html; charset=utf-8" } });`,
@@ -118,13 +146,36 @@ export function prepareDist() {
     }
   }
 
-  // 5. Create a standalone start entry in dist/server.js
+  // 6. Fix any (void 0)( broken calls in Vercel serverless function SSR files
+  const vercelSsrDir = path.join(vercelServerFuncDir, "_ssr");
+  if (fs.existsSync(vercelSsrDir)) {
+    try {
+      const ssrFiles = fs.readdirSync(vercelSsrDir).filter((f) => f.endsWith(".mjs"));
+      let patchedCount = 0;
+      for (const file of ssrFiles) {
+        const filePath = path.join(vercelSsrDir, file);
+        let code = fs.readFileSync(filePath, "utf8");
+        if (code.includes("(void 0)(")) {
+          code = code.replaceAll("(void 0)(", "import_jsx_dev_runtime.jsxDEV(");
+          fs.writeFileSync(filePath, code, "utf8");
+          patchedCount++;
+        }
+      }
+      if (patchedCount > 0) {
+        console.log(`[prepare-dist] Patched (void 0)( in ${patchedCount} Vercel SSR files.`);
+      }
+    } catch (e) {
+      console.warn("[prepare-dist] Error patching Vercel SSR files:", e);
+    }
+  }
+
+  // 7. Create a standalone start entry in dist/server.js
   const serverJsContent = `// Standalone entry for AI Studio and Cloud Run
 import "./server/index.mjs";
 `;
   fs.writeFileSync(path.join(distDir, "server.js"), serverJsContent, "utf8");
 
-  console.log("[prepare-dist] Build artifacts successfully prepared in dist/!");
+  console.log("[prepare-dist] Build artifacts successfully prepared for both AI Studio and Vercel!");
 }
 
 prepareDist();
