@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { LogOut, User, Calendar, ShieldCheck, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { LogOut, User, Calendar, ShieldCheck, FileText, ChevronDown, ChevronUp, Users } from "lucide-react";
 import {
   PLATFORM_LABEL,
   useWialonKeepAlive,
@@ -25,6 +25,7 @@ const tabs = [
   { to: "/wialon/historial", label: "Historial", fullOnly: false },
   { to: "/wialon/reportes", label: "Reportes", fullOnly: false },
   { to: "/wialon/video", label: "Cámaras", fullOnly: false },
+  { to: "/wialon/usuarios", label: "Sub-Cuentas", fullOnly: false, parentOnly: true },
   { to: "/wialon/cms", label: "Altas (CMS)", fullOnly: false },
 ] as const;
 
@@ -50,6 +51,7 @@ function WialonLayout() {
   }
 
   const profile = session?.profile;
+  const isParent = Boolean(profile?.isParent || (profile?.subusers && profile.subusers.length > 0));
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-10">
@@ -73,6 +75,16 @@ function WialonLayout() {
                   {profile?.customerNumber && (
                     <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-mono font-bold text-primary">
                       Cliente #{profile.customerNumber}
+                    </span>
+                  )}
+                  {isParent && (
+                    <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-xs font-bold text-amber-400">
+                      Cuenta Padre ({profile?.subusers?.length || 0} subcuentas)
+                    </span>
+                  )}
+                  {profile?.parentUsername && (
+                    <span className="rounded bg-blue-500/10 px-1.5 py-0.5 text-xs font-medium text-blue-400">
+                      Subcuenta de: {profile.parentUsername}
                     </span>
                   )}
                   {profile?.company && (
@@ -142,6 +154,12 @@ function WialonLayout() {
               <p className="font-mono font-semibold text-foreground">{profile.wialonUserId}</p>
               <span className="mt-1 block text-muted-foreground">Usuario satelital:</span>
               <p className="font-mono text-foreground">{profile.wialonUsername}</p>
+              {isParent && (
+                <div className="mt-2 flex items-center gap-1 text-[11px] text-amber-400 font-semibold">
+                  <Users className="size-3.5" />
+                  <span>{profile.subusers.length} subcuentas administradas</span>
+                </div>
+              )}
             </div>
 
             <div className="rounded-lg border border-border/60 bg-muted/20 p-2.5">
@@ -184,7 +202,13 @@ function WialonLayout() {
       {session ? (
         <nav className="sticky top-[8rem] z-40 -mx-4 mt-6 flex snap-x snap-mandatory gap-2 overflow-x-auto border-b border-border/60 bg-background/95 px-4 py-3 text-sm font-semibold uppercase tracking-wide shadow-[0_8px_20px_-18px_var(--primary)] backdrop-blur sm:top-24 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           {tabs
-            .filter((tab) => !tab.fullOnly || session.host === "full")
+            .filter((tab) => {
+              if (tab.fullOnly && session.host !== "full") return false;
+              if ("parentOnly" in tab && tab.parentOnly) {
+                return isParent;
+              }
+              return true;
+            })
             .map((tab) => (
               <Link
                 key={tab.to}

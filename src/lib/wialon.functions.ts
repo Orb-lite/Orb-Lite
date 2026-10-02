@@ -1304,21 +1304,53 @@ async function resolveAccessibleUserIds(
   userId: number,
 ): Promise<number[]> {
   const ids = new Set<number>([userId]);
+
+  // 1. Jerarquía en base de datos Supabase: si es cuenta padre, incluir todas sus subcuentas
   try {
-    const result: { items?: Array<{ id?: number }> } | undefined = await wialonCall<{
+    const { getSupabaseServerClient } = await import("@/integrations/supabase/client.server");
+    const supabase = getSupabaseServerClient();
+    const { data: subusers } = await supabase
+      .from("platform_users" as any)
+      .select("wialon_user_id")
+      .eq("parent_user_id", userId);
+
+    if (subusers) {
+      for (const s of subusers as any[]) {
+        if (s.wialon_user_id) ids.add(Number(s.wialon_user_id));
+      }
+    }
+
+    // Si es subcuenta, verificar si tiene permiso de ver rutas del padre
+    const { data: me } = await supabase
+      .from("platform_users" as any)
+      .select("parent_user_id, shared_permissions")
+      .eq("wialon_user_id", userId)
+      .maybeSingle();
+
+    if ((me as any)?.parent_user_id) {
+      const perms = (me as any).shared_permissions || {};
+      if (perms.routes !== false) {
+        ids.add(Number((me as any).parent_user_id));
+      }
+    }
+  } catch {}
+
+  // 2. Jerarquía en Wialon
+  try {
+    const result = await wialonCall<{
       items?: Array<{ id?: number }>;
     }>(
       host,
       "core/search_items",
       {
         spec: {
-          itemsType: "avl_user",
+          itemsType: "user",
           propName: "sys_name",
           propValueMask: "*",
           sortType: "sys_name",
         },
         force: 1,
-        flags: 0x1,
+        flags: 1,
         from: 0,
         to: 0,
       },
@@ -1328,7 +1360,7 @@ async function resolveAccessibleUserIds(
       if (typeof item.id === "number" && item.id > 0) ids.add(item.id);
     }
   } catch {
-    // Sin permiso para listar usuarios: solo las rutas propias.
+    // fallback
   }
   return [...ids];
 }
