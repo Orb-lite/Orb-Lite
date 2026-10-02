@@ -8,6 +8,7 @@
 import path from "node:path";
 import { loadEnv } from "vite";
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { prepareDist } from "./scripts/prepare-dist.mjs";
 
 // Server routes need non-VITE_ env vars (e.g. LOVABLE_API_KEY); load them into
 // process.env for server-side code only. Never expose these via envDefine.
@@ -21,6 +22,18 @@ export default defineConfig({
     server: { entry: "./src/server.ts" },
   },
   vite: {
+    plugins: [
+      {
+        name: "orb-prepare-dist-plugin",
+        closeBundle() {
+          try {
+            prepareDist();
+          } catch (e) {
+            console.warn("[orb-prepare-dist-plugin] Error during closeBundle:", e);
+          }
+        },
+      },
+    ],
     resolve: {
       alias: {
         // React Email requires entities v4.5.0; bypass nested newer copies.
