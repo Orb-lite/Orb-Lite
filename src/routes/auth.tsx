@@ -1,7 +1,6 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { ensureFreshSession } from "@/lib/crm-session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,26 +21,44 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [email, setEmail] = React.useState("");
+  const [email, setEmail] = React.useState("ventas@orb-lite.com");
   const [password, setPassword] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    // Cada carga de página arranca sin sesión: siempre hay que iniciar sesión.
-    void ensureFreshSession();
-  }, []);
+    // Si ya existe sesión activa con el usuario del CRM, entrar directamente
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user && (data.user.email ?? "").toLowerCase() === "ventas@orb-lite.com") {
+        navigate({ to: "/crm", replace: true });
+      }
+    });
+  }, [navigate]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
     setLoading(false);
+
     if (signInError) {
-      setError("Correo o contraseña incorrectos.");
+      if (signInError.message.includes("Email not confirmed")) {
+        setError(
+          "El usuario aún no está confirmado. Ve a 'Crear contraseña' para validarlo con un código de un solo uso.",
+        );
+      } else if (signInError.message.includes("Invalid login credentials")) {
+        setError("Contraseña o correo incorrectos. Puedes crear o restablecer tu contraseña abajo.");
+      } else {
+        setError(signInError.message);
+      }
       return;
     }
+
     navigate({ to: "/crm", replace: true });
   }
 
@@ -110,11 +127,6 @@ function AuthPage() {
         >
           Olvidé mi contraseña
         </Button>
-
-        <p className="text-xs text-muted-foreground">
-          ¿Primera vez o olvidaste tu contraseña? Pide un código de un solo uso y llegará a
-          ventas@orb-lite.com para crear una nueva.
-        </p>
       </form>
     </main>
   );

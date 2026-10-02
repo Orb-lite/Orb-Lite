@@ -54,7 +54,7 @@ function AccesoCrmPage() {
     try {
       const newCode = random6Digit();
       const codeHash = await sha256(newCode);
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora de validez
 
       const { error: insErr } = await supabase.from("crm_access_codes").insert({
         email: "ventas@orb-lite.com",
@@ -68,7 +68,7 @@ function AccesoCrmPage() {
 
       setGeneratedCode(newCode);
       setCode(newCode);
-      toast.success(`Código generado con éxito: ${newCode}`);
+      toast.success(`Código generado: ${newCode}`);
     } catch (e: any) {
       console.error("Error al generar código:", e);
       toast.error(`No se pudo generar el código: ${e?.message || "Error desconocido"}`);
@@ -89,11 +89,36 @@ function AccesoCrmPage() {
     }
 
     setSaving(true);
-    try {
-      const cleanCode = code.trim();
-      const hash = await sha256(cleanCode);
+    const cleanCode = code.trim();
 
-      // 1. Validar el código en Supabase
+    try {
+      // 1. Intentar confirmación y cambio directo en la base de datos vía RPC
+      const { data: rpcData, error: rpcError } = await supabase.rpc("confirm_and_set_crm_password", {
+        p_code: cleanCode,
+        p_password: password,
+      });
+
+      if (!rpcError && rpcData) {
+        const res = typeof rpcData === "string" ? JSON.parse(rpcData) : rpcData;
+        if (!res.success) {
+          throw new Error(res.error || "Código inválido");
+        }
+
+        // Si la RPC confirmó el usuario y cambió la clave, iniciar sesión de inmediato
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: "ventas@orb-lite.com",
+          password,
+        });
+
+        if (!signInErr) {
+          toast.success("¡Usuario confirmado y contraseña guardada! Entrando al CRM…");
+          navigate({ to: "/crm", replace: true });
+          return;
+        }
+      }
+
+      // 2. Respaldo estándar si la RPC no estuviera ejecutada aún en SQL
+      const hash = await sha256(cleanCode);
       const { data: rows, error: readError } = await supabase
         .from("crm_access_codes")
         .select("id, expires_at, used_at")
@@ -112,50 +137,44 @@ function AccesoCrmPage() {
         throw new Error("Código incorrecto, vencido o ya utilizado.");
       }
 
-      // 2. Marcar código como usado
       await supabase
         .from("crm_access_codes")
         .update({ used_at: new Date().toISOString() })
         .eq("id", activeRow.id);
 
-      // 3. Iniciar sesión o registrar usuario
+      // Iniciar sesión
       const { error: signInErr } = await supabase.auth.signInWithPassword({
         email: "ventas@orb-lite.com",
         password,
       });
 
       if (!signInErr) {
+        toast.success("¡Sesión iniciada con éxito! Entrando al CRM…");
+        navigate({ to: "/crm", replace: true });
+        return;
+      }
+
+      // Si aún no existe o no tiene clave, intentar sign up
+      await supabase.auth.signUp({
+        email: "ventas@orb-lite.com",
+        password,
+      });
+
+      const { error: retrySignIn } = await supabase.auth.signInWithPassword({
+        email: "ventas@orb-lite.com",
+        password,
+      });
+
+      if (!retrySignIn) {
         toast.success("¡Sesión iniciada! Entrando al CRM…");
         navigate({ to: "/crm", replace: true });
         return;
       }
 
-      // Si falla inicio con contraseña, intentar signUp
-      const { error: signUpErr } = await supabase.auth.signUp({
-        email: "ventas@orb-lite.com",
-        password,
-      });
-
-      if (!signUpErr) {
-        toast.success("Contraseña configurada. Entrando al CRM…");
-        const { error: retrySignIn } = await supabase.auth.signInWithPassword({
-          email: "ventas@orb-lite.com",
-          password,
-        });
-        if (!retrySignIn) {
-          navigate({ to: "/crm", replace: true });
-          return;
-        }
-      }
-
-      // Si el usuario ya existe en Supabase Auth y requiere actualización desde Supabase:
-      toast.info(
-        "Código validado. Para terminar de activar tu contraseña, confirma al usuario en Supabase > Authentication > Users.",
-        { duration: 7000 },
-      );
+      toast.success("Código validado. Inicia sesión con tu nueva contraseña.");
       navigate({ to: "/auth" });
     } catch (err: any) {
-      toast.error(err?.message || "Código inválido o vencido");
+      toast.error(err?.message || "No se pudo validar el código.");
     } finally {
       setSaving(false);
     }
@@ -243,7 +262,7 @@ function AccesoCrmPage() {
 
         <Button type="submit" className="w-full" disabled={saving}>
           {saving
-            ? "Guardando contraseña…"
+            ? "Validando y confirmando…"
             : olvide
               ? "Restablecer contraseña y entrar"
               : "Crear contraseña y entrar"}

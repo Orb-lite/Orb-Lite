@@ -1,13 +1,18 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { ensureFreshSession } from "@/lib/crm-session";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    await ensureFreshSession();
     const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) throw redirect({ to: "/auth" });
+    if (error || !data?.user) {
+      throw redirect({ to: "/auth" });
+    }
+    const email = (data.user.email ?? "").toLowerCase();
+    if (email !== "ventas@orb-lite.com") {
+      await supabase.auth.signOut();
+      throw redirect({ to: "/auth" });
+    }
     return { user: data.user };
   },
   component: () => <Outlet />,
