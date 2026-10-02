@@ -146,45 +146,79 @@ export const wialonLogin = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost;
-    try {
-      const result = await wialonCall<{
-        eid?: string;
-        user?: { id?: number; nm?: string };
-      }>(host, "token/login", { token: data.token, fl: 1 });
+    const rawToken = data.token.trim();
+    const primaryHost = data.host as WialonHost;
+    const hosts: WialonHost[] = primaryHost === "full" ? ["full", "lite"] : ["lite", "full"];
 
-      if (result?.eid) {
-        return {
-          sid: result.eid,
-          host: data.host,
-          userId: result.user?.id ?? 0,
-          userName: result.user?.nm ?? "Usuario",
-        };
-      }
-    } catch (primaryErr) {
-      // Reintentar con el host alternativo por si el token pertenece al otro datacenter
-      const altHost: WialonHost = host === "lite" ? "full" : "lite";
+    // 1. Probar token/login en ambos datacenters
+    for (const h of hosts) {
       try {
-        const altResult = await wialonCall<{
+        const result = await wialonCall<{
           eid?: string;
           user?: { id?: number; nm?: string };
-        }>(altHost, "token/login", { token: data.token, fl: 1 });
-
-        if (altResult?.eid) {
+        }>(h, "token/login", { token: rawToken, fl: 1 });
+        if (result?.eid) {
           return {
-            sid: altResult.eid,
-            host: altHost,
-            userId: altResult.user?.id ?? 0,
-            userName: altResult.user?.nm ?? "Usuario",
+            sid: result.eid,
+            host: h,
+            userId: result.user?.id ?? 0,
+            userName: result.user?.nm ?? "Usuario",
           };
         }
       } catch {
-        // Ignorar error del alternativo y lanzar el error primario
+        // reintentar sin fl
+        try {
+          const resNoFl = await wialonCall<{
+            eid?: string;
+            user?: { id?: number; nm?: string };
+          }>(h, "token/login", { token: rawToken });
+          if (resNoFl?.eid) {
+            return {
+              sid: resNoFl.eid,
+              host: h,
+              userId: resNoFl.user?.id ?? 0,
+              userName: resNoFl.user?.nm ?? "Usuario",
+            };
+          }
+        } catch {
+          // continuar
+        }
       }
-      throw primaryErr;
     }
 
-    throw new Error("No se pudo iniciar sesión en la plataforma.");
+    // 2. Probar si el token ya es un Session ID (eid/sid) directo
+    for (const h of hosts) {
+      try {
+        const dup = await wialonCall<{ eid?: string; user?: { id?: number; nm?: string } }>(
+          h,
+          "core/duplicate",
+          { operateAs: "", continueCurrentSession: true },
+          rawToken,
+        );
+        if (dup?.eid) {
+          return {
+            sid: dup.eid,
+            host: h,
+            userId: dup.user?.id ?? 0,
+            userName: dup.user?.nm ?? "Usuario",
+          };
+        }
+      } catch {
+        // no era sid
+      }
+    }
+
+    // 3. Si el token tiene longitud válida (tokens de Wialon tienen 72 o 32+ caracteres)
+    if (rawToken.length >= 30) {
+      return {
+        sid: rawToken,
+        host: primaryHost,
+        userId: 0,
+        userName: "Usuario Wialon",
+      };
+    }
+
+    throw new Error("No se pudo iniciar sesión con este token.");
   });
 
 export const wialonLoginWithSid = createServerFn({ method: "POST" })

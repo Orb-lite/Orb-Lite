@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ShieldCheck, MapPin, Video, KeyRound, ArrowRight, User, Lock, ExternalLink } from "lucide-react";
+import { ShieldCheck, MapPin, Video, KeyRound, ArrowRight, User, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { PLATFORM_URLS, useWialonSession, writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin, wialonLoginWithCredentials } from "@/lib/wialon.functions";
@@ -95,13 +95,12 @@ function WialonLoginPage() {
     const base = PLATFORM_URLS[host].app.replace(/\/$/, "");
     window.sessionStorage.setItem("orblite.wialon.oauth-host", host);
     window.localStorage.setItem("orblite.wialon.oauth-host", host);
-    const redirect = `${window.location.origin}/wialon/callback`;
+    const redirect = `${window.location.origin}/wialon/callback?host=${host}`;
     const url = new URL(`${base}/login.html`);
     url.searchParams.set("client_id", "ORB-LITE");
-    url.searchParams.set("access_type", "-1");
     url.searchParams.set("activation_time", "0");
     url.searchParams.set("duration", "2592000"); // 30 días
-    url.searchParams.set("flags", "0x1");
+    url.searchParams.set("flags", "1");
     url.searchParams.set("lang", "es");
     url.searchParams.set("redirect_uri", redirect);
     url.searchParams.set("response_type", "token");
@@ -271,7 +270,7 @@ function WialonLoginPage() {
             </button>
           </div>
 
-          {/* Opción 1: Login por la página de Wialon (Recomendado) */}
+          {/* Opción 1: Login por la página de Wialon */}
           {activeTab === "wialon-oauth" && (
             <div className="space-y-4">
               <p className="text-xs text-muted-foreground leading-relaxed">
