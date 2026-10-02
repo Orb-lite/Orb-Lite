@@ -35,6 +35,26 @@ export default defineConfig({
         entities: path.resolve(process.cwd(), "node_modules/entities"),
       },
     },
+    define: {
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(
+        process.env.VITE_SUPABASE_URL ||
+          process.env.SUPABASE_URL ||
+          process.env.NEXT_PUBLIC_SUPABASE_URL ||
+          "https://bcldjdkihkoqmqamjuzz.supabase.co",
+      ),
+      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
+        process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+          process.env.SUPABASE_ANON_KEY ||
+          process.env.SUPABASE_PUBLISHABLE_KEY ||
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+          "sb_publishable_VRlE4IZzNbWISqqomeZKZQ_BPNRaVaw",
+      ),
+      "import.meta.env.VITE_SUPABASE_PROJECT_ID": JSON.stringify(
+        process.env.VITE_SUPABASE_PROJECT_ID ||
+          process.env.SUPABASE_PROJECT_ID ||
+          "bcldjdkihkoqmqamjuzz",
+      ),
+    },
   },
 });
 

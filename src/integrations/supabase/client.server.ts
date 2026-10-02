@@ -63,9 +63,18 @@ function createFallbackAdminClient(): any {
 }
 
 function createSupabaseAdminClient() {
-  const SUPABASE_URL = process.env["SUPABASE_URL"];
+  const SUPABASE_URL =
+    process.env["SUPABASE_URL"] ||
+    process.env["NEXT_PUBLIC_SUPABASE_URL"] ||
+    process.env["VITE_SUPABASE_URL"] ||
+    "https://bcldjdkihkoqmqamjuzz.supabase.co";
+
   const SUPABASE_SERVICE_ROLE_KEY =
-    process.env["SUPABASE_SERVICE_ROLE_KEY"] || process.env["SUPABASE_SECRET_KEY"];
+    process.env["SUPABASE_SERVICE_ROLE_KEY"] ||
+    process.env["SUPABASE_SECRET_KEY"] ||
+    process.env["SUPABASE_ANON_KEY"] ||
+    process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || SUPABASE_URL.includes("false123.com")) {
     console.warn("[Supabase] Running server in resilient fallback mode (Supabase not configured)");
