@@ -99,9 +99,10 @@ function WialonLoginPage() {
     const redirect = `${window.location.origin}/wialon/callback?host=${host}`;
     const url = new URL(`${base}/login.html`);
     url.searchParams.set("client_id", "ORB-LITE");
+    url.searchParams.set("access_type", "-1"); // Permisos completos de telemetría, unidades y geocercas
     url.searchParams.set("activation_time", "0");
     url.searchParams.set("duration", "2592000"); // 30 días
-    url.searchParams.set("flags", "1");
+    url.searchParams.set("flags", "7"); // 0x1 (nombre) + 0x2 (params) + 0x4 (full datos)
     url.searchParams.set("lang", "es");
     url.searchParams.set("redirect_uri", redirect);
     url.searchParams.set("response_type", "token");

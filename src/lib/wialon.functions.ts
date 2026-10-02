@@ -146,11 +146,17 @@ export const wialonLogin = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const rawToken = data.token.trim();
+    const rawToken = data.token
+      .replace(/^["'\s]+|["'\s]+$/g, "")
+      .split("&")[0]
+      .split("?")[0]
+      .trim();
+
     const primaryHost = data.host as WialonHost;
     const hosts: WialonHost[] = primaryHost === "full" ? ["full", "lite"] : ["lite", "full"];
 
-    // 1. Probar token/login en ambos datacenters
+    let lastError: unknown = null;
+
     for (const h of hosts) {
       try {
         const result = await wialonCall<{
@@ -162,32 +168,30 @@ export const wialonLogin = createServerFn({ method: "POST" })
             sid: result.eid,
             host: h,
             userId: result.user?.id ?? 0,
-            userName: result.user?.nm ?? "Usuario",
+            userName: result.user?.nm ?? "Usuario Wialon",
           };
         }
-      } catch {
-        // reintentar sin fl
-        try {
-          const resNoFl = await wialonCall<{
-            eid?: string;
-            user?: { id?: number; nm?: string };
-          }>(h, "token/login", { token: rawToken });
-          if (resNoFl?.eid) {
-            return {
-              sid: resNoFl.eid,
-              host: h,
-              userId: resNoFl.user?.id ?? 0,
-              userName: resNoFl.user?.nm ?? "Usuario",
-            };
-          }
-        } catch {
-          // continuar
-        }
+      } catch (e1) {
+        lastError = e1;
       }
-    }
 
-    // 2. Probar si el token ya es un Session ID (eid/sid) directo
-    for (const h of hosts) {
+      try {
+        const resNoFl = await wialonCall<{
+          eid?: string;
+          user?: { id?: number; nm?: string };
+        }>(h, "token/login", { token: rawToken });
+        if (resNoFl?.eid) {
+          return {
+            sid: resNoFl.eid,
+            host: h,
+            userId: resNoFl.user?.id ?? 0,
+            userName: resNoFl.user?.nm ?? "Usuario Wialon",
+          };
+        }
+      } catch (e2) {
+        lastError = e2;
+      }
+
       try {
         const dup = await wialonCall<{ eid?: string; user?: { id?: number; nm?: string } }>(
           h,
@@ -200,25 +204,14 @@ export const wialonLogin = createServerFn({ method: "POST" })
             sid: dup.eid,
             host: h,
             userId: dup.user?.id ?? 0,
-            userName: dup.user?.nm ?? "Usuario",
+            userName: dup.user?.nm ?? "Usuario Wialon",
           };
         }
-      } catch {
-        // no era sid
-      }
+      } catch {}
     }
 
-    // 3. Si el token tiene longitud válida (tokens de Wialon tienen 72 o 32+ caracteres)
-    if (rawToken.length >= 30) {
-      return {
-        sid: rawToken,
-        host: primaryHost,
-        userId: 0,
-        userName: "Usuario Wialon",
-      };
-    }
-
-    throw new Error("No se pudo iniciar sesión con este token.");
+    const errDetail = lastError instanceof Error ? lastError.message : "Token de Wialon no reconocido.";
+    throw new Error(`No se pudo iniciar sesión con Wialon: ${errDetail}`);
   });
 
 export const wialonLoginWithSid = createServerFn({ method: "POST" })
@@ -1111,7 +1104,8 @@ export const wialonGeofences = createServerFn({ method: "POST" })
     if (byId.size === 0) {
       const failed = results.find((r) => r.status === "rejected") as
         PromiseRejectedResult | undefined;
-      if (failed) throw failed.reason;
+      if (failed && isSessionExpired(failed.reason)) throw failed.reason;
+      return { zones: [] };
     }
     const resources = { items: [...byId.values()] };
     console.log("[geocercas] recursos", resources.items.length);

@@ -194,11 +194,26 @@ function MapaView({ session }: { session: WialonSession }) {
           />
         </div>
         {query.isError ? (
-          <p className="mt-3 text-sm text-destructive">
-            {query.error instanceof Error
-              ? query.error.message
-              : "Error al consultar la plataforma."}
-          </p>
+          <div className="mt-3 rounded-xl border border-destructive/40 bg-destructive/10 p-3.5 text-xs text-foreground space-y-2.5">
+            <div className="flex items-center gap-2 text-destructive font-bold uppercase tracking-wider">
+              <span>Sesión de Wialon no sincronizada</span>
+            </div>
+            <p className="text-muted-foreground text-[11px] leading-relaxed">
+              {query.error instanceof Error
+                ? query.error.message
+                : "La sesión satelital expiró o necesita reactivarse para descargar tus unidades."}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                writeSession(null);
+                window.location.href = "/wialon";
+              }}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2 px-3 font-display text-xs font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90 transition-opacity"
+            >
+              <span>Reconectar / Iniciar Sesión de Nuevo</span>
+            </button>
+          </div>
         ) : null}
         <ul className="mt-3 max-h-[380px] space-y-2 overflow-auto pr-1 text-sm">
           {filtered.map((unit) => {
