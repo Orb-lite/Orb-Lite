@@ -1,7 +1,8 @@
 import * as React from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { writeSession, type WialonSession } from "@/lib/wialon-session";
+import { ExternalLink } from "lucide-react";
+import { PLATFORM_URLS, writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin } from "@/lib/wialon.functions";
 
 export const Route = createFileRoute("/wialon/callback")({
@@ -39,11 +40,17 @@ function readParams(): {
   const search = new URLSearchParams(window.location.search);
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
 
-  const errorCode =
+  const rawError =
     search.get("error") ??
     hash.get("error") ??
     search.get("svc_error") ??
     hash.get("svc_error");
+
+  // Código 0 en Wialon significa ÉXITO / SIN ERROR. No debe tratarse como fallo.
+  const errorCode =
+    rawError && rawError !== "0" && rawError !== "none" && rawError !== "null"
+      ? rawError
+      : null;
 
   const token =
     search.get("access_token") ??
@@ -70,7 +77,6 @@ async function directClientLogin(
   token: string,
 ): Promise<WialonSession | null> {
   const hosts: Array<"lite" | "full"> = host === "full" ? ["full", "lite"] : ["lite", "full"];
-
   for (const h of hosts) {
     const base = h === "full" ? "https://hst-api.wialon.com" : "https://hst-api.wialon.us";
     try {
@@ -102,12 +108,14 @@ function WialonCallbackPage() {
   const login = useServerFn(wialonLogin);
   const navigate = useNavigate();
   const [error, setError] = React.useState<string | null>(null);
+  const [currentHost, setCurrentHost] = React.useState<"lite" | "full">("lite");
 
   React.useEffect(() => {
     let cancelled = false;
 
     async function run() {
       const { token, host, wialonError } = readParams();
+      setCurrentHost(host);
 
       if (wialonError) {
         setError(wialonError);
@@ -115,7 +123,9 @@ function WialonCallbackPage() {
       }
 
       if (!token) {
-        setError("La plataforma no devolvió un token de acceso válido. Por favor intenta entrar de nuevo.");
+        // Si no hay token, redirigir directamente al portal oficial de Wialon
+        const targetUrl = PLATFORM_URLS[host].app;
+        window.location.assign(targetUrl);
         return;
       }
 
@@ -132,7 +142,7 @@ function WialonCallbackPage() {
           console.warn("[Wialon Callback] ServerFn falló, probando conexión directa cliente:", serverErr);
         }
 
-        // 2. Respaldo directo en el navegador (en caso de fallo en SSR / Serverless)
+        // 2. Respaldo directo en el navegador
         const directResult = await directClientLogin(host, token);
         if (cancelled) return;
 
@@ -143,8 +153,9 @@ function WialonCallbackPage() {
           return;
         }
 
+        // Si no se pudo validar el token automáticamente, ofrecer entrada directa a Wialon
         setError(
-          "El token de acceso no fue aceptado por los servidores de Wialon (Wialon Lite ni Wialon Full). Verifica que tu usuario y contraseña pertenezcan a la plataforma seleccionada.",
+          "No se pudo validar el token automáticamente. Puedes entrar directamente a la página oficial de Wialon.",
         );
       } catch (err: any) {
         if (!cancelled) {
@@ -164,31 +175,46 @@ function WialonCallbackPage() {
     };
   }, [login, navigate]);
 
+  const targetUrl = PLATFORM_URLS[currentHost]?.app || "https://lite.wialon.us/";
+
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center p-6 text-center">
-      <div className="mx-auto max-w-md rounded-xl border border-border/60 bg-card p-8 shadow-sm">
+      <div className="mx-auto max-w-md rounded-2xl border border-border/80 bg-card p-8 shadow-xl">
         {error ? (
           <>
             <h1 className="font-display text-xl font-bold uppercase tracking-wide text-destructive">
-              Error de conexión
+              Acceso a la plataforma
             </h1>
             <p className="mt-3 text-sm text-muted-foreground">{error}</p>
-            <button
-              type="button"
-              onClick={() => void navigate({ to: "/wialon" })}
-              className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-2.5 font-display text-sm font-bold uppercase tracking-widest text-primary-foreground hover:opacity-90"
-            >
-              Volver a intentar
-            </button>
+
+            <div className="mt-6 flex flex-col gap-3">
+              <a
+                href={targetUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-lg hover:opacity-90 transition-opacity"
+              >
+                <span>Entrar en la página de Wialon</span>
+                <ExternalLink className="size-4" />
+              </a>
+
+              <button
+                type="button"
+                onClick={() => void navigate({ to: "/wialon" })}
+                className="inline-flex w-full items-center justify-center rounded-xl border border-border px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Volver a la selección de plataforma
+              </button>
+            </div>
           </>
         ) : (
           <>
-            <div className="mx-auto size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <div className="mx-auto size-10 animate-spin rounded-full border-3 border-primary border-t-transparent" />
             <h1 className="mt-4 font-display text-xl font-bold uppercase tracking-wide text-foreground">
               Conectando con la plataforma…
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Validando credenciales satelitales y preparando tu panel de rastreo.
+              Redirigiendo a tu cuenta satelital de Wialon.
             </p>
           </>
         )}
