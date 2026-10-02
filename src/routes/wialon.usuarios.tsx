@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Users,
   Shield,
-  Route,
+  Route as RouteIcon,
   Layers,
   Share2,
   RefreshCw,
@@ -243,7 +243,7 @@ function UsuariosView({ session }: { session: WialonSession }) {
                     {/* Toggle: Rutas */}
                     <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/20 px-3 py-2">
                       <div className="flex items-center gap-2.5">
-                        <Route className="size-4 text-amber-500" />
+                        <RouteIcon className="size-4 text-amber-500" />
                         <div>
                           <p className="text-xs font-semibold text-foreground">Rutas del Padre</p>
                           <p className="text-[10px] text-muted-foreground">
