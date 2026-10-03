@@ -5,22 +5,16 @@ import {
   wialonCallWithAutoRenew,
   isSessionExpired,
   WialonError,
-  WIALON_HOSTS,
-  type WialonHost,
-} from "@/lib/wialon.server";import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
-import {
-  wialonCall,
-  wialonCallWithAutoRenew,
-  isSessionExpired,
-  WialonError,
-  WIALON_HOSTS,
   type WialonHost,
 } from "@/lib/wialon.server";
 import { smartGeocode } from "@/lib/geocoding";
 
 const hostSchema = z.enum(["lite", "full"]);
-const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1), token: z.string().optional() });
+const sessionSchema = z.object({
+  host: hostSchema,
+  sid: z.string().min(1),
+  token: z.string().optional(),
+});
 
 export type WialonUnit = {
   id: number;
