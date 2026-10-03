@@ -17,6 +17,9 @@ const serverEnv = loadEnv(process.env["NODE_ENV"] ?? "development", process.cwd(
 Object.assign(process.env, serverEnv);
 
 export default defineConfig({
+  nitro: {
+    preset: process.env["VERCEL"] ? "vercel" : (process.env["NITRO_PRESET"] || "node-server"),
+  },
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this

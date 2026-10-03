@@ -7,5 +7,7 @@ dist/
 .wrangler/
 coverage/
 *.log
+bun.lock*
+api/server/
 .env*
 !.env.example

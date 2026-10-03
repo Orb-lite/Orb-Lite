@@ -74,7 +74,8 @@ function createSupabaseAdminClient() {
     process.env["SUPABASE_SECRET_KEY"] ||
     process.env["SUPABASE_ANON_KEY"] ||
     process.env["SUPABASE_PUBLISHABLE_KEY"] ||
-    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"];
+    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+    "sb_publishable_VRlE4IZzNbWISqqomeZKZQ_BPNRaVaw";
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || SUPABASE_URL.includes("false123.com")) {
     console.warn("[Supabase] Running server in resilient fallback mode (Supabase not configured)");

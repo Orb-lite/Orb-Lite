@@ -2,15 +2,26 @@ let nitroHandler = null;
 
 async function getNitroHandler() {
   if (nitroHandler) return nitroHandler;
-  try {
-    const mod = await import("../.output/server/index.mjs");
-    if (mod?.default?.fetch) {
-      nitroHandler = mod.default;
-      return nitroHandler;
-    }
-  } catch (err) {
-    console.warn("[api/index] Nitro server handler not loaded:", err?.message);
+  const candidates = [
+    "./server/index.mjs",
+    "../api/server/index.mjs",
+    "../.output/server/index.mjs",
+    "../dist/server/index.mjs",
+    "../dist/.output/server/index.mjs",
+    "../../.output/server/index.mjs",
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const mod = await import(candidate);
+      if (mod?.default?.fetch) {
+        nitroHandler = mod.default;
+        return nitroHandler;
+      }
+    } catch {}
   }
+
+  console.warn("[api/index] Nitro server handler not loaded from any candidate path");
   return null;
 }
 

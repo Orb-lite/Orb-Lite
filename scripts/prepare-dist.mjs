@@ -35,12 +35,27 @@ export function prepareDist() {
     }
   }
 
-  // 3. Copy server files to dist/server and dist/.output so full-stack / SSR works
-  if (fs.existsSync(outputServerDir)) {
-    console.log("[prepare-dist] Copying .output/server to dist/server...");
+  // 3. Copy server files to dist/server, dist/.output, and api/server so Vercel Serverless Function & Full-Stack work
+  const serverSourceDir = fs.existsSync(outputServerDir)
+    ? outputServerDir
+    : fs.existsSync(vercelServerFuncDir)
+    ? vercelServerFuncDir
+    : null;
+
+  if (serverSourceDir) {
+    console.log(`[prepare-dist] Copying server from ${serverSourceDir}...`);
     fs.mkdirSync(path.join(distDir, "server"), { recursive: true });
-    fs.cpSync(outputServerDir, path.join(distDir, "server"), { recursive: true });
+    fs.cpSync(serverSourceDir, path.join(distDir, "server"), { recursive: true });
+
+    const apiServerDir = path.join(rootDir, "api", "server");
+    fs.mkdirSync(apiServerDir, { recursive: true });
+    fs.cpSync(serverSourceDir, apiServerDir, { recursive: true });
+
+    const distApiServerDir = path.join(distDir, "api", "server");
+    fs.mkdirSync(distApiServerDir, { recursive: true });
+    fs.cpSync(serverSourceDir, distApiServerDir, { recursive: true });
   }
+
   if (fs.existsSync(outputDir)) {
     console.log("[prepare-dist] Copying .output to dist/.output...");
     fs.mkdirSync(path.join(distDir, ".output"), { recursive: true });
