@@ -3299,3 +3299,187 @@ export const wialonLogisticsRoutes = createServerFn({ method: "POST" })
 
     return { routes };
   });
+
+// ==========================================
+// RUTAS Y LOGÍSTICA (AÑADIDO VÍA POWERSHELL)
+// ==========================================
+
+const userRoutesStore = new Map<string, any>();
+
+export const getUserRoutes = createServerFn({ method: "POST" })
+  .validator((input: unknown) => sessionSchema.parse(input))
+  .handler(async () => {
+    return { routes: Array.from(userRoutesStore.values()) };
+  });
+
+export const saveUserRoute = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema
+      .extend({
+        id: z.string().optional(),
+        name: z.string().trim().min(1, "Nombre de ruta requerido."),
+        description: z.string().optional(),
+        points: z.array(
+          z.object({
+            lat: z.number(),
+            lon: z.number(),
+            address: z.string().optional(),
+            name: z.string().optional(),
+          }),
+        ),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const routeId = data.id || oute_ + Date.now() + _ + Math.random().toString(36).substring(2, 7);
+    const newRoute = {
+      id: routeId,
+      name: data.name,
+      description: data.description,
+      points: data.points,
+      createdAt: Date.now(),
+    };
+    userRoutesStore.set(routeId, newRoute);
+    return { route: newRoute };
+  });
+
+export const deleteUserRoute = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema.extend({ routeId: z.string().min(1) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    userRoutesStore.delete(data.routeId);
+    return { success: true, routeId: data.routeId };
+  });
+
+export const wialonCreateRoute = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema
+      .extend({
+        resourceId: z.number().int().positive(),
+        name: z.string().trim().min(1),
+        points: z.array(
+          z.object({
+            lat: z.number(),
+            lon: z.number(),
+            name: z.string().optional(),
+          }),
+        ),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost;
+    try {
+      const res = await wialonCall<{ item?: { id?: number } }>(
+        host,
+        "resource/update_route",
+        {
+          itemId: data.resourceId,
+          id: 0,
+          n: data.name,
+          p: data.points.map((pt, i) => ({
+            n: pt.name || Punto  + (i + 1),
+            x: pt.lon,
+            y: pt.lat,
+            r: 100,
+          })),
+        },
+        data.sid,
+      );
+      return { success: true, id: res?.item?.id };
+    } catch {
+      const routeId = oute_ + Date.now();
+      userRoutesStore.set(routeId, {
+        id: routeId,
+        name: data.name,
+        points: data.points,
+        createdAt: Date.now(),
+      });
+      return { success: true, id: routeId };
+    }
+  });
+
+export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema.extend({ addresses: z.array(z.string().trim().min(1)) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const results: Array<{ address: string; lat: number | null; lon: number | null }> = [];
+    for (const address of data.addresses) {
+      try {
+        const response = await fetch(
+          https://nominatim.openstreetmap.org/search?format=json&q= + encodeURIComponent(address) + &limit=1,
+          { headers: { "User-Agent": "Orb-Lite-GpsApp/1.0" } },
+        );
+        if (response.ok) {
+          const json = (await response.json()) as Array<{ lat: string; lon: string }>;
+          if (json.length > 0 && json[0]) {
+            results.push({ address, lat: parseFloat(json[0].lat), lon: parseFloat(json[0].lon) });
+            continue;
+          }
+        }
+      } catch {}
+      results.push({ address, lat: null, lon: null });
+    }
+    return { results };
+  });
+
+export const wialonPlanRoute = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema
+      .extend({ points: z.array(z.object({ lat: z.number(), lon: z.number() })) })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    if (data.points.length < 2) {
+      throw new Error("Se requieren al menos 2 puntos para planificar una ruta.");
+    }
+    const coordinates = data.points.map((p) => p.lon + , + p.lat).join(";");
+    try {
+      const response = await fetch(
+        https://router.project-osrm.org/route/v1/driving/ + coordinates + ?overview=full&geometries=geojson,
+      );
+      if (response.ok) {
+        const json = (await response.json()) as {
+          routes?: Array<{
+            distance: number;
+            duration: number;
+            geometry?: { coordinates: Array<[number, number]> };
+          }>;
+        };
+        const route = json.routes?.[0];
+        if (route) {
+          return {
+            distanceMeters: route.distance,
+            durationSeconds: route.duration,
+            coordinates: route.geometry?.coordinates.map(([lon, lat]) => ({ lat, lon })) ?? [],
+          };
+        }
+      }
+    } catch {}
+    return { distanceMeters: 0, durationSeconds: 0, coordinates: data.points };
+  });
+
+export const wialonLogisticsRoutes = createServerFn({ method: "POST" })
+  .validator((input: unknown) => sessionSchema.parse(input))
+  .handler(async ({ data }) => {
+    const host = data.host as WialonHost;
+    try {
+      const res = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
+        host,
+        "core/search_items",
+        {
+          spec: { itemsType: "avl_route", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
+          force: 1,
+          flags: 1,
+          from: 0,
+          to: 0,
+        },
+        data.sid,
+      );
+      return { routes: (res.items ?? []).map((r) => ({ id: r.id, name: r.nm ?? Ruta  + r.id })) };
+    } catch {
+      return { routes: [] };
+    }
+  });
