@@ -25,11 +25,18 @@ import { PlatformHeader } from "@/components/wialon/PlatformHeader";
 import type { DrawingPoint, MapAddressPoint, MapGeofence } from "@/components/wialon-map";
 
 const WialonMap = React.lazy(() => import("@/components/wialon-map"));
-import { shareUserRoute, getReportEmails } from "@/lib/route-share.functions";
+
+// Módulo de funciones de rutas compartidas
 import {
+  shareUserRoute,
+  getReportEmails,
   getUserRoutes,
   saveUserRoute,
   deleteUserRoute,
+} from "@/lib/route-share.functions";
+
+// Módulo de funciones de Wialon
+import {
   wialonCreateRoute,
   wialonDeleteGeofence,
   wialonGeocodeAddresses,
@@ -107,7 +114,7 @@ function buildGoogleMapsUrls(route: PlannedRoute) {
   const urls: string[] = [];
   const maxWaypoints = 9;
 
-  for (let start = 0; start < sequence.length - 1;) {
+  for (let start = 0; start < sequence.length - 1; ) {
     const end = Math.min(start + maxWaypoints + 1, sequence.length - 1);
     const params = new URLSearchParams({
       api: "1",
@@ -885,231 +892,336 @@ function RutasView({ session }: { session: WialonSession }) {
                     onChange={(e) => setReturnToOrigin(e.target.checked)}
                     className="rounded border-input text-primary focus:ring-primary"
                   />
-                  Regresar al punto de origen al finalizar la ruta
+                  Regresar al origen
                 </label>
-
                 <button
                   type="button"
                   onClick={() => void handlePlanRoute()}
                   disabled={planning}
-                  className="w-full rounded-md bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60"
+                  className="w-full rounded-md bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
                 >
-                  {planning ? "Optimizando..." : "Optimizar y calcular ruta por calles"}
+                  {planning ? "Optimizando ruta..." : "Calcular y optimizar ruta"}
                 </button>
               </div>
             </div>
           ) : (
-            <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
-              <div className="flex items-start gap-3">
-                <Map className="mt-0.5 size-5 shrink-0 text-primary" />
-                <div>
-                  <h2 className="font-display text-sm font-bold uppercase tracking-widest">
-                    Trazar en el mapa
-                  </h2>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Haz clic en el mapa para ir marcando los puntos en secuencia.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2">
+            <div className="mt-4 rounded-lg border border-border/60 bg-card/40 p-4">
+              <p className="text-xs text-muted-foreground">
+                Haz clic en el mapa para ir marcando cada uno de los puntos que componen la ruta.
+              </p>
+              <div className="mt-3 flex gap-2">
                 {!drawing ? (
                   <button
                     type="button"
                     onClick={startDrawing}
-                    className="w-full rounded-md bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                    className="flex-1 rounded-md border border-primary bg-primary/10 px-4 py-2.5 text-xs font-bold text-primary hover:bg-primary/20"
                   >
-                    Comenzar a dibujar en el mapa
+                    Empezar a trazar en mapa
                   </button>
                 ) : (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={resetDrawing}
-                      className="flex-1 rounded-md border border-destructive px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10"
-                    >
-                      Cancelar trazado
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handlePlanRoute()}
-                      disabled={planning || !draft || draft.points.length < 2}
-                      className="flex-1 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                    >
-                      {planning ? "Ajustando..." : "Ajustar a calles"}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={resetDrawing}
+                    className="flex-1 rounded-md border border-destructive bg-destructive/10 px-4 py-2.5 text-xs font-bold text-destructive hover:bg-destructive/20"
+                  >
+                    Cancelar trazo
+                  </button>
                 )}
               </div>
+              {draft && draft.points.length > 0 && (
+                <div className="mt-3 flex items-center justify-between text-xs font-semibold text-primary">
+                  <span>{draft.points.length} puntos trazados</span>
+                  <button
+                    type="button"
+                    onClick={() => void handlePlanRoute()}
+                    disabled={planning || draft.points.length < 2}
+                    className="underline hover:text-primary/80 disabled:opacity-50"
+                  >
+                    {planning ? "Optimizando..." : "Optimizar trazo por calles"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Configuración y Guardado */}
-          <div className="mt-6 space-y-4 rounded-lg border border-border/60 bg-card/20 p-4">
-            <label className="block text-sm">
-              Nombre de la ruta
+          {/* Nombre y opciones de guardado */}
+          <div className="mt-5 space-y-4">
+            <div>
+              <label htmlFor="route-name" className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Nombre de la ruta
+              </label>
               <input
+                id="route-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ej. Ruta Reparto Centro Morning"
+                placeholder="Ej. Ruta de Entrega Zona Norte"
                 className={inputClass}
                 required
               />
-            </label>
+            </div>
 
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={syncToWialon}
-                onChange={(e) => setSyncToWialon(e.target.checked)}
-                className="rounded border-input text-primary focus:ring-primary"
-              />
-              Sincronizar también esta ruta en la plataforma Wialon
-            </label>
-
-            {syncToWialon && (
-              <label className="block text-xs">
-                Recurso Wialon de destino
-                <select
-                  value={selectedResourceId ?? ""}
-                  onChange={(e) => setResourceId(Number(e.target.value))}
-                  className={inputClass}
-                  required
-                >
-                  <option value="" disabled>
-                    Selecciona un recurso
-                  </option>
-                  {resources.map((res) => (
-                    <option key={res.id} value={res.id}>
-                      {res.name}
-                    </option>
-                  ))}
-                </select>
+            <div className="rounded-lg border border-border/60 bg-card/30 p-3">
+              <label className="flex items-center gap-2.5 text-xs font-semibold cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={syncToWialon}
+                  onChange={(e) => setSyncToWialon(e.target.checked)}
+                  className="rounded border-input text-primary focus:ring-primary"
+                />
+                Sincronizar también con Wialon
               </label>
+              {syncToWialon && (
+                <div className="mt-2.5">
+                  <label htmlFor="route-resource-select" className="block text-[11px] text-muted-foreground">
+                    Selecciona el recurso de destino en Wialon
+                  </label>
+                  <select
+                    id="route-resource-select"
+                    value={selectedResourceId ?? ""}
+                    onChange={(e) => setResourceId(Number(e.target.value))}
+                    className="mt-1 w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                  >
+                    {resources.map((res) => (
+                      <option key={res.id} value={res.id}>
+                        {res.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs font-medium text-destructive">
+                {error}
+              </div>
             )}
 
-            {error && <p className="text-xs font-semibold text-destructive">{error}</p>}
-            {message && <p className="text-xs font-semibold text-emerald-500">{message}</p>}
+            {message && (
+              <div className="rounded-md border border-primary/50 bg-primary/10 p-3 text-xs font-medium text-primary">
+                {message}
+              </div>
+            )}
 
             <button
               type="submit"
-              disabled={busy || !draft || draft.points.length < 2}
-              className="w-full rounded-md bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+              disabled={busy || !draft || draft.points.length < 2 || !name.trim()}
+              className="w-full rounded-md bg-primary py-3 text-sm font-bold text-primary-foreground shadow transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {busy ? "Guardando..." : "Guardar Ruta"}
+              {busy ? "Guardando..." : "Guardar ruta"}
             </button>
           </div>
         </form>
       </div>
 
       {/* Listado de rutas guardadas */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Mis Rutas Privadas */}
-        <div className="rounded-xl border border-border/70 bg-card/60 p-4">
-          <h3 className="flex items-center gap-2 font-display text-sm font-bold text-foreground">
-            <Lock className="size-4 text-primary" /> Rutas Privadas de Tu Cuenta ({userRoutes.length})
-          </h3>
-          <div className="mt-4 space-y-3">
-            {userRoutes.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No has guardado rutas en tu cuenta.</p>
-            ) : (
-              userRoutes.map((route) => (
-                <div
-                  key={route.id}
-                  className="flex items-center justify-between rounded-lg border border-border/50 bg-background/40 p-3"
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{route.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {route.distanceMeters ? formatDistance(route.distanceMeters) : "---"} •{" "}
-                      {route.durationSeconds ? formatDuration(route.durationSeconds) : "---"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFocusedUserRouteId((curr) => (curr === route.id ? null : route.id))
-                      }
-                      className="rounded p-1.5 hover:bg-accent"
-                      title="Ver en mapa"
-                    >
-                      {focusedUserRouteId === route.id ? (
-                        <EyeOff className="size-4 text-primary" />
-                      ) : (
-                        <Eye className="size-4 text-muted-foreground" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openShareForm(route)}
-                      className="rounded p-1.5 hover:bg-accent"
-                      title="Compartir"
-                    >
-                      <Link2 className="size-4 text-muted-foreground" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteUserRoute(route)}
-                      className="rounded p-1.5 hover:bg-destructive/10 text-destructive"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+      <div className="space-y-4">
+        <h3 className="font-display text-base font-bold uppercase tracking-wider text-foreground">
+          Rutas Disponibles
+        </h3>
 
-        {/* Rutas de Wialon */}
-        <div className="rounded-xl border border-border/70 bg-card/60 p-4">
-          <h3 className="flex items-center gap-2 font-display text-sm font-bold text-foreground">
-            <Layers className="size-4 text-primary" /> Rutas Sincronizadas en Wialon ({visibleRoutes.length})
-          </h3>
-          <div className="mt-4 space-y-3">
-            {visibleRoutes.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No hay rutas guardadas en Wialon.</p>
-            ) : (
-              visibleRoutes.map((route) => (
-                <div
-                  key={route.id}
-                  className="flex items-center justify-between rounded-lg border border-border/50 bg-background/40 p-3"
-                >
-                  <div>
-                    <p className="text-sm font-semibold">{route.name}</p>
-                    <p className="text-xs text-muted-foreground">{route.resource}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFocusedRouteId((curr) => (curr === route.id ? null : route.id))
-                      }
-                      className="rounded p-1.5 hover:bg-accent"
-                      title="Ver en mapa"
-                    >
-                      {focusedRouteId === route.id ? (
-                        <EyeOff className="size-4 text-primary" />
-                      ) : (
-                        <Eye className="size-4 text-muted-foreground" />
+        {/* Mis rutas guardadas */}
+        {userRoutes.length > 0 && (
+          <div className="rounded-xl border border-border/60 bg-card/40 p-4 shadow-sm">
+            <h4 className="mb-3 text-xs font-bold uppercase tracking-widest text-primary">
+              🔒 Rutas en mi cuenta ({userRoutes.length})
+            </h4>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {userRoutes.map((route) => {
+                const isFocused = focusedUserRouteId === route.id;
+                const isDeleting = deletingUserRouteId === route.id;
+                const isConfirming = confirmDeleteUserRouteId === route.id;
+                const isSharing = sharingUserRouteId === route.id;
+
+                return (
+                  <div
+                    key={route.id}
+                    className={`flex flex-col justify-between rounded-lg border p-3.5 transition-all ${
+                      isFocused
+                        ? "border-primary bg-primary/5 shadow-md"
+                        : "border-border/60 bg-card/60 hover:border-border"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h5 className="truncate text-sm font-bold text-foreground">
+                            {route.name}
+                          </h5>
+                          {route.origin && (
+                            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                              📍 {route.origin}
+                            </p>
+                          )}
+                        </div>
+                        <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                          {route.points.length} pts
+                        </span>
+                      </div>
+
+                      {(route.distanceMeters || route.durationSeconds) && (
+                        <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                          {route.distanceMeters ? (
+                            <span>{formatDistance(route.distanceMeters)}</span>
+                          ) : null}
+                          {route.durationSeconds ? (
+                            <span>{formatDuration(route.durationSeconds)}</span>
+                          ) : null}
+                        </div>
                       )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteWialonRoute(route)}
-                      className="rounded p-1.5 hover:bg-destructive/10 text-destructive"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/40 pt-2.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFocusedUserRouteId(isFocused ? null : route.id)
+                        }
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                      >
+                        {isFocused ? (
+                          <>
+                            <EyeOff className="size-3.5" /> Ocultar
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="size-3.5" /> Ver mapa
+                          </>
+                        )}
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openShareForm(route)}
+                          className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          title="Compartir ruta"
+                        >
+                          <Link2 className="size-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteUserRoute(route)}
+                          disabled={isDeleting}
+                          className={`rounded p-1.5 text-xs font-semibold transition-colors ${
+                            isConfirming
+                              ? "bg-destructive text-destructive-foreground"
+                              : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          }`}
+                          title={isConfirming ? "Haz clic de nuevo para confirmar" : "Eliminar ruta"}
+                        >
+                          {isConfirming ? "Confirmar" : <Trash2 className="size-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Formulario rápido para compartir */}
+                    {shareFormRouteId === route.id && (
+                      <div className="mt-3 rounded-md border border-border/80 bg-background/80 p-2.5">
+                        <label className="block text-[11px] font-medium text-muted-foreground">
+                          Correo del operador o supervisor:
+                        </label>
+                        <input
+                          type="email"
+                          value={shareEmail}
+                          onChange={(e) => setShareEmail(e.target.value)}
+                          placeholder="correo@ejemplo.com"
+                          className="mt-1 w-full rounded border border-input bg-background px-2 py-1 text-xs outline-none focus:border-primary"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void handleShareUserRoute(route)}
+                          disabled={isSharing}
+                          className="mt-2 w-full rounded bg-primary py-1 text-xs font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                        >
+                          {isSharing ? "Generando..." : "Copiar enlace público"}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))
-            )}
+                );
+              })}
+            </div>
           </div>
+        )}
+
+        {/* Rutas globales de Wialon */}
+        <div className="rounded-xl border border-border/60 bg-card/40 p-4 shadow-sm">
+          <h4 className="mb-3 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+            🌐 Rutas globales en Wialon ({visibleRoutes.length})
+          </h4>
+
+          {visibleRoutes.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">
+              No hay rutas registradas en el recurso seleccionado.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleRoutes.map((route) => {
+                const isFocused = focusedRouteId === route.id;
+                const isDeleting = deletingId === route.id;
+                const isConfirming = confirmDeleteWialonRouteId === route.id;
+
+                return (
+                  <div
+                    key={route.id}
+                    className={`flex flex-col justify-between rounded-lg border p-3.5 transition-all ${
+                      isFocused
+                        ? "border-primary bg-primary/5 shadow-md"
+                        : "border-border/60 bg-card/60 hover:border-border"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <h5 className="truncate text-sm font-bold text-foreground">
+                          {route.name}
+                        </h5>
+                        <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {route.points.length} pts
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                        🏢 {route.resource}
+                      </p>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-border/40 pt-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setFocusedRouteId(isFocused ? null : route.id)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                      >
+                        {isFocused ? (
+                          <>
+                            <EyeOff className="size-3.5" /> Ocultar
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="size-3.5" /> Ver mapa
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteWialonRoute(route)}
+                        disabled={isDeleting}
+                        className={`rounded p-1.5 text-xs font-semibold transition-colors ${
+                          isConfirming
+                            ? "bg-destructive text-destructive-foreground"
+                            : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                        }`}
+                        title={isConfirming ? "Haz clic de nuevo para confirmar" : "Eliminar de Wialon"}
+                      >
+                        {isConfirming ? "Confirmar" : <Trash2 className="size-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
