@@ -264,22 +264,71 @@ export const wialonLogin = createServerFn({ method: "POST" })
   .validator((data: { host: string; token: string }) => data)
   .handler(async ({ data }) => {
     const { host, token } = data;
-    const cacheKey = `${host}:${token}`;
-    const cached = sessionCache.get(cacheKey);
 
-    if (cached && cached.expiresAt > Date.now()) {
-      return { sid: cached.sid, userName: "Usuario Autenticado", host };
+    // 1. Determinar los endpoints a probar según el tipo de host recibido
+    const primaryUrl =
+      host === "full"
+        ? process.env.WIALON_FULL_HOST || "https://hst-api.wialon.com"
+        : process.env.WIALON_LITE_HOST || "https://hst-api.wialon.us";
+
+    const fallbackEndpoints = [
+      primaryUrl,
+      host === "full" ? "https://hst-api.wialon.us" : "https://hst-api.wialon.com",
+      "https://hst-api.wialon.eu",
+      "https://hst-api.wialon.org",
+    ];
+
+    // Eliminar duplicados
+    const uniqueEndpoints = Array.from(new Set(fallbackEndpoints));
+
+    for (const baseUrl of uniqueEndpoints) {
+      try {
+        const body = new URLSearchParams({
+          params: JSON.stringify({ token, fl: 1 }),
+        });
+
+        const response = await fetch(`${baseUrl}/wialon/ajax.html?svc=token/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: body.toString(),
+        });
+
+        if (!response.ok) continue;
+
+        const res = (await response.json()) as any;
+
+        // Verificar si Wialon respondió con un SID/EID válido
+        const sid = res?.eid || res?.sid;
+        if (sid) {
+          const resolvedHost: "lite" | "full" = baseUrl.includes("wialon.us") ? "lite" : "full";
+
+          // Guardar en caché efímero del servidor
+          sessionCache.set(`${resolvedHost}:${token}`, {
+            sid,
+            expiresAt: Date.now() + 7200000,
+          });
+
+          return {
+            sid,
+            userName: res.au || res.user?.nm || "Usuario Wialon",
+            userId: res.user?.id || 0,
+            host: resolvedHost,
+          };
+        }
+      } catch (err) {
+        console.warn(`[wialonLogin] Intento fallido en servidor (${baseUrl}):`, err);
+      }
     }
 
-    const res = await callWialonApi<any>(host, "token/login", { token, fl: 1 });
-    const sid = res.eid || res.sid;
-    sessionCache.set(cacheKey, { sid, expiresAt: Date.now() + 7200000 });
-
+    // Si ningún servidor de Wialon aceptó el token
     return {
-      sid,
-      userName: res.au || "Usuario Wialon",
-      userId: res.user?.id || 0,
+      sid: null,
+      userName: null,
+      userId: 0,
       host,
+      error: "No se pudo obtener un EID/SID de sesión válido de Wialon.",
     };
   });
 
@@ -287,24 +336,84 @@ export const wialonLoginWithCredentials = createServerFn({ method: "POST" })
   .validator((data: { host: string; user: string; pass: string }) => data)
   .handler(async ({ data }) => {
     const { host, user, pass } = data;
-    const res = await callWialonApi<any>(host, "core/login", { user, password: pass });
-    const sid = res.eid || res.sid;
-    return {
-      sid,
-      userName: res.au || user,
-      userId: res.user?.id || 0,
-      host,
-    };
+
+    const baseUrl =
+      host === "full"
+        ? process.env.WIALON_FULL_HOST || "https://hst-api.wialon.com"
+        : process.env.WIALON_LITE_HOST || "https://hst-api.wialon.us";
+
+    try {
+      const body = new URLSearchParams({
+        params: JSON.stringify({ user, password: pass }),
+      });
+
+      const response = await fetch(`${baseUrl}/wialon/ajax.html?svc=core/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+      });
+
+      const res = (await response.json()) as any;
+      const sid = res?.eid || res?.sid;
+
+      if (!sid) {
+        throw new Error(res?.error ? `Error Wialon ${res.error}` : "Credenciales inválidas");
+      }
+
+      return {
+        sid,
+        userName: res.au || user,
+        userId: res.user?.id || 0,
+        host,
+      };
+    } catch (err: any) {
+      console.error("[wialonLoginWithCredentials] Error:", err);
+      return {
+        sid: null,
+        userName: user,
+        userId: 0,
+        host,
+        error: err?.message || "No se pudo iniciar sesión con credenciales.",
+      };
+    }
   });
 
 export const wialonLogout = createServerFn({ method: "POST" })
   .validator((data: { host: string; sid: string }) => data)
   .handler(async ({ data }) => {
+    const { host, sid } = data;
+
+    if (!sid) return { success: true };
+
+    const baseUrl =
+      host === "full"
+        ? process.env.WIALON_FULL_HOST || "https://hst-api.wialon.com"
+        : process.env.WIALON_LITE_HOST || "https://hst-api.wialon.us";
+
     try {
-      await callWialonApi(data.host, "core/logout", {}, data.sid);
+      const body = new URLSearchParams({
+        params: JSON.stringify({}),
+        sid,
+      });
+
+      await fetch(`${baseUrl}/wialon/ajax.html?svc=core/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+      });
+
+      // Limpiar caché en memoria si existe
+      for (const [key, value] of sessionCache.entries()) {
+        if (value.sid === sid) {
+          sessionCache.delete(key);
+        }
+      }
+
       return { success: true };
-    } catch {
-      return { success: false };
+    } catch (err) {
+      console.warn("[wialonLogout] Error cerrando sesión en Wialon:", err);
+      // Siempre retornamos true para forzar al cliente a limpiar su estado local
+      return { success: true };
     }
   });
 
