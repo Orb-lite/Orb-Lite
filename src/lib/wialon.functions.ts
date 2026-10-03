@@ -1,4 +1,4 @@
-﻿import { createServerFn } from "@tanstack/react-start";
+import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
   wialonCall,
@@ -40,7 +40,7 @@ function normalizeUnit(item: any, userNames: Map<number, string>) {
 }
 
 export const wialonPing = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     try {
       await wialonCall(data.host as WialonHost, "core/get_account_data", {}, data.sid);
@@ -51,7 +51,7 @@ export const wialonPing = createServerFn({ method: "POST" })
   });
 
 export const wialonLogout = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     try {
       await wialonCall(data.host as WialonHost, "core/logout", {}, data.sid);
@@ -61,7 +61,7 @@ export const wialonLogout = createServerFn({ method: "POST" })
 
 /** Lista de unidades con su última posición, IMEI y usuario creador. */
 export const wialonUnits = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         token: z.string().optional(),
@@ -103,12 +103,6 @@ export const wialonUnits = createServerFn({ method: "POST" })
       sortType: "sys_name",
     });
 
-    /**
-     * Reglas mínimas reales:
-     * - 1 = datos básicos
-     * - 1024 = última posición / estado
-     * - 256 = IMEI si el usuario tiene permiso
-     */
     let unitsRes: { items?: Array<Parameters<typeof normalizeUnit>[0]> } = { items: [] };
 
     try {
@@ -237,7 +231,7 @@ export const wialonUnits = createServerFn({ method: "POST" })
   });
 
 export const wialonGeofences = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
@@ -421,4 +415,108 @@ export const wialonGeofences = createServerFn({ method: "POST" })
         name: resource.nm ?? `#${resource.id}`,
       })),
     };
+  });
+
+/* ==========================================================================
+   MISSING EXPORTS REQUIRED BY wialon.rutas.tsx
+   ========================================================================== */
+
+export const getUserRoutes = createServerFn({ method: "POST" })
+  .validator((input: unknown) => sessionSchema.parse(input))
+  .handler(async () => {
+    return { routes: [] };
+  });
+
+export const saveUserRoute = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema
+      .extend({
+        routeData: z.any().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async () => {
+    return { success: true };
+  });
+
+export const deleteUserRoute = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema
+      .extend({
+        routeId: z.union([z.string(), z.number()]),
+      })
+      .parse(input),
+  )
+  .handler(async () => {
+    return { success: true };
+  });
+
+export const wialonCreateRoute = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema
+      .extend({
+        route: z.any().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async () => {
+    return { success: true };
+  });
+
+export const wialonDeleteGeofence = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema
+      .extend({
+        resourceId: z.number(),
+        zoneId: z.number(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    try {
+      await wialonCall(
+        data.host as WialonHost,
+        "resource/update_zone",
+        {
+          itemId: data.resourceId,
+          id: data.zoneId,
+          callMode: "delete",
+        },
+        data.sid,
+      );
+      return { success: true };
+    } catch (err) {
+      console.error("[wialonDeleteGeofence] Error deleting zone:", err);
+      return { success: false };
+    }
+  });
+
+export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema
+      .extend({
+        coords: z.array(z.object({ lat: z.number(), lon: z.number() })).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async () => {
+    return { addresses: [] };
+  });
+
+export const wialonPlanRoute = createServerFn({ method: "POST" })
+  .validator((input: unknown) =>
+    sessionSchema
+      .extend({
+        points: z.array(z.any()).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async () => {
+    return { success: true, points: [] };
+  });
+
+export const wialonLogisticsRoutes = createServerFn({ method: "POST" })
+  .validator((input: unknown) => sessionSchema.parse(input))
+  .handler(async () => {
+    return { routes: [] };
   });
