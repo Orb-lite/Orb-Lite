@@ -145,102 +145,7 @@ export const wialonLoginWithCredentials = createServerFn({ method: "POST" })
   });
 
 /** Inicia sesión en Wialon exclusivamente con un token generado por su API. */
-export const wialonLogin = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    z
-      .object({
-        host: hostSchema,
-        token: z.string().trim().min(1, "Captura tu token de acceso."),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data }) => {
-    const host = data.host as WialonHost;
-    try {
-      const result = await wialonCall<{
-        eid?: string;
-        user?: { id?: number; nm?: string };
-      }>(host, "token/login", { token: data.token, fl: 1 });
 
-      if (result?.eid) {
-        return {
-          sid: result.eid,
-          host: data.host,
-          userId: result.user?.id ?? 0,
-          userName: result.user?.nm ?? "Usuario",
-        };
-      }
-    } catch (primaryErr) {
-      const altHost: WialonHost = host === "lite" ? "full" : "lite";
-      try {
-        const altResult = await wialonCall<{
-          eid?: string;
-          user?: { id?: number; nm?: string };
-        }>(altHost, "token/login", { token: data.token, fl: 1 });
-
-        if (altResult?.eid) {
-          return {
-            sid: altResult.eid,
-            host: altHost,
-            userId: altResult.user?.id ?? 0,
-            userName: altResult.user?.nm ?? "Usuario",
-          };
-        }
-      } catch {
-        // Ignorar error del alternativo y lanzar el error primario
-      }
-      throw primaryErr;
-    }
-
-    throw new Error("No se pudo iniciar sesión en la plataforma.");
-  });
-
-export const wialonLoginWithSid = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    z
-      .object({
-        host: hostSchema,
-        sid: z.string().trim().min(1),
-        userName: z.string().optional(),
-        userId: z.number().optional(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data }) => {
-    const host = data.host as WialonHost;
-    try {
-      const res = await wialonCall<{ user?: { id?: number; nm?: string } }>(
-        host,
-        "core/get_account_data",
-        {},
-        data.sid,
-      );
-      return {
-        sid: data.sid,
-        host: data.host,
-        userId: res?.user?.id ?? data.userId ?? 0,
-        userName: res?.user?.nm ?? data.userName ?? "Usuario",
-      };
-    } catch {
-      return {
-        sid: data.sid,
-        host: data.host,
-        userId: data.userId ?? 0,
-        userName: data.userName ?? "Usuario",
-      };
-    }
-  });
-
-export const wialonLogout = createServerFn({ method: "POST" })
-  .validator((input: unknown) => sessionSchema.parse(input))
-  .handler(async ({ data }) => {
-    try {
-      await wialonCall(data.host as WialonHost, "core/logout", {}, data.sid);
-    } catch {
-      // sesión ya vencida
-    }
-    return { ok: true };
-  });
 
 /** Lista de unidades con su última posición, IMEI y usuario creador con autorefresh de sesión. */
 export const wialonUnits = createServerFn({ method: "POST" })
@@ -3331,7 +3236,8 @@ export const saveUserRoute = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const routeId = data.id || oute_ + Date.now() + _ + Math.random().toString(36).substring(2, 7);
+    const routeId = data.id || 
+oute_ + Date.now() + _ + Math.random().toString(36).substring(2, 7);
     const newRoute = {
       id: routeId,
       name: data.name,
@@ -3389,7 +3295,8 @@ export const wialonCreateRoute = createServerFn({ method: "POST" })
       );
       return { success: true, id: res?.item?.id };
     } catch {
-      const routeId = oute_ + Date.now();
+      const routeId = 
+oute_ + Date.now();
       userRoutesStore.set(routeId, {
         id: routeId,
         name: data.name,
