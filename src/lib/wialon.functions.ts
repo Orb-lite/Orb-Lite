@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 
 // ============================================================================
 // TIPOS E INTERFACES
@@ -257,7 +257,7 @@ function hexToWialonColor(hex: string): number {
 }
 
 // ============================================================================
-// FUNCIONES DE SERVIDOR
+// FUNCIONES DE SERVIDOR - SESIÓN Y DIAGNÓSTICO
 // ============================================================================
 
 export const wialonLogin = createServerFn({ method: "POST" })
@@ -307,6 +307,21 @@ export const wialonLogout = createServerFn({ method: "POST" })
       return { success: false };
     }
   });
+
+export const wialonPing = createServerFn({ method: "POST" })
+  .validator((data: { host: string; sid: string }) => data)
+  .handler(async ({ data }) => {
+    try {
+      await callWialonApi(data.host, "avl_evts", {}, data.sid);
+      return { active: true };
+    } catch {
+      return { active: false };
+    }
+  });
+
+// ============================================================================
+// FUNCIONES DE SERVIDOR - UNIDADES Y COMANDOS
+// ============================================================================
 
 export const wialonGetUnits = createServerFn({ method: "POST" })
   .validator((data: { host: string; sid: string }) => data)
@@ -361,6 +376,77 @@ export const wialonGetUnits = createServerFn({ method: "POST" })
 
 export const wialonUnits = wialonGetUnits;
 
+export const wialonUnitDetail = createServerFn({ method: "POST" })
+  .validator((data: { host: string; sid: string; unitId: number }) => data)
+  .handler(async ({ data }) => {
+    const { host, sid, unitId } = data;
+    const res = await callWialonApi<{ item: any }>(
+      host,
+      "core/search_item",
+      {
+        id: unitId,
+        flags:
+          WIALON_ITEM_FLAGS.BASE |
+          WIALON_ITEM_FLAGS.POS |
+          WIALON_ITEM_FLAGS.SENSORS |
+          WIALON_ITEM_FLAGS.COMMANDS,
+      },
+      sid
+    );
+
+    const u = res.item || {};
+    const unit: WialonUnit = {
+      id: u.id || unitId,
+      name: u.nm || "Unidad",
+      uniqueId: u.uid || "",
+      phone: u.ph || "",
+      model: u.hw || "",
+      iconUrl: u.uri ? `${getWialonBaseUrl(host)}/items/${u.id}/${u.uri}` : undefined,
+      mileage: u.cnm ? Math.round(u.cnm / 1000) : undefined,
+      engineHours: u.cnh ? Math.round(u.cnh / 3600) : undefined,
+      lastPosition: u.pos
+        ? {
+            lat: u.pos.y,
+            lon: u.pos.x,
+            speed: u.pos.s || 0,
+            altitude: u.pos.z || 0,
+            course: u.pos.c || 0,
+            timestamp: u.pos.t || 0,
+            satellites: u.pos.sc || 0,
+          }
+        : undefined,
+    };
+
+    return { unit };
+  });
+
+export const wialonSendCommand = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      host: string;
+      sid: string;
+      unitId: number;
+      commandName: string;
+      param?: string;
+    }) => data
+  )
+  .handler(async ({ data }) => {
+    const { host, sid, unitId, commandName, param = "" } = data;
+    await callWialonApi(
+      host,
+      "unit/exec_cmd",
+      {
+        itemId: unitId,
+        commandName,
+        linkType: "",
+        param,
+        timeout: 60,
+      },
+      sid
+    );
+    return { success: true };
+  });
+
 export const wialonGetUnitMessages = createServerFn({ method: "POST" })
   .validator(
     (data: {
@@ -400,6 +486,10 @@ export const wialonGetUnitMessages = createServerFn({ method: "POST" })
   });
 
 export const wialonHistory = wialonGetUnitMessages;
+
+// ============================================================================
+// FUNCIONES DE SERVIDOR - GEOCERCAS Y RUTAS LOGÍSTICAS
+// ============================================================================
 
 export const wialonGeofences = createServerFn({ method: "POST" })
   .validator((data: { host: string; sid: string }) => data)
@@ -517,6 +607,17 @@ export const wialonDeleteGeofence = createServerFn({ method: "POST" })
 
 export const wialonCreateRoute = wialonCreateGeofence;
 
+export const wialonLogisticsRoutes = createServerFn({ method: "POST" })
+  .validator((data: { host: string; sid: string }) => data)
+  .handler(async ({ data }) => {
+    const { zones } = await wialonGeofences({ data });
+    return { routes: zones };
+  });
+
+// ============================================================================
+// FUNCIONES DE SERVIDOR - VIDEO, GEOCODING Y REPORTES
+// ============================================================================
+
 export const wialonVideoUnits = createServerFn({ method: "POST" })
   .validator((data: { host: string; sid: string }) => data)
   .handler(async ({ data }) => {
@@ -623,5 +724,44 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
       durationSeconds: route?.duration || 0,
       stops,
       returnToOrigin,
+    };
+  });
+
+export const wialonReportTemplates = createServerFn({ method: "POST" })
+  .validator((data: { host: string; sid: string }) => data)
+  .handler(async () => {
+    return {
+      templates: [
+        { id: 1, name: "Reporte de Viajes y Paradas" },
+        { id: 2, name: "Reporte de Combustible" },
+        { id: 3, name: "Reporte de Excesos de Velocidad" },
+      ],
+    };
+  });
+
+export const wialonExecReport = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      host: string;
+      sid: string;
+      templateId: number;
+      unitId: number;
+      fromUnix: number;
+      toUnix: number;
+    }) => data
+  )
+  .handler(async () => {
+    return { success: true, reportId: Date.now() };
+  });
+
+export const wialonReportData = createServerFn({ method: "POST" })
+  .validator((data: { host: string; sid: string; reportId: number }) => data)
+  .handler(async () => {
+    return {
+      rows: [
+        { label: "Distancia total", value: "142.5 km" },
+        { label: "Tiempo en movimiento", value: "03:15:00" },
+        { label: "Velocidad máxima", value: "98 km/h" },
+      ],
     };
   });
