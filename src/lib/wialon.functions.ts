@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 
-// ==========================================
-// 1. TIPOS E INTERFACES TYPESCRIPT COMPLETAS
-// ==========================================
+// ============================================================================
+// 1. TIPOS E INTERFACES TYPESCRIPT COMPLETAS Y EXTENDIDAS
+// ============================================================================
 
 export interface WialonGeofencePoint {
   lat: number;
@@ -31,6 +31,8 @@ export interface WialonResource {
   creatorId?: number;
   accessMask?: number;
   geofenceCount?: number;
+  driverCount?: number;
+  notificationCount?: number;
 }
 
 export interface WialonGeofencesResponse {
@@ -45,6 +47,9 @@ export interface WialonGeocodedAddress {
   lon: number;
   confidence?: number;
   type?: string;
+  city?: string;
+  state?: string;
+  country?: string;
 }
 
 export interface WialonPlannedRoutePoint {
@@ -60,6 +65,7 @@ export interface WialonPlannedRouteStop {
   isOrigin: boolean;
   order?: number;
   estimatedArrivalSeconds?: number;
+  estimatedDistanceMeters?: number;
 }
 
 export interface WialonPlannedRouteResponse {
@@ -82,9 +88,10 @@ export interface WialonLogisticsRoute {
   status?: string;
   driverName?: string;
   unitId?: number;
-  points: Array<{ lat: number; lon: number; label?: string }>;
+  points: Array<{ lat: number; lon: number; label?: string; radius?: number }>;
   startTime?: number;
   endTime?: number;
+  cost?: number;
 }
 
 export interface StoredUserRoute {
@@ -105,11 +112,21 @@ export interface StoredUserRoute {
   updatedAt?: string;
 }
 
+export interface WialonSensor {
+  id: number;
+  name: string;
+  type: string;
+  metrics: string;
+  value?: string | number;
+  unit?: string;
+}
+
 export interface WialonUnit {
   id: number;
   name: string;
   uniqueId: string;
   phone?: string;
+  model?: string;
   iconUrl?: string;
   lastPosition?: {
     lat: number;
@@ -121,13 +138,63 @@ export interface WialonUnit {
     satellites: number;
     address?: string;
   };
-  sensors?: Array<{
-    id: number;
-    name: string;
-    type: string;
-    value: string | number;
-    unit: string;
-  }>;
+  sensors?: WialonSensor[];
+  customFields?: Record<string, string>;
+  mileage?: number;
+  engineHours?: number;
+}
+
+export interface WialonDriver {
+  id: number;
+  name: string;
+  code: string;
+  phone?: string;
+  description?: string;
+  resourceId: number;
+  boundUnitId?: number;
+}
+
+export interface WialonTrip {
+  id: string;
+  unitId: number;
+  startTime: number;
+  endTime: number;
+  startLat: number;
+  startLon: number;
+  endLat: number;
+  endLon: number;
+  startAddress?: string;
+  endAddress?: string;
+  distanceMeters: number;
+  maxSpeed: number;
+  avgSpeed: number;
+  durationSeconds: number;
+  fuelConsumed?: number;
+}
+
+export interface WialonNotification {
+  id: number;
+  resourceId: number;
+  name: string;
+  type: string;
+  enabled: boolean;
+  actionType: string;
+  minInterval: number;
+  lastTriggered?: number;
+}
+
+export interface WialonMessageRaw {
+  t: number; // Timestamp
+  f: number; // Flags
+  pos?: {
+    y: number; // Lat
+    x: number; // Lon
+    z: number; // Altitude
+    s: number; // Speed
+    c: number; // Course
+    sc: number; // Satellites
+  };
+  p?: Record<string, unknown>; // Parámetros CanBUS / Sensores
 }
 
 export interface WialonApiResponse<T = unknown> {
@@ -138,14 +205,31 @@ export interface WialonApiResponse<T = unknown> {
   [key: string]: unknown;
 }
 
-// ==========================================
-// 2. CONSTANTES Y CONFIGURACIÓN DEL ENGINE
-// ==========================================
+// ============================================================================
+// 2. CONSTANTES, MÁSCARAS DE BITS Y CONFIGURACIÓN DEL ENGINE
+// ============================================================================
 
-const DEFAULT_TIMEOUT_MS = 20000;
+const DEFAULT_TIMEOUT_MS = 25000;
 const OSRM_PUBLIC_API = "https://router.project-osrm.org/route/v1/driving";
 const NOMINATIM_PUBLIC_API = "https://nominatim.openstreetmap.org/search";
 
+// Banderas de Búsqueda Bitwise de Wialon Remote API
+export const WIALON_ITEM_FLAGS = {
+  BASE: 1, // 0x0001: Propiedades básicas
+  CUSTOM_PROPERTIES: 2, // 0x0002: Campos personalizados
+  BILLING: 4, // 0x0004: Información de facturación
+  GUID: 8, // 0x0008: GUID de elemento
+  POS: 1024, // 0x0400: Última posición conocida
+  MESSAGES: 2048, // 0x0800: Mensajes y registros
+  GEOFENCES: 4096, // 0x1000: Geocercas (en recursos)
+  DRIVERS: 8192, // 0x2000: Conductores (en recursos)
+  SENSORS: 4096, // 0x1000: Sensores (en unidades)
+  COUNTERS: 8192, // 0x2000: Contadores de kilometraje/horas motor
+  COMMANDS: 524288, // 0x80000: Comandos soportados
+  NOTIFICATIONS: 1048576, // 0x100000: Notificaciones creadas
+};
+
+// Mapeo detallado de errores Wialon Remote API
 const WIALON_ERROR_CODES: Record<number, string> = {
   1: "Sesión inválida o expirada en el servidor de Wialon",
   2: "Nombre de servicio (svc) no válido o no soportado",
@@ -162,14 +246,17 @@ const WIALON_ERROR_CODES: Record<number, string> = {
   1003: "El elemento especificado no existe o fue eliminado",
   1004: "Límite de mensajes o elementos alcanzado",
   1005: "Estructura de objeto o parámetro corrupta",
+  2001: "Sensor no encontrado o índice inválido",
+  2002: "El comando enviado al equipo GPS no es compatible o falló el socket",
 };
 
-// Cache en memoria para sesiones y geocodificación
+// Caché interna en memoria
 const geocodeCache = new Map<string, WialonGeocodedAddress>();
+const sessionCache = new Map<string, { sid: string; expiresAt: number }>();
 
-// ==========================================
-// 3. HELPERS INTERNOS Y CORE DE COMUNICACIÓN
-// ==========================================
+// ============================================================================
+// 3. HELPERS MATEMÁTICOS, GEOGRÁFICOS Y COMUNICACIÓN CORE
+// ============================================================================
 
 function getWialonBaseUrl(host: string): string {
   if (host === "full") {
@@ -183,7 +270,7 @@ function parseWialonErrorMessage(code: number): string {
 }
 
 /**
- * Peticionador HTTP de baja latencia tolerante a fallos
+ * Peticionador HTTP tolerante a fallos y con reintentos para Wialon API
  */
 async function callWialonApi<T = Record<string, unknown>>(
   host: string,
@@ -246,14 +333,14 @@ function hexToWialonColor(hex: string): number {
 }
 
 /**
- * Mapeo y cálculo de polígonos/áreas
+ * Algoritmo Haversine & Shoelace para calcular Perímetro y Área real sobre el elipsoide
  */
 function calculatePolygonAreaAndPerimeter(points: WialonGeofencePoint[]): { area: number; perimeter: number } {
   if (points.length < 3) return { area: 0, perimeter: 0 };
-  
+
   let area = 0;
   let perimeter = 0;
-  const R = 6371000; // Radio terrestre en metros
+  const R = 6371000; // Radio medio de la Tierra en metros
 
   for (let i = 0; i < points.length; i++) {
     const p1 = points[i]!;
@@ -264,14 +351,14 @@ function calculatePolygonAreaAndPerimeter(points: WialonGeofencePoint[]): { area
     const dLat = ((p2.lat - p1.lat) * Math.PI) / 180;
     const dLon = ((p2.lon - p1.lon) * Math.PI) / 180;
 
-    // Haversine para perímetro
+    // Haversine
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     perimeter += R * c;
 
-    // Proyección para área aproximada
+    // Área en Esfera
     area += ((p2.lon - p1.lon) * Math.PI / 180) * (2 + Math.sin(lat1) + Math.sin(lat2));
   }
 
@@ -279,34 +366,37 @@ function calculatePolygonAreaAndPerimeter(points: WialonGeofencePoint[]): { area
   return { area: Math.round(area), perimeter: Math.round(perimeter) };
 }
 
-// ==========================================
-// 4. SERVER FUNCTIONS EXPORTADAS
-// ==========================================
+// ============================================================================
+// 4. SERVER FUNCTIONS IMPLEMENTADAS (MÓDULOS DE AUTENTICACIÓN Y SESIÓN)
+// ============================================================================
 
-/**
- * Inicia sesión o valida el token remoto en Wialon
- */
 export const wialonLogin = createServerFn({ method: "POST" })
   .validator((data: { host: string; token: string }) => data)
   .handler(async ({ data }) => {
     const { host, token } = data;
+
+    const cacheKey = `${host}:${token}`;
+    const cached = sessionCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return { sid: cached.sid, userName: "Usuario Autenticado", host };
+    }
 
     const res = await callWialonApi<any>(host, "token/login", {
       token,
       fl: 1,
     });
 
+    const sid = res.eid || res.sid;
+    sessionCache.set(cacheKey, { sid, expiresAt: Date.now() + 1000 * 60 * 60 * 2 }); // 2 horas
+
     return {
-      sid: res.eid || res.sid,
+      sid,
       userName: res.au || "Usuario Wialon",
       userId: res.user?.id || 0,
       host,
     };
   });
 
-/**
- * Cierra la sesión activa en el servidor remoto de Wialon
- */
 export const wialonLogout = createServerFn({ method: "POST" })
   .validator((data: { host: string; sid: string }) => data)
   .handler(async ({ data }) => {
@@ -319,9 +409,10 @@ export const wialonLogout = createServerFn({ method: "POST" })
     }
   });
 
-/**
- * Obtiene las geocercas y recursos asociados al cliente en Wialon
- */
+// ============================================================================
+// 5. MÓDULO DE GEOCERCAS Y RECURSOS
+// ============================================================================
+
 export const wialonGeofences = createServerFn({ method: "POST" })
   .validator((data: { host: string; sid: string }) => data)
   .handler(async ({ data }): Promise<WialonGeofencesResponse> => {
@@ -338,7 +429,7 @@ export const wialonGeofences = createServerFn({ method: "POST" })
           sortType: "sys_name",
         },
         force: 1,
-        flags: 4096, // Banderas e información detallada de geocercas
+        flags: WIALON_ITEM_FLAGS.BASE | WIALON_ITEM_FLAGS.GEOFENCES | WIALON_ITEM_FLAGS.DRIVERS,
         from: 0,
         to: 0,
       },
@@ -351,6 +442,12 @@ export const wialonGeofences = createServerFn({ method: "POST" })
 
     for (const item of items) {
       let gCount = 0;
+      let dCount = 0;
+
+      if (item.drivers) {
+        dCount = Object.keys(item.drivers).length;
+      }
+
       if (item.zl) {
         for (const zoneId in item.zl) {
           gCount++;
@@ -386,15 +483,13 @@ export const wialonGeofences = createServerFn({ method: "POST" })
         creatorId: item.crt,
         accessMask: item.m,
         geofenceCount: gCount,
+        driverCount: dCount,
       });
     }
 
     return { zones, resources };
   });
 
-/**
- * Crea una ruta o geocerca en Wialon
- */
 export const wialonCreateRoute = createServerFn({ method: "POST" })
   .validator(
     (data: {
@@ -454,33 +549,6 @@ export const wialonCreateRoute = createServerFn({ method: "POST" })
     };
   });
 
-/**
- * Elimina una geocerca o ruta de Wialon
- */
-export const wialonDeleteGeofence = createServerFn({ method: "POST" })
-  .validator(
-    (data: { host: string; sid: string; resourceId: number; zoneId: number }) => data
-  )
-  .handler(async ({ data }) => {
-    const { host, sid, resourceId, zoneId } = data;
-
-    await callWialonApi(
-      host,
-      "resource/update_zone",
-      {
-        itemId: resourceId,
-        id: zoneId,
-        callMode: "delete",
-      },
-      sid
-    );
-
-    return { success: true };
-  });
-
-/**
- * Modifica una geocerca existente en Wialon
- */
 export const wialonUpdateGeofence = createServerFn({ method: "POST" })
   .validator(
     (data: {
@@ -525,9 +593,31 @@ export const wialonUpdateGeofence = createServerFn({ method: "POST" })
     return { success: true };
   });
 
-/**
- * Geocodificación inteligente con caché local
- */
+export const wialonDeleteGeofence = createServerFn({ method: "POST" })
+  .validator(
+    (data: { host: string; sid: string; resourceId: number; zoneId: number }) => data
+  )
+  .handler(async ({ data }) => {
+    const { host, sid, resourceId, zoneId } = data;
+
+    await callWialonApi(
+      host,
+      "resource/update_zone",
+      {
+        itemId: resourceId,
+        id: zoneId,
+        callMode: "delete",
+      },
+      sid
+    );
+
+    return { success: true };
+  });
+
+// ============================================================================
+// 6. MÓDULO DE ENRUTAMIENTO, OSRM Y GEOCODIFICACIÓN
+// ============================================================================
+
 export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
   .validator((data: { addresses: string[] }) => data)
   .handler(async ({ data }) => {
@@ -543,7 +633,7 @@ export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
         continue;
       }
 
-      // Check Coordenadas "lat, lon"
+      // 1. Check Coordenadas "lat, lon"
       const coordMatch = clean.match(/^([+-]?\d+\.?\d*),\s*([+-]?\d+\.?\d*)$/);
       if (coordMatch) {
         const item: WialonGeocodedAddress = {
@@ -559,7 +649,7 @@ export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
         continue;
       }
 
-      // Consulta OSM Nominatim
+      // 2. Consulta OSM Nominatim
       try {
         const response = await fetch(
           `${NOMINATIM_PUBLIC_API}?format=json&q=${encodeURIComponent(clean)}&limit=1`,
@@ -602,9 +692,6 @@ export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
     return { locations };
   });
 
-/**
- * Planificador y optimizador de rutas viales (OSRM)
- */
 export const wialonPlanRoute = createServerFn({ method: "POST" })
   .validator(
     (data: {
@@ -691,9 +778,253 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
     };
   });
 
-/**
- * Consulta del módulo Wialon Logistics
- */
+export const wialonReverseGeocode = createServerFn({ method: "POST" })
+  .validator((data: { lat: number; lon: number }) => data)
+  .handler(async ({ data }) => {
+    const { lat, lon } = data;
+
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
+        {
+          headers: { "User-Agent": "ORBLite_Route_Engine/2.0" },
+        }
+      );
+
+      if (response.ok) {
+        const json = await response.json();
+        return { address: json.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}` };
+      }
+    } catch {
+      // Fallback
+    }
+
+    return { address: `${lat.toFixed(5)}, ${lon.toFixed(5)}` };
+  });
+
+// ============================================================================
+// 7. MÓDULO DE UNIDADES, TELEMETRÍA Y MENSAJES HISTÓRICOS
+// ============================================================================
+
+export const wialonGetUnits = createServerFn({ method: "POST" })
+  .validator((data: { host: string; sid: string }) => data)
+  .handler(async ({ data }) => {
+    const { host, sid } = data;
+
+    const res = await callWialonApi<{ items: Array<any> }>(
+      host,
+      "core/search_items",
+      {
+        spec: {
+          itemsType: "avl_unit",
+          propName: "sys_name",
+          propValueMask: "*",
+          sortType: "sys_name",
+        },
+        force: 1,
+        flags:
+          WIALON_ITEM_FLAGS.BASE |
+          WIALON_ITEM_FLAGS.POS |
+          WIALON_ITEM_FLAGS.SENSORS |
+          WIALON_ITEM_FLAGS.COUNTERS |
+          WIALON_ITEM_FLAGS.CUSTOM_PROPERTIES,
+        from: 0,
+        to: 0,
+      },
+      sid
+    );
+
+    const units: WialonUnit[] = (res.items || []).map((u: any) => {
+      const pos = u.pos;
+      const parsedSensors: WialonSensor[] = [];
+
+      if (u.sens) {
+        for (const sId in u.sens) {
+          const s = u.sens[sId];
+          parsedSensors.push({
+            id: s.id,
+            name: s.n,
+            type: s.t,
+            metrics: s.m || "",
+            unit: s.p || "",
+          });
+        }
+      }
+
+      return {
+        id: u.id,
+        name: u.nm,
+        uniqueId: u.uid || "",
+        phone: u.ph || "",
+        model: u.hw || "",
+        iconUrl: u.uri ? `${getWialonBaseUrl(host)}/items/${u.id}/${u.uri}` : undefined,
+        mileage: u.cnm ? Math.round(u.cnm / 1000) : undefined,
+        engineHours: u.cnh ? Math.round(u.cnh / 3600) : undefined,
+        sensors: parsedSensors,
+        lastPosition: pos
+          ? {
+              lat: pos.y,
+              lon: pos.x,
+              speed: pos.s || 0,
+              altitude: pos.z || 0,
+              course: pos.c || 0,
+              timestamp: pos.t || 0,
+              satellites: pos.sc || 0,
+            }
+          : undefined,
+      };
+    });
+
+    return { units };
+  });
+
+export const wialonGetUnitMessages = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      host: string;
+      sid: string;
+      unitId: number;
+      fromUnix: number;
+      toUnix: number;
+      flags?: number;
+    }) => data
+  )
+  .handler(async ({ data }) => {
+    const { host, sid, unitId, fromUnix, toUnix, flags = 0 } = data;
+
+    // 1. Cargar intervalo de mensajes en memoria del servidor Wialon
+    await callWialonApi(
+      host,
+      "messages/load_interval",
+      {
+        itemId: unitId,
+        timeFrom: fromUnix,
+        timeTo: toUnix,
+        flags: flags,
+        flagsMask: 0,
+        loadCount: 10000,
+      },
+      sid
+    );
+
+    // 2. Extraer mensajes cargados
+    const res = await callWialonApi<{ messages: WialonMessageRaw[] }>(
+      host,
+      "messages/get_messages",
+      {
+        indexFrom: 0,
+        indexTo: 9999,
+      },
+      sid
+    );
+
+    return { messages: res.messages || [] };
+  });
+
+// ============================================================================
+// 8. COMANDOS GPRS Y TELEMETRÍA REMOTA
+// ============================================================================
+
+export const wialonSendUnitCommand = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      host: string;
+      sid: string;
+      unitId: number;
+      commandName: string;
+      commandType?: string;
+      param?: string;
+    }) => data
+  )
+  .handler(async ({ data }) => {
+    const { host, sid, unitId, commandName, commandType = "custom", param = "" } = data;
+
+    const res = await callWialonApi(
+      host,
+      "unit/exec_cmd",
+      {
+        itemId: unitId,
+        commandName,
+        linkType: commandType,
+        param,
+        timeout: 15,
+      },
+      sid
+    );
+
+    return { success: true, result: res };
+  });
+
+// ============================================================================
+// 9. EXPORTADORES KML, GPX Y GEOJSON DIRECTOS
+// ============================================================================
+
+export const wialonExportRouteToFile = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      routeName: string;
+      points: Array<{ lat: number; lon: number }>;
+      format: "kml" | "gpx" | "geojson";
+    }) => data
+  )
+  .handler(async ({ data }) => {
+    const { routeName, points, format } = data;
+
+    if (format === "geojson") {
+      const geojson = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: { name: routeName },
+            geometry: {
+              type: "LineString",
+              coordinates: points.map((p) => [p.lon, p.lat]),
+            },
+          },
+        ],
+      };
+      return { content: JSON.stringify(geojson, null, 2), mimeType: "application/json" };
+    }
+
+    if (format === "gpx") {
+      const trkpts = points
+        .map((p) => `      <trkpt lat="${p.lat}" lon="${p.lon}"></trkpt>`)
+        .join("\n");
+      const gpx = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="ORB-Lite Wialon Engine">
+  <trk>
+    <name>${routeName}</name>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>
+</gpx>`;
+      return { content: gpx, mimeType: "application/gpx+xml" };
+    }
+
+    // KML Default
+    const coordinates = points.map((p) => `${p.lon},${p.lat},0`).join(" ");
+    const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${routeName}</name>
+    <Placemark>
+      <name>${routeName}</name>
+      <LineString>
+        <coordinates>${coordinates}</coordinates>
+      </LineString>
+    </Placemark>
+  </Document>
+</kml>`;
+
+    return { content: kml, mimeType: "application/vnd.google-earth.kml+xml" };
+  });
+
+// ============================================================================
+// 10. MÓDULO WIALON LOGISTICS Y CONDUCTORES
+// ============================================================================
+
 export const wialonLogisticsRoutes = createServerFn({ method: "POST" })
   .validator((data: { host: string; sid: string }) => data)
   .handler(async ({ data }) => {
@@ -730,10 +1061,7 @@ export const wialonLogisticsRoutes = createServerFn({ method: "POST" })
     }
   });
 
-/**
- * Consulta de listado de unidades GPS en tiempo real
- */
-export const wialonGetUnits = createServerFn({ method: "POST" })
+export const wialonGetDrivers = createServerFn({ method: "POST" })
   .validator((data: { host: string; sid: string }) => data)
   .handler(async ({ data }) => {
     const { host, sid } = data;
@@ -743,67 +1071,37 @@ export const wialonGetUnits = createServerFn({ method: "POST" })
       "core/search_items",
       {
         spec: {
-          itemsType: "avl_unit",
+          itemsType: "avl_resource",
           propName: "sys_name",
           propValueMask: "*",
           sortType: "sys_name",
         },
         force: 1,
-        flags: 41473, // Flags: Nombre, Posición, Sensores, Parámetros
+        flags: WIALON_ITEM_FLAGS.BASE | WIALON_ITEM_FLAGS.DRIVERS,
         from: 0,
         to: 0,
       },
       sid
     );
 
-    const units: WialonUnit[] = (res.items || []).map((u: any) => {
-      const pos = u.pos;
-      return {
-        id: u.id,
-        name: u.nm,
-        uniqueId: u.uid || "",
-        phone: u.ph || "",
-        iconUrl: u.uri ? `${getWialonBaseUrl(host)}/items/${u.id}/${u.uri}` : undefined,
-        lastPosition: pos
-          ? {
-              lat: pos.y,
-              lon: pos.x,
-              speed: pos.s || 0,
-              altitude: pos.z || 0,
-              course: pos.c || 0,
-              timestamp: pos.t || 0,
-              satellites: pos.sc || 0,
-            }
-          : undefined,
-      };
-    });
+    const drivers: WialonDriver[] = [];
 
-    return { units };
-  });
-
-/**
- * Geocodificación inversa (Convierte Coordenadas lat,lon en Dirección)
- */
-export const wialonReverseGeocode = createServerFn({ method: "POST" })
-  .validator((data: { lat: number; lon: number }) => data)
-  .handler(async ({ data }) => {
-    const { lat, lon } = data;
-
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
-        {
-          headers: { "User-Agent": "ORBLite_Route_Engine/2.0" },
+    for (const item of res.items || []) {
+      if (item.drivers) {
+        for (const dId in item.drivers) {
+          const d = item.drivers[dId];
+          drivers.push({
+            id: d.id,
+            name: d.n,
+            code: d.c || "",
+            phone: d.p || "",
+            description: d.ds || "",
+            resourceId: item.id,
+            boundUnitId: d.bu || undefined,
+          });
         }
-      );
-
-      if (response.ok) {
-        const json = await response.json();
-        return { address: json.display_name || `${lat.toFixed(5)}, ${lon.toFixed(5)}` };
       }
-    } catch {
-      // Fallback
     }
 
-    return { address: `${lat.toFixed(5)}, ${lon.toFixed(5)}` };
+    return { drivers };
   });
