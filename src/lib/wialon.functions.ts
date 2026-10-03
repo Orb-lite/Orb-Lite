@@ -985,7 +985,11 @@ export const wialonGeofences = createServerFn({ method: "POST" })
 import { smartGeocode } from "@/lib/geocoding";
 
 const hostSchema = z.enum(["lite", "full"]);
-const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1), token: z.string().optional() });
+const sessionSchema = z.object({
+  host: hostSchema,
+  sid: z.string().min(1),
+  token: z.string().optional(),
+});
 
 export type WialonUnit = {
   id: number;
@@ -1031,7 +1035,6 @@ export type WialonGeofenceResource = {
   id: number;
   name: string;
 };
-
 const ONLINE_WINDOW = 10 * 60;
 const MAX_HISTORY_MESSAGES = 3000;
 
