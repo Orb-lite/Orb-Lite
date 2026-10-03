@@ -985,12 +985,12 @@ export const wialonGeofences = createServerFn({ method: "POST" })
 import { smartGeocode } from "@/lib/geocoding";
 
 const hostSchema = z.enum(["lite", "full"]);
+
 const sessionSchema = z.object({
   host: hostSchema,
   sid: z.string().min(1),
   token: z.string().optional(),
 });
-
 export type WialonUnit = {
   id: number;
   name: string;
