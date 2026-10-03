@@ -28,7 +28,7 @@ function AuthPage() {
 
   React.useEffect(() => {
     // Si ya existe sesión activa con el usuario del CRM, entrar directamente
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data }: any) => {
       if (data?.user && (data.user.email ?? "").toLowerCase() === "ventas@orb-lite.com") {
         navigate({ to: "/crm", replace: true });
       }

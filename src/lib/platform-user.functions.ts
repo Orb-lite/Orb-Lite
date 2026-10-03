@@ -18,7 +18,7 @@ export type SubuserInfo = {
 };
 
 export type PlatformUserProfile = {
-  id?: string;
+  id?: string | undefined;
   wialonUserId: number;
   wialonUsername: string;
   host: "lite" | "full";
@@ -37,7 +37,7 @@ export type PlatformUserProfile = {
     geofences: boolean;
     tracking_links: boolean;
   };
-  billing?: Record<string, unknown> | null;
+  billing?: Record<string, any> | null | undefined;
   renewals: Array<{
     id: string;
     unit_name: string | null;
@@ -169,7 +169,7 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
         billing = matched.billing as Record<string, unknown> | null;
 
         const currentContact = (matched.contact as Record<string, unknown>) || {};
-        if (String(currentContact.wialon_user_id) !== String(wialonUserId)) {
+        if (String(currentContact["wialon_user_id"]) !== String(wialonUserId)) {
           await supabase
             .from("customers")
             .update({

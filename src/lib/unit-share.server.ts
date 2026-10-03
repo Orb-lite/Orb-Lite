@@ -1,20 +1,20 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { wialonCall, type WialonHost } from "./wialon.server";
-import { smartGeocode } from "./geocoding";
+import { reverseGeocodeCoordinates } from "./geocoding";
 
 export type SharedUnitItem = {
   unitId: number;
   unitName: string;
-  imei?: string | null;
+  imei?: string | null | undefined;
   lastPosition?: {
     lat: number;
     lon: number;
     speed: number;
     course: number;
     time: number;
-    address?: string;
-  } | null;
-  trail?: Array<{ lat: number; lon: number; time: number; speed?: number }>;
+    address?: string | undefined;
+  } | null | undefined;
+  trail?: Array<{ lat: number; lon: number; time: number; speed?: number }> | undefined;
 };
 
 export type SharedUnitLink = {
@@ -22,38 +22,38 @@ export type SharedUnitLink = {
   token: string;
   unitId: number;
   unitName: string;
-  imei?: string | null;
-  units?: SharedUnitItem[];
-  clientName?: string | null;
-  clientPhone?: string | null;
-  clientEmail?: string | null;
-  notes?: string | null;
+  imei?: string | null | undefined;
+  units?: SharedUnitItem[] | undefined;
+  clientName?: string | null | undefined;
+  clientPhone?: string | null | undefined;
+  clientEmail?: string | null | undefined;
+  notes?: string | null | undefined;
   durationHours: number;
-  isUnlimited?: boolean;
+  isUnlimited?: boolean | undefined;
   createdAt: string;
   expiresAt: string;
   status: "active" | "revoked" | "expired";
   viewCount: number;
-  lastViewedAt?: string | null;
+  lastViewedAt?: string | null | undefined;
   host: "lite" | "full";
-  sid?: string | null;
-  wialonToken?: string | null;
+  sid?: string | null | undefined;
+  wialonToken?: string | null | undefined;
   lastPosition?: {
     lat: number;
     lon: number;
     speed: number;
     course: number;
     time: number;
-    address?: string;
-  } | null;
-  trail?: Array<{ lat: number; lon: number; time: number; speed?: number }>;
+    address?: string | undefined;
+  } | null | undefined;
+  trail?: Array<{ lat: number; lon: number; time: number; speed?: number }> | undefined;
 };
 
 // Store en memoria resiliente que asegura disponibilidad inmediata
 const inMemoryUnitShares = new Map<string, SharedUnitLink>();
 
 // Caché global de sesiones de Wialon activas por host
-const globalActiveSessions = new Map<string, { sid: string; token?: string; timestamp: number }>();
+const globalActiveSessions = new Map<string, { sid: string; token?: string | undefined; timestamp: number }>();
 
 export function registerActiveWialonSession(host: "lite" | "full", sid: string, token?: string) {
   if (sid) {
@@ -151,7 +151,13 @@ export async function createSharedUnitLink(params: {
     };
   });
 
-  const firstUnit = unitItems[0];
+  const firstUnit = unitItems[0] ?? {
+    unitId: params.unitId || 1,
+    unitName: params.unitName || "Unidad",
+    imei: params.imei ?? null,
+    lastPosition: null,
+    trail: [],
+  };
   const summaryName =
     unitItems.length > 1
       ? `${unitItems.length} Unidades: ${unitItems
@@ -569,9 +575,9 @@ export async function refreshSharedUnitLivePosition(token: string): Promise<Shar
 
       if (!address || moved) {
         try {
-          const geo = await smartGeocode(posFound.lat, posFound.lon);
-          if (geo?.name) {
-            address = geo.name;
+          const rev = await reverseGeocodeCoordinates(posFound.lat, posFound.lon);
+          if (rev) {
+            address = rev;
           }
         } catch {
           // Ignorar

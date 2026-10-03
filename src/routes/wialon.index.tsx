@@ -5,7 +5,7 @@ import { ShieldCheck, MapPin, Video, KeyRound, ArrowRight, User, Lock } from "lu
 import { toast } from "sonner";
 import { PLATFORM_URLS, useWialonSession, writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin, wialonLoginWithCredentials } from "@/lib/wialon.functions";
-import { syncWialonPlatformUser } from "@/lib/platform-user.functions";
+import { syncWialonPlatformUser, type PlatformUserProfile } from "@/lib/platform-user.functions";
 
 export const Route = createFileRoute("/wialon/")({
   head: () => ({
@@ -142,13 +142,13 @@ function WialonLoginPage() {
       if (sess) {
         // Sincronizar datos de usuario en Supabase (verificar si existe, crearlo y cargar tablas relacionadas)
         try {
-          const profile = await syncUser({
+          const profile = (await syncUser({
             data: {
               wialonUserId: sess.userId,
               wialonUsername: sess.userName || user.trim(),
               host,
             },
-          });
+          })) as PlatformUserProfile | null;
           sess.profile = profile;
           if (profile?.fullName) {
             sess.userName = profile.fullName;
@@ -191,18 +191,25 @@ function WialonLoginPage() {
         data: { host, token: token.trim() },
       });
       if (res?.sid) {
+        const sess: WialonSession = {
+          sid: res.sid,
+          host: res.host,
+          userId: res.userId,
+          userName: res.userName,
+          profile: null,
+        };
         try {
-          const profile = await syncUser({
+          const profile = (await syncUser({
             data: {
               wialonUserId: res.userId,
               wialonUsername: res.userName,
               host,
             },
-          });
-          res.profile = profile;
+          })) as PlatformUserProfile | null;
+          sess.profile = profile;
         } catch {}
 
-        writeSession(res);
+        writeSession(sess);
         localStorage.setItem("wialon_token", token.trim());
         toast.success(`¡Sesión iniciada con éxito!`);
         void navigate({ to: "/wialon/mapa" });

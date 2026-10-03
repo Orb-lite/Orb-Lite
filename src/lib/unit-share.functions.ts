@@ -17,7 +17,7 @@ export type { SharedUnitLink };
 export type PublicTrackedUnit = {
   unitId: number;
   unitName: string;
-  imei?: string | null;
+  imei?: string | null | undefined;
   position: {
     lat: number;
     lon: number;
@@ -34,8 +34,8 @@ export type PublicUnitTracking = {
   token: string;
   unitName: string;
   units: PublicTrackedUnit[];
-  clientName?: string | null;
-  notes?: string | null;
+  clientName?: string | null | undefined;
+  notes?: string | null | undefined;
   expiresAt: string;
   remainingSeconds: number;
   isExpired: boolean;
@@ -112,7 +112,7 @@ export const createUnitShare = createServerFn({ method: "POST" })
       unitId: data.unitId,
       unitName: data.unitName,
       imei: data.imei,
-      units: data.units,
+      units: data.units as any,
       clientName: data.clientName,
       clientPhone: data.clientPhone,
       clientEmail: data.clientEmail || null,
@@ -122,7 +122,7 @@ export const createUnitShare = createServerFn({ method: "POST" })
       host: data.host,
       sid: data.sid,
       wialonToken: data.wialonToken,
-      initialPosition: data.initialPosition,
+      initialPosition: data.initialPosition as any,
     });
 
     return {
@@ -140,8 +140,7 @@ export const listUnitShares = createServerFn({ method: "POST" })
         host: z.enum(["lite", "full"]).optional(),
         sid: z.string().optional(),
       })
-      .optional()
-      .default({}),
+      .parse(input ?? {}),
   )
   .handler(async ({ data }) => {
     const links = await getSharedUnitLinks(data);
@@ -250,7 +249,12 @@ export const getPublicUnitTracking = createServerFn({ method: "GET" })
       };
     });
 
-    const primaryUnit = unitsList[0];
+    const primaryUnit = unitsList[0] ?? {
+      unitId: link.unitId,
+      unitName: link.unitName,
+      position: currentPos,
+      trail: [],
+    };
 
     return {
       token: link.token,

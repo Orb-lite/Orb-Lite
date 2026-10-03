@@ -391,7 +391,7 @@ export async function getRouteAssignments(routeId: string): Promise<string[]> {
       .eq("route_id", routeId);
 
     if (error || !data) return [];
-    return data.map((r) => r.assigned_user_id);
+    return data.map((r: any) => r.assigned_user_id);
   } catch {
     return [];
   }

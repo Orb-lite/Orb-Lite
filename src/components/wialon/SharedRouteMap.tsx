@@ -77,7 +77,7 @@ export default function SharedRouteMap({
     speed?: number;
     course?: number;
     unitName?: string;
-  } | null;
+  } | null | undefined;
 }) {
   const line = path.length > 1 ? path : stops;
   const center = liveVehicle

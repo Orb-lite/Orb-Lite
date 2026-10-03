@@ -241,6 +241,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
       });
 
       const firstUnit = selectedUnitsData[0];
+      if (!firstUnit) return;
       const summaryName =
         selectedUnitsData.length > 1
           ? `${selectedUnitsData.length} Unidades: ${selectedUnitsData
@@ -370,7 +371,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
         <button
           onClick={() => {
             setFormError(null);
-            if (units.length > 0 && selectedUnitId === "custom") {
+            if (units[0] && selectedUnitId === "custom") {
               setSelectedUnitId(units[0].id);
             }
             setCreateDialogOpen(true);

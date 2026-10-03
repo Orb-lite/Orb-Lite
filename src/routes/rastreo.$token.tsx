@@ -91,7 +91,8 @@ function PublicUnitTrackingPage() {
       const found = unitList.find((u) => u.unitId === selectedUnitId);
       if (found) return found;
     }
-    if (unitList.length > 0) return unitList[0];
+    const first = unitList[0];
+    if (first) return first;
     return {
       unitId: 1,
       unitName: data?.unitName || "Unidad",

@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin } from "@/lib/wialon.functions";
-import { syncWialonPlatformUser } from "@/lib/platform-user.functions";
+import { syncWialonPlatformUser, type PlatformUserProfile } from "@/lib/platform-user.functions";
 
 export const Route = createFileRoute("/wialon/callback")({
   head: () => ({
@@ -179,16 +179,16 @@ function WialonCallbackPage() {
         const effectiveUserName = userName || authResult?.userName || "Usuario";
 
         // 3. Sincronizar usuario y jerarquía en base de datos de ORB-LITE (sin pasar login por Supabase)
-        let profile = null;
+        let profile: PlatformUserProfile | null = null;
         try {
-          profile = await syncUser({
+          profile = (await syncUser({
             data: {
               wialonUserId: effectiveUserId,
               wialonUsername: effectiveUserName,
               host: effectiveHost,
               sid: effectiveSid,
             },
-          });
+          })) as PlatformUserProfile | null;
         } catch (syncErr) {
           console.warn("[Wialon Callback] Error al sincronizar datos de usuario:", syncErr);
         }

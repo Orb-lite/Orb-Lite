@@ -37,7 +37,7 @@ export const getHardwareCommandDefinitions = createServerFn({ method: "POST" })
     const { data: rows, error } = await query;
     if (error) throw new Error(error.message);
 
-    const commands: HardwareCommand[] = (rows ?? []).map((r) => ({
+    const commands: HardwareCommand[] = (rows ?? []).map((r: any) => ({
       id: r.id,
       hardwareBrand: r.hardware_brand,
       commandName: r.command_name,

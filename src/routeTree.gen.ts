@@ -23,6 +23,7 @@ import { Route as WialonRouteImport } from './routes/wialon'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedRenovacionesRouteImport } from './routes/_authenticated/renovaciones'
+import { Route as AuthenticatedRoutesRouteImport } from './routes/_authenticated/routes'
 import { Route as ApiLogsRouteImport } from './routes/api/logs'
 import { Route as PanelTokenRouteImport } from './routes/panel.$token'
 import { Route as RastreoTokenRouteImport } from './routes/rastreo.$token'
@@ -37,6 +38,7 @@ import { Route as WialonMapaRouteImport } from './routes/wialon.mapa'
 import { Route as WialonReportesRouteImport } from './routes/wialon.reportes'
 import { Route as WialonRutasRouteImport } from './routes/wialon.rutas'
 import { Route as WialonUnidadesRouteImport } from './routes/wialon.unidades'
+import { Route as WialonUsuariosRouteImport } from './routes/wialon.usuarios'
 import { Route as WialonVideoRouteImport } from './routes/wialon.video'
 import { Route as ApiPublicCronAvisosRenovacionRouteImport } from './routes/api/public/cron/avisos-renovacion'
 import { Route as ApiPublicCronResumenPendientesRouteImport } from './routes/api/public/cron/resumen-pendientes'
@@ -111,6 +113,11 @@ const AuthenticatedRenovacionesRoute =
     path: '/renovaciones',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedRoutesRoute = AuthenticatedRoutesRouteImport.update({
+  id: '/routes',
+  path: '/routes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiLogsRoute = ApiLogsRouteImport.update({
   id: '/api/logs',
   path: '/api/logs',
@@ -181,6 +188,11 @@ const WialonUnidadesRoute = WialonUnidadesRouteImport.update({
   path: '/unidades',
   getParentRoute: () => WialonRoute,
 } as any)
+const WialonUsuariosRoute = WialonUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => WialonRoute,
+} as any)
 const WialonVideoRoute = WialonVideoRouteImport.update({
   id: '/video',
   path: '/video',
@@ -213,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
+  '/routes': typeof AuthenticatedRoutesRoute
   '/api/logs': typeof ApiLogsRoute
   '/panel/$token': typeof PanelTokenRoute
   '/rastreo/$token': typeof RastreoTokenRoute
@@ -226,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/wialon/reportes': typeof WialonReportesRoute
   '/wialon/rutas': typeof WialonRutasRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
+  '/wialon/usuarios': typeof WialonUsuariosRoute
   '/wialon/video': typeof WialonVideoRoute
   '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
@@ -244,6 +258,7 @@ export interface FileRoutesByTo {
   '/clientes': typeof AuthenticatedClientesRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/renovaciones': typeof AuthenticatedRenovacionesRoute
+  '/routes': typeof AuthenticatedRoutesRoute
   '/api/logs': typeof ApiLogsRoute
   '/panel/$token': typeof PanelTokenRoute
   '/rastreo/$token': typeof RastreoTokenRoute
@@ -257,6 +272,7 @@ export interface FileRoutesByTo {
   '/wialon/reportes': typeof WialonReportesRoute
   '/wialon/rutas': typeof WialonRutasRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
+  '/wialon/usuarios': typeof WialonUsuariosRoute
   '/wialon/video': typeof WialonVideoRoute
   '/wialon': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
@@ -278,6 +294,7 @@ export interface FileRoutesById {
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/renovaciones': typeof AuthenticatedRenovacionesRoute
+  '/_authenticated/routes': typeof AuthenticatedRoutesRoute
   '/api/logs': typeof ApiLogsRoute
   '/panel/$token': typeof PanelTokenRoute
   '/rastreo/$token': typeof RastreoTokenRoute
@@ -291,6 +308,7 @@ export interface FileRoutesById {
   '/wialon/reportes': typeof WialonReportesRoute
   '/wialon/rutas': typeof WialonRutasRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
+  '/wialon/usuarios': typeof WialonUsuariosRoute
   '/wialon/video': typeof WialonVideoRoute
   '/wialon/': typeof WialonIndexRoute
   '/api/public/cron/avisos-renovacion': typeof ApiPublicCronAvisosRenovacionRoute
@@ -312,6 +330,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/crm'
     | '/renovaciones'
+    | '/routes'
     | '/api/logs'
     | '/panel/$token'
     | '/rastreo/$token'
@@ -325,6 +344,7 @@ export interface FileRouteTypes {
     | '/wialon/reportes'
     | '/wialon/rutas'
     | '/wialon/unidades'
+    | '/wialon/usuarios'
     | '/wialon/video'
     | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
@@ -343,6 +363,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/crm'
     | '/renovaciones'
+    | '/routes'
     | '/api/logs'
     | '/panel/$token'
     | '/rastreo/$token'
@@ -356,6 +377,7 @@ export interface FileRouteTypes {
     | '/wialon/reportes'
     | '/wialon/rutas'
     | '/wialon/unidades'
+    | '/wialon/usuarios'
     | '/wialon/video'
     | '/wialon'
     | '/api/public/cron/avisos-renovacion'
@@ -376,6 +398,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes'
     | '/_authenticated/crm'
     | '/_authenticated/renovaciones'
+    | '/_authenticated/routes'
     | '/api/logs'
     | '/panel/$token'
     | '/rastreo/$token'
@@ -389,6 +412,7 @@ export interface FileRouteTypes {
     | '/wialon/reportes'
     | '/wialon/rutas'
     | '/wialon/unidades'
+    | '/wialon/usuarios'
     | '/wialon/video'
     | '/wialon/'
     | '/api/public/cron/avisos-renovacion'
@@ -515,6 +539,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRenovacionesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/routes': {
+      id: '/_authenticated/routes'
+      path: '/routes'
+      fullPath: '/routes'
+      preLoaderRoute: typeof AuthenticatedRoutesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/logs': {
       id: '/api/logs'
       path: '/api/logs'
@@ -613,6 +644,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WialonUnidadesRouteImport
       parentRoute: typeof WialonRoute
     }
+    '/wialon/usuarios': {
+      id: '/wialon/usuarios'
+      path: '/usuarios'
+      fullPath: '/wialon/usuarios'
+      preLoaderRoute: typeof WialonUsuariosRouteImport
+      parentRoute: typeof WialonRoute
+    }
     '/wialon/video': {
       id: '/wialon/video'
       path: '/video'
@@ -641,12 +679,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedRenovacionesRoute: typeof AuthenticatedRenovacionesRoute
+  AuthenticatedRoutesRoute: typeof AuthenticatedRoutesRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedRenovacionesRoute: AuthenticatedRenovacionesRoute,
+  AuthenticatedRoutesRoute: AuthenticatedRoutesRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -662,6 +702,7 @@ interface WialonRouteChildren {
   WialonReportesRoute: typeof WialonReportesRoute
   WialonRutasRoute: typeof WialonRutasRoute
   WialonUnidadesRoute: typeof WialonUnidadesRoute
+  WialonUsuariosRoute: typeof WialonUsuariosRoute
   WialonVideoRoute: typeof WialonVideoRoute
   WialonIndexRoute: typeof WialonIndexRoute
 }
@@ -676,6 +717,7 @@ const WialonRouteChildren: WialonRouteChildren = {
   WialonReportesRoute: WialonReportesRoute,
   WialonRutasRoute: WialonRutasRoute,
   WialonUnidadesRoute: WialonUnidadesRoute,
+  WialonUsuariosRoute: WialonUsuariosRoute,
   WialonVideoRoute: WialonVideoRoute,
   WialonIndexRoute: WialonIndexRoute,
 }

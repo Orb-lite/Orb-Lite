@@ -49,17 +49,17 @@ function UsuariosView({ session }: { session: WialonSession }) {
   );
 
   // Consulta en tiempo real de subcuentas y perfil
-  const { data: profile, isLoading, refetch, isFetching } = useQuery({
+  const { data: profile, isLoading, refetch, isFetching } = useQuery<PlatformUserProfile | null>({
     queryKey: ["platform-user-profile", session.userId],
-    queryFn: async () => {
-      const res = await syncUserFn({
+    queryFn: async (): Promise<PlatformUserProfile | null> => {
+      const res = (await syncUserFn({
         data: {
           wialonUserId: session.userId,
           wialonUsername: session.userName,
           host: session.host,
           sid: session.sid,
         },
-      });
+      })) as PlatformUserProfile | null;
       setCurrentProfile(res);
       // Actualizar sesión en local
       writeSession({
@@ -68,7 +68,7 @@ function UsuariosView({ session }: { session: WialonSession }) {
       });
       return res;
     },
-    initialData: session.profile ?? undefined,
+    initialData: session.profile ?? null,
     refetchOnWindowFocus: false,
   });
 
@@ -201,7 +201,7 @@ function UsuariosView({ session }: { session: WialonSession }) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            {subusers.map((subuser) => {
+            {subusers.map((subuser: SubuserInfo) => {
               const perms = subuser.permissions ?? {
                 routes: true,
                 geofences: true,

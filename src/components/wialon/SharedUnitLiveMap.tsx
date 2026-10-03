@@ -98,9 +98,9 @@ export default function SharedUnitLiveMap({
   unitName: string;
   position: Position;
   trail: TrailPoint[];
-  units?: PublicTrackedUnit[];
-  selectedUnitId?: number;
-  onSelectUnit?: (unitId: number) => void;
+  units?: PublicTrackedUnit[] | undefined;
+  selectedUnitId?: number | undefined;
+  onSelectUnit?: ((unitId: number) => void) | undefined;
 }) {
   const [autoFollow, setAutoFollow] = React.useState(true);
 
