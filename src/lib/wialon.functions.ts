@@ -1,522 +1,1117 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
+import * as React from "react";
+import { ClientOnly, createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  wialonCall,
-  isSessionExpired,
-  type WialonHost,
-} from "@/lib/wialon.server";
+  Check,
+  Clock3,
+  ExternalLink,
+  Map,
+  Navigation,
+  Plus,
+  RotateCcw,
+  Trash2,
+  Building2,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  Lock,
+  Link2,
+  Layers,
+  Route as RouteIcon,
+} from "lucide-react";
+import { WialonGuard } from "@/components/wialon-guard";
+import { PlatformHeader } from "@/components/wialon/PlatformHeader";
+import type { DrawingPoint, MapAddressPoint, MapGeofence } from "@/components/wialon-map";
 
-const sessionSchema = z.object({
-  sid: z.string(),
-  host: z.enum(["lite", "full"]),
+const WialonMap = React.lazy(() => import("@/components/wialon-map"));
+import { shareUserRoute, getReportEmails } from "@/lib/route-share.functions";
+import {
+  getUserRoutes,
+  saveUserRoute,
+  deleteUserRoute,
+  wialonCreateRoute,
+  wialonDeleteGeofence,
+  wialonGeocodeAddresses,
+  wialonGeofences,
+  wialonPlanRoute,
+  wialonLogisticsRoutes,
+  type WialonLogisticsRoute,
+  type WialonGeocodedAddress,
+  type WialonPlannedRoutePoint,
+  type WialonPlannedRouteStop,
+  type StoredUserRoute,
+} from "@/lib/wialon.functions";
+import type { WialonSession } from "@/lib/wialon-session";
+
+export const Route = createFileRoute("/wialon/rutas")({
+  head: () => ({
+    meta: [
+      { title: "Rutas | Plataforma ORB-LITE" },
+      {
+        name: "description",
+        content: "Crea rutas lineales en Wialon con puntos del mapa o direcciones escritas.",
+      },
+      { property: "og:title", content: "Rutas | Plataforma ORB-LITE" },
+      { property: "og:description", content: "Planifica y consulta rutas de ORB-LITE y ORB-FULL." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: () => <WialonGuard>{(session) => <RutasView session={session} />}</WialonGuard>,
 });
 
-export type WialonGeofence = {
-  id: number;
-  resourceId: number;
-  name: string;
-  resource: string;
-  type: number;
-  color: string;
-  points: Array<{ lat: number; lon: number; radius: number }>;
+type RouteDraft = { points: DrawingPoint[] };
+type RouteInputMode = "addresses" | "map";
+type AddressPreviewPoint = WialonGeocodedAddress & { isOrigin: boolean };
+type PlannedRoute = {
+  points: WialonPlannedRoutePoint[];
+  distanceMeters: number;
+  durationSeconds: number;
+  stops: WialonPlannedRouteStop[];
+  returnToOrigin: boolean;
 };
 
-function normalizeUnit(item: any, userNames: Map<number, string>) {
-  return {
-    id: item.id,
-    name: item.nm ?? `Unidad ${item.id}`,
-    imei: item.uid ?? "",
-    creator: userNames.get(item.crt) ?? "",
-    position: item.pos
-      ? {
-          lat: item.pos.y,
-          lon: item.pos.x,
-          speed: item.pos.s ?? 0,
-          course: item.pos.c ?? 0,
-          time: item.pos.t ?? 0,
-        }
-      : null,
-  };
+const inputClass =
+  "mt-2 w-full rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-primary";
+
+function colorToNumber(value: string) {
+  return Number.parseInt(value.replace("#", ""), 16);
 }
 
-export const wialonPing = createServerFn({ method: "POST" })
-  .validator((input: unknown) => sessionSchema.parse(input))
-  .handler(async ({ data }) => {
-    try {
-      await wialonCall(data.host as WialonHost, "core/get_account_data", {}, data.sid);
-      return { valid: true };
-    } catch {
-      return { valid: false };
-    }
-  });
+function formatDistance(meters: number) {
+  return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+}
 
-export const wialonLogout = createServerFn({ method: "POST" })
-  .validator((input: unknown) => sessionSchema.parse(input))
-  .handler(async ({ data }) => {
-    try {
-      await wialonCall(data.host as WialonHost, "core/logout", {}, data.sid);
-    } catch {}
-    return { success: true };
-  });
+function formatDuration(seconds: number) {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remaining = minutes % 60;
+  return remaining > 0 ? `${hours} h ${remaining} min` : `${hours} h`;
+}
 
-/** Lista de unidades con su última posición, IMEI y usuario creador. */
-export const wialonUnits = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    sessionSchema
-      .extend({
-        token: z.string().optional(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data }) => {
-    let host = data.host as WialonHost;
-    let sid = data.sid;
+function stopCoordinates(stop: WialonPlannedRouteStop) {
+  return `${stop.lat},${stop.lon}`;
+}
 
-    // Si sid es un token largo (>= 40 caracteres), auto-obtener un eid fresco
-    if (sid.length >= 40) {
-      const allBases: WialonHost[] = host === "full" ? ["full", "lite"] : ["lite", "full"];
-      for (const h of allBases) {
-        try {
-          const authRes = await wialonCall<{ eid?: string }>(h, "token/login", { token: sid, fl: 1 });
-          if (authRes?.eid) {
-            sid = authRes.eid;
-            host = h;
-            break;
-          }
-        } catch {
-          try {
-            const authNoFl = await wialonCall<{ eid?: string }>(h, "token/login", { token: sid });
-            if (authNoFl?.eid) {
-              sid = authNoFl.eid;
-              host = h;
-              break;
-            }
-          } catch {}
-        }
-      }
-    }
+function buildGoogleMapsUrls(route: PlannedRoute) {
+  const origin = route.stops.find((stop) => stop.isOrigin) ?? route.stops[0];
+  const destinations = route.stops.filter((stop) => !stop.isOrigin);
+  if (!origin || destinations.length === 0) return [];
 
-    const searchSpec = (itemsType: string) => ({
-      itemsType,
-      propName: "sys_name",
-      propValueMask: "*",
-      sortType: "sys_name",
+  const sequence = route.returnToOrigin
+    ? [origin, ...destinations, origin]
+    : [origin, ...destinations];
+  const urls: string[] = [];
+  const maxWaypoints = 9;
+
+  for (let start = 0; start < sequence.length - 1;) {
+    const end = Math.min(start + maxWaypoints + 1, sequence.length - 1);
+    const params = new URLSearchParams({
+      api: "1",
+      origin: stopCoordinates(sequence[start]!),
+      destination: stopCoordinates(sequence[end]!),
+      travelmode: "driving",
     });
+    const waypoints = sequence
+      .slice(start + 1, end)
+      .map((stop) => stopCoordinates(stop))
+      .join("|");
+    if (waypoints) params.set("waypoints", waypoints);
+    urls.push(`https://www.google.com/maps/dir/?${params.toString()}`);
+    start = end;
+  }
 
-    let unitsRes: { items?: Array<Parameters<typeof normalizeUnit>[0]> } = { items: [] };
+  return urls;
+}
 
-    try {
-      unitsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
-        host,
-        "core/search_items",
+function buildGoogleMapsUrlForPoints(points: Array<{ lat: number; lon: number }>) {
+  if (points.length < 2) return null;
+  const origin = `${points[0]!.lat},${points[0]!.lon}`;
+  const dest = `${points[points.length - 1]!.lat},${points[points.length - 1]!.lon}`;
+  const intermediate = points.slice(1, -1).slice(0, 8);
+  const waypoints = intermediate.map((p) => `${p.lat},${p.lon}`).join("|");
+  const params = new URLSearchParams({
+    api: "1",
+    origin,
+    destination: dest,
+    travelmode: "driving",
+  });
+  if (waypoints) params.set("waypoints", waypoints);
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+function buildWazeUrl(stop: WialonPlannedRouteStop) {
+  const params = new URLSearchParams({
+    ll: stopCoordinates(stop),
+    navigate: "yes",
+  });
+  return `https://www.waze.com/ul?${params.toString()}`;
+}
+
+function RutasView({ session }: { session: WialonSession }) {
+  const fetchGeofences = useServerFn(wialonGeofences);
+  const createRoute = useServerFn(wialonCreateRoute);
+  const deleteRoute = useServerFn(wialonDeleteGeofence);
+  const geocodeAddresses = useServerFn(wialonGeocodeAddresses);
+  const planRoute = useServerFn(wialonPlanRoute);
+  const fetchUserRoutes = useServerFn(getUserRoutes);
+  const saveUserRouteFn = useServerFn(saveUserRoute);
+  const deleteUserRouteFn = useServerFn(deleteUserRoute);
+  const queryClient = useQueryClient();
+
+  const [name, setName] = React.useState("");
+  const ROUTE_COLOR = "#92d700";
+  const [filterResourceId, setFilterResourceId] = React.useState<number | "all">("all");
+  const [resourceId, setResourceId] = React.useState<number | null>(null);
+  const [focusedRouteId, setFocusedRouteId] = React.useState<number | null>(null);
+  const [focusedUserRouteId, setFocusedUserRouteId] = React.useState<string | null>(null);
+  const [origin, setOrigin] = React.useState("");
+  const [addresses, setAddresses] = React.useState([""]);
+  const [returnToOrigin, setReturnToOrigin] = React.useState(true);
+  const [inputMode, setInputMode] = React.useState<RouteInputMode>("addresses");
+  const [geocodedAddresses, setGeocodedAddresses] = React.useState<AddressPreviewPoint[]>([]);
+  const [plannedRoute, setPlannedRoute] = React.useState<PlannedRoute | null>(null);
+  const [drawing, setDrawing] = React.useState(false);
+  const [drawingResetKey, setDrawingResetKey] = React.useState(0);
+  const [draft, setDraft] = React.useState<RouteDraft | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [deletingId, setDeletingId] = React.useState<number | null>(null);
+  const [deletingUserRouteId, setDeletingUserRouteId] = React.useState<string | null>(null);
+  const [sharingUserRouteId, setSharingUserRouteId] = React.useState<string | null>(null);
+  const [copiedUserRouteId, setCopiedUserRouteId] = React.useState<string | null>(null);
+  const [confirmDeleteUserRouteId, setConfirmDeleteUserRouteId] = React.useState<string | null>(null);
+  const [confirmDeleteWialonRouteId, setConfirmDeleteWialonRouteId] = React.useState<number | null>(null);
+  const [syncToWialon, setSyncToWialon] = React.useState(false);
+  const [geocoding, setGeocoding] = React.useState(false);
+  const [planning, setPlanning] = React.useState(false);
+  const [message, setMessage] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const userRoutesQuery = useQuery({
+    queryKey: ["user-routes", session.userId],
+    queryFn: () =>
+      fetchUserRoutes({
+        data: { userId: session.userId, host: session.host, sid: session.sid },
+      }),
+  });
+  const userRoutes = userRoutesQuery.data?.routes ?? [];
+
+  const query = useQuery({
+    queryKey: ["wialon-geofences", session.sid],
+    queryFn: () => fetchGeofences({ data: { host: session.host, sid: session.sid } }),
+    refetchInterval: 60000,
+  });
+  const allRoutes = (query.data?.zones ?? []).filter((zone) => zone.type === 1);
+  const resources = query.data?.resources ?? [];
+
+  const logisticsQuery = useQuery({
+    queryKey: ["wialon-logistics-routes", session.sid],
+    queryFn: () => wialonLogisticsRoutes({ data: { host: session.host, sid: session.sid } }),
+    enabled: session.host === "full",
+    refetchInterval: 60000,
+    retry: false,
+  });
+  const logisticsRoutes = logisticsQuery.data?.routes ?? [];
+  const [shownLogisticsIds, setShownLogisticsIds] = React.useState<ReadonlySet<string>>(new Set());
+
+  function toggleLogisticsRoute(id: string) {
+    setShownLogisticsIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const visibleRoutes =
+    filterResourceId === "all"
+      ? allRoutes
+      : allRoutes.filter((r) => r.resourceId === filterResourceId);
+
+  const selectedResourceId =
+    resourceId ?? (filterResourceId !== "all" ? filterResourceId : (resources[0]?.id ?? null));
+
+  const userMapRoutes: MapGeofence[] = userRoutes.map((route) => ({
+    id: route.id,
+    name: route.name,
+    resource: `Mi cuenta (${session.userName || "Privada"})`,
+    type: 1,
+    color: ROUTE_COLOR,
+    points: route.points,
+    ...(route.routeStops?.length ? { markerPoints: route.routeStops } : {}),
+  }));
+
+  const mapRoutes: MapGeofence[] = visibleRoutes.map((route) => ({
+    id: route.id,
+    name: route.name,
+    resource: route.resource,
+    type: route.type,
+    color: ROUTE_COLOR,
+    points: route.points,
+  }));
+  const plannedMapRoute: MapGeofence[] = plannedRoute
+    ? [
         {
-          spec: searchSpec("avl_unit"),
-          force: 1,
-          flags: 1 + 256 + 1024,
-          from: 0,
-          to: 0,
+          id: -1,
+          name: "Ruta propuesta",
+          resource: "Planificador inteligente",
+          type: 1,
+          color: ROUTE_COLOR,
+          points: plannedRoute.points.map((point) => ({ ...point, radius: 0 })),
+          markerPoints: [],
         },
-        sid,
-      );
-    } catch (e1) {
-      try {
-        unitsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
-          host,
-          "core/search_items",
-          {
-            spec: searchSpec("avl_unit"),
-            force: 1,
-            flags: 1 + 1024,
-            from: 0,
-            to: 0,
-          },
-          sid,
-        );
-      } catch (e2) {
-        try {
-          unitsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
-            host,
-            "core/search_items",
-            {
-              spec: searchSpec("avl_unit"),
-              force: 1,
-              flags: 1,
-              from: 0,
-              to: 0,
-            },
-            sid,
-          );
-        } catch (finalErr) {
-          console.warn("[wialonUnits] Error al obtener unidades:", finalErr);
-          if (isSessionExpired(finalErr)) {
-            throw new Error(
-              "Tu sesión de Wialon ha expirado. Por favor cierra sesión y vuelve a ingresar.",
-            );
-          }
-          return { units: [], sid, host };
-        }
-      }
+      ]
+    : [];
+  const logisticsMapRoutes: MapGeofence[] = logisticsRoutes
+    .filter((route) => shownLogisticsIds.has(route.id) && route.points.length > 0)
+    .map((route, index) => ({
+      id: -(index + 10),
+      name: route.name,
+      resource: "Wialon Logistics",
+      type: 1 as const,
+      color: ROUTE_COLOR,
+      points: route.points.map((point) => ({ ...point, radius: 0 })),
+      markerPoints: route.points,
+    }));
+  const addressPoints: MapAddressPoint[] =
+    inputMode === "addresses" || plannedRoute
+      ? geocodedAddresses.map((point, index) => ({
+          lat: point.lat,
+          lon: point.lon,
+          label: point.label,
+          order: point.isOrigin ? "S" : String(index),
+          isOrigin: point.isOrigin,
+        }))
+      : [];
+
+  function clearPlan(clearDraft = true) {
+    setPlannedRoute(null);
+    setGeocodedAddresses([]);
+    if (clearDraft) setDraft(null);
+    setMessage(null);
+  }
+
+  function updateOrigin(value: string) {
+    setOrigin(value);
+    setGeocodedAddresses([]);
+    clearPlan();
+  }
+
+  function updateAddress(index: number, value: string) {
+    setAddresses((current) =>
+      current.map((address, currentIndex) => (currentIndex === index ? value : address)),
+    );
+    setGeocodedAddresses([]);
+    clearPlan();
+  }
+
+  function addAddress() {
+    setAddresses((current) => [...current, ""]);
+  }
+
+  function removeAddress(index: number) {
+    setAddresses((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    setGeocodedAddresses([]);
+    clearPlan();
+  }
+
+  function selectInputMode(mode: RouteInputMode) {
+    setInputMode(mode);
+    setError(null);
+  }
+
+  async function handleGeocodeAddresses() {
+    const stops = addresses.map((address) => address.trim()).filter(Boolean);
+    if (origin.trim().length < 3) {
+      setError("Captura el punto de salida.");
+      return;
+    }
+    if (stops.length === 0) {
+      setError("Captura al menos una dirección de destino.");
+      return;
     }
 
-    // Si no devolvió unidades directas, buscar si las unidades están asignadas en grupos
-    if (!unitsRes.items || unitsRes.items.length === 0) {
-      try {
-        const groupsRes = await wialonCall<{ items?: Array<{ id: number; nm: string; u?: number[] }> }>(
-          host,
-          "core/search_items",
-          {
-            spec: searchSpec("avl_unit_group"),
-            force: 1,
-            flags: 1 + 256,
-            from: 0,
-            to: 0,
-          },
-          sid,
-        );
-
-        const unitIds = new Set<number>();
-        for (const g of groupsRes.items ?? []) {
-          for (const uid of g.u ?? []) {
-            unitIds.add(uid);
-          }
-        }
-
-        if (unitIds.size > 0) {
-          const idList = Array.from(unitIds).join(",");
-          const byIdsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
-            host,
-            "core/search_items",
-            {
-              spec: {
-                itemsType: "avl_unit",
-                propName: "sys_id",
-                propValueMask: idList,
-                sortType: "sys_name",
-              },
-              force: 1,
-              flags: 1 + 256 + 1024,
-              from: 0,
-              to: 0,
-            },
-            sid,
-          );
-
-          if (byIdsRes.items && byIdsRes.items.length > 0) {
-            unitsRes = byIdsRes;
-          }
-        }
-      } catch (gErr) {
-        console.warn("[wialonUnits] Búsqueda en grupos omitida:", gErr);
-      }
-    }
-
-    let userNames = new Map<number, string>();
+    setGeocoding(true);
+    setError(null);
+    setMessage(null);
     try {
-      const usersRes = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
-        host,
-        "core/search_items",
-        { spec: searchSpec("user"), force: 1, flags: 1, from: 0, to: 0 },
-        sid,
+      const result = await geocodeAddresses({
+        data: { addresses: [origin.trim(), ...stops] },
+      });
+      setGeocodedAddresses(
+        (result?.locations ?? []).map((location: WialonGeocodedAddress, index: number) => ({
+          ...location,
+          isOrigin: index === 0,
+        })),
       );
-      for (const u of usersRes.items ?? []) {
-        if (u.nm) userNames.set(u.id, u.nm);
-      }
-    } catch {}
+      setMessage(`${result?.locations?.length ?? 0} puntos ubicados en el mapa.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudieron ubicar las direcciones.");
+    } finally {
+      setGeocoding(false);
+    }
+  }
 
-    return {
-      units: (unitsRes.items ?? []).map((item) => normalizeUnit(item, userNames)),
-      sid,
-      host,
-    };
+  function startDrawing() {
+    setError(null);
+    setMessage(null);
+    setPlannedRoute(null);
+    setDraft({ points: [] });
+    setDrawing(true);
+    setDrawingResetKey((value) => value + 1);
+  }
+
+  function resetDrawing() {
+    setPlannedRoute(null);
+    setGeocodedAddresses([]);
+    setDraft(null);
+    setDrawing(false);
+    setDrawingResetKey((value) => value + 1);
+  }
+
+  async function handlePlanRoute() {
+    const drawnPoints = draft?.points ?? [];
+    const isMapPlan = inputMode === "map";
+    const stops = isMapPlan
+      ? drawnPoints.slice(1).map((_, index) => `Punto ${index + 2}`)
+      : addresses.map((address) => address.trim()).filter(Boolean);
+    const planOrigin = isMapPlan ? "Punto 1" : origin.trim();
+    const mapLocations: WialonGeocodedAddress[] = isMapPlan
+      ? drawnPoints.map((point, index) => ({
+          query: `Punto ${index + 1}`,
+          label: `Punto ${index + 1}`,
+          lat: point.lat,
+          lon: point.lon,
+        }))
+      : [];
+
+    if (!isMapPlan && planOrigin.length < 3) {
+      setError("Captura el punto de salida.");
+      return;
+    }
+    if (stops.length === 0) {
+      setError(
+        isMapPlan
+          ? "Dibuja al menos dos puntos en el mapa."
+          : "Captura al menos una dirección de destino.",
+      );
+      return;
+    }
+
+    setPlanning(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const cachedLocations =
+        !isMapPlan &&
+        geocodedAddresses.length === stops.length + 1 &&
+        geocodedAddresses[0]?.query === planOrigin &&
+        geocodedAddresses.slice(1).every((location, index) => location.query === stops[index]);
+      const result = await planRoute({
+        data: {
+          origin: planOrigin,
+          addresses: stops,
+          returnToOrigin,
+          ...(isMapPlan
+            ? { locations: mapLocations }
+            : cachedLocations
+              ? { locations: geocodedAddresses }
+              : {}),
+        },
+      });
+      if (result) {
+        setPlannedRoute(result);
+        setGeocodedAddresses(
+          (result.stops ?? []).map((stop: WialonPlannedRouteStop) => ({
+            query: stop.label,
+            label: stop.label,
+            lat: stop.lat,
+            lon: stop.lon,
+            isOrigin: stop.isOrigin,
+          })),
+        );
+        setDraft({
+          points: (result.points ?? []).map((point: WialonPlannedRoutePoint) => ({
+            ...point,
+            radius: 0,
+          })),
+        });
+      }
+      setDrawing(false);
+      setDrawingResetKey((value) => value + 1);
+      if (!name.trim()) setName("Ruta optimizada");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo optimizar la ruta.");
+    } finally {
+      setPlanning(false);
+    }
+  }
+
+  const handleDraftChange = React.useCallback(
+    (
+      nextDraft: {
+        type: "circle" | "polygon" | "line";
+        points: DrawingPoint[];
+      } | null,
+    ) => {
+      if (drawing && nextDraft?.type === "line") {
+        setDraft({ points: nextDraft.points });
+      }
+    },
+    [drawing],
+  );
+
+  async function saveRoute(event: React.FormEvent) {
+    event.preventDefault();
+    if (!draft || draft.points.length < 2) {
+      setError("Dibuja al menos dos puntos o genera una ruta antes de guardar.");
+      return;
+    }
+    if (syncToWialon && !selectedResourceId) {
+      setError("Selecciona un recurso de Wialon para sincronizar la ruta.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const isMapPlan = inputMode === "map";
+      const originStr = isMapPlan ? "Punto 1 (Mapa)" : origin.trim();
+      const stopsArr = isMapPlan ? [] : addresses.map((a) => a.trim()).filter(Boolean);
+
+      const MAX_ROUTE_POINTS = 250;
+      let routePoints = draft.points;
+      if (routePoints.length > MAX_ROUTE_POINTS) {
+        const step = (routePoints.length - 1) / (MAX_ROUTE_POINTS - 1);
+        const sampled: DrawingPoint[] = [];
+        for (let i = 0; i < MAX_ROUTE_POINTS; i++) {
+          sampled.push(routePoints[Math.round(i * step)]!);
+        }
+        routePoints = sampled;
+      }
+
+      const res = await saveUserRouteFn({
+        data: {
+          userId: session.userId,
+          userName: session.userName,
+          name: name.trim(),
+          color: ROUTE_COLOR,
+          points: routePoints,
+          routeStops:
+            plannedRoute?.stops.map((stop) => ({
+              lat: stop.lat,
+              lon: stop.lon,
+              label: stop.label,
+            })) ??
+            (isMapPlan
+              ? draft.points.map((point, index) => ({
+                  lat: point.lat,
+                  lon: point.lon,
+                  label: index === 0 ? "Salida" : `Parada ${index}`,
+                }))
+              : undefined),
+          origin: originStr || undefined,
+          addresses: stopsArr.length > 0 ? stopsArr : undefined,
+          distanceMeters: plannedRoute?.distanceMeters,
+          durationSeconds: plannedRoute?.durationSeconds,
+          syncToWialon,
+          host: session.host,
+          sid: session.sid,
+          resourceId: syncToWialon && selectedResourceId ? selectedResourceId : undefined,
+        },
+      });
+
+      setMessage(
+        syncToWialon && res?.wialonId
+          ? `Ruta "${res.route?.name ?? name}" guardada en tu cuenta y sincronizada en Wialon (#${res.wialonId}).`
+          : `Ruta "${res?.route?.name ?? name}" guardada exitosamente en tu cuenta de usuario (privada).`,
+      );
+      setName("");
+      resetDrawing();
+      clearPlan();
+      await queryClient.invalidateQueries({
+        queryKey: ["user-routes", session.userId],
+      });
+      if (syncToWialon) {
+        await queryClient.invalidateQueries({
+          queryKey: ["wialon-geofences", session.sid],
+        });
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo guardar la ruta.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleRefresh() {
+    setError(null);
+    setMessage(null);
+    await Promise.all([userRoutesQuery.refetch(), query.refetch()]);
+    setMessage("Rutas sincronizadas.");
+    setTimeout(() => setMessage(null), 3000);
+  }
+
+  const [shareFormRouteId, setShareFormRouteId] = React.useState<string | null>(null);
+  const [shareEmail, setShareEmail] = React.useState("");
+  const reportEmailsQuery = useQuery({
+    queryKey: ["route-report-emails", session.userId],
+    queryFn: () => getReportEmails({ data: { userId: session.userId } }),
+    enabled: shareFormRouteId !== null,
   });
 
-export const wialonGeofences = createServerFn({ method: "POST" })
-  .validator((input: unknown) => sessionSchema.parse(input))
-  .handler(async ({ data }) => {
-    const host = data.host as WialonHost;
+  function openShareForm(route: StoredUserRoute) {
+    setShareFormRouteId((current) => (current === route.id ? null : route.id));
+    setShareEmail(route.reportEmail ?? "");
+  }
 
-    type ZoneResource = {
-      id: number;
-      nm?: string;
-      zl?: Record<
-        string,
-        {
-          id: number;
-          n?: string;
-          t?: number;
-          c?: number;
-          b?: { cen_x?: number; cen_y?: number; min_x?: number; max_x?: number };
-        }
-      >;
-    };
-
-    const specs = [
-      { itemsType: "avl_resource", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
-      {
-        itemsType: "avl_resource",
-        propName: "rel_user_creator_name",
-        propValueMask: "*",
-        sortType: "sys_name",
-        propType: "creatortree",
-      },
-      {
-        itemsType: "avl_resource",
-        propName: "rel_account_name",
-        propValueMask: "*",
-        sortType: "sys_name",
-        propType: "accounttree",
-      },
-    ];
-
-    const byId = new Map<number, ZoneResource>();
-    const results: PromiseSettledResult<{ items?: ZoneResource[] }>[] = [];
-
-    for (const spec of specs) {
+  async function handleShareUserRoute(route: StoredUserRoute) {
+    const email = shareEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Escribe el correo que recibirá el resumen del viaje.");
+      return;
+    }
+    setSharingUserRouteId(route.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await shareUserRoute({
+        data: {
+          userId: session.userId,
+          routeId: route.id,
+          reportEmail: email,
+        },
+      });
+      setShareFormRouteId(null);
+      void reportEmailsQuery.refetch();
+      void userRoutesQuery.refetch();
+      const url = `${window.location.origin}/ruta/${result.token}`;
       try {
-        const value = await wialonCall<{ items?: ZoneResource[] }>(
-          host,
-          "core/search_items",
-          { spec, force: 1, flags: 0x1 | 0x1000, from: 0, to: 0 },
-          data.sid,
+        await navigator.clipboard.writeText(url);
+        setMessage(
+          `Enlace de "${route.name}" copiado. Los operadores no necesitan iniciar sesión.`,
         );
-        results.push({ status: "fulfilled", value });
-      } catch (reason) {
-        console.error("[geocercas] search_items", spec.propType ?? "direct", reason);
-        results.push({ status: "rejected", reason });
-      }
-    }
-
-    const failedSessionError = results.find(
-      (r) => r.status === "rejected" && isSessionExpired(r.reason),
-    ) as PromiseRejectedResult | undefined;
-
-    if (failedSessionError) {
-      throw failedSessionError.reason;
-    }
-
-    for (const r of results) {
-      if (r.status !== "fulfilled") continue;
-      for (const item of r.value.items ?? []) {
-        const prev = byId.get(item.id);
-        byId.set(item.id, { ...prev, ...item, zl: { ...(prev?.zl ?? {}), ...(item.zl ?? {}) } });
-      }
-    }
-
-    if (byId.size === 0) {
-      return { zones: [] };
-    }
-
-    const resources = { items: [...byId.values()] };
-    const zones: WialonGeofence[] = [];
-
-    type ZoneData = Array<{
-      id: number;
-      n?: string;
-      t?: number;
-      c?: number;
-      p?: Array<{ x?: number; y?: number; r?: number }>;
-      b?: { cen_x?: number; cen_y?: number };
-    }>;
-
-    const loadResource = async (resource: ZoneResource, res: unknown) => {
-      try {
-        if (!Array.isArray(res)) throw new Error("sin datos");
-        for (const zone of res as ZoneData) {
-          const points = (zone.p ?? [])
-            .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
-            .map((point) => ({
-              lat: point.y as number,
-              lon: point.x as number,
-              radius: point.r ?? 0,
-            }));
-
-          if (points.length === 0 && zone.b?.cen_x != null && zone.b.cen_y != null) {
-            points.push({ lat: zone.b.cen_y, lon: zone.b.cen_x, radius: 0 });
-          }
-
-          const rawColor = zone.c ?? 0x38bdf8;
-          zones.push({
-            id: zone.id,
-            resourceId: resource.id,
-            name: zone.n ?? `Zona ${zone.id}`,
-            resource: resource.nm ?? `#${resource.id}`,
-            type: zone.t === 1 || zone.t === 2 || zone.t === 3 ? zone.t : 2,
-            color: `#${(rawColor & 0xffffff).toString(16).padStart(6, "0")}`,
-            points,
-          });
-        }
       } catch {
-        for (const zone of Object.values(resource.zl ?? {})) {
-          const rawColor = zone.c ?? 0x38bdf8;
-          const cx = zone.b?.cen_x;
-          const cy = zone.b?.cen_y;
-          const radius =
-            zone.b?.min_x != null && zone.b.max_x != null
-              ? Math.abs(zone.b.max_x - zone.b.min_x) * 55660
-              : 100;
-
-          zones.push({
-            id: zone.id,
-            resourceId: resource.id,
-            name: zone.n ?? `Zona ${zone.id}`,
-            resource: resource.nm ?? `#${resource.id}`,
-            type: zone.t === 1 || zone.t === 2 || zone.t === 3 ? zone.t : 3,
-            color: `#${(rawColor & 0xffffff).toString(16).padStart(6, "0")}`,
-            points: cx != null && cy != null ? [{ lat: cy, lon: cx, radius }] : [],
-          });
-        }
+        window.prompt("Copia el enlace de la ruta:", url);
       }
-    };
+      setCopiedUserRouteId(route.id);
+      window.setTimeout(() => setCopiedUserRouteId(null), 4000);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo generar el enlace de la ruta.");
+    } finally {
+      setSharingUserRouteId(null);
+    }
+  }
 
-    const list = resources.items;
-    for (let i = 0; i < list.length; i += 40) {
-      const chunk = list.slice(i, i + 40);
-      let answers: unknown[] = [];
-      try {
-        const r = await wialonCall<unknown[]>(
-          host,
-          "core/batch",
-          {
-            params: chunk.map((resource) => ({
-              svc: "resource/get_zone_data",
-              params: {
-                itemId: resource.id,
-                col: Object.keys(resource.zl ?? {}).map(Number),
-                flags: 0x04 | 0x08 | 0x10,
-              },
-            })),
-            flags: 0,
-          },
-          data.sid,
-        );
-        answers = Array.isArray(r) ? r : [];
-      } catch (reason) {
-        console.error("[geocercas] batch get_zone_data", reason);
-        answers = [];
-      }
-
-      for (let j = 0; j < chunk.length; j++) {
-        const answer = answers[j];
-        if (answer != null && !Array.isArray(answer)) {
-          console.error(
-            "[geocercas] get_zone_data recurso",
-            chunk[j]!.id,
-            JSON.stringify(answer).slice(0, 200),
-          );
-        }
-        await loadResource(chunk[j]!, answer);
-      }
+  async function handleDeleteUserRoute(route: StoredUserRoute) {
+    if (confirmDeleteUserRouteId !== route.id) {
+      setConfirmDeleteUserRouteId(route.id);
+      return;
     }
 
-    return {
-      zones,
-      resources: (resources.items ?? []).map((resource) => ({
-        id: resource.id,
-        name: resource.nm ?? `#${resource.id}`,
-      })),
-    };
-  });
-
-/* ==========================================================================
-   MISSING EXPORTS REQUIRED BY wialon.rutas.tsx
-   ========================================================================== */
-
-export const getUserRoutes = createServerFn({ method: "POST" })
-  .validator((input: unknown) => sessionSchema.parse(input))
-  .handler(async () => {
-    return { routes: [] };
-  });
-
-export const saveUserRoute = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    sessionSchema
-      .extend({
-        routeData: z.any().optional(),
-      })
-      .parse(input),
-  )
-  .handler(async () => {
-    return { success: true };
-  });
-
-export const deleteUserRoute = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    sessionSchema
-      .extend({
-        routeId: z.union([z.string(), z.number()]),
-      })
-      .parse(input),
-  )
-  .handler(async () => {
-    return { success: true };
-  });
-
-export const wialonCreateRoute = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    sessionSchema
-      .extend({
-        route: z.any().optional(),
-      })
-      .parse(input),
-  )
-  .handler(async () => {
-    return { success: true };
-  });
-
-export const wialonDeleteGeofence = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    sessionSchema
-      .extend({
-        resourceId: z.number(),
-        zoneId: z.number(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data }) => {
+    setDeletingUserRouteId(route.id);
+    setConfirmDeleteUserRouteId(null);
+    setError(null);
+    setMessage(null);
     try {
-      await wialonCall(
-        data.host as WialonHost,
-        "resource/update_zone",
-        {
-          itemId: data.resourceId,
-          id: data.zoneId,
-          callMode: "delete",
+      await deleteUserRouteFn({
+        data: {
+          userId: session.userId,
+          routeId: route.id,
         },
-        data.sid,
+      });
+      setMessage(`Ruta "${route.name}" eliminada de tu cuenta.`);
+      if (focusedUserRouteId === route.id) setFocusedUserRouteId(null);
+      await queryClient.invalidateQueries({
+        queryKey: ["user-routes", session.userId],
+      });
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "No se pudo eliminar la ruta de tu cuenta.",
       );
-      return { success: true };
-    } catch (err) {
-      console.error("[wialonDeleteGeofence] Error deleting zone:", err);
-      return { success: false };
+    } finally {
+      setDeletingUserRouteId(null);
     }
-  });
+  }
 
-export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    sessionSchema
-      .extend({
-        coords: z.array(z.object({ lat: z.number(), lon: z.number() })).optional(),
-      })
-      .parse(input),
-  )
-  .handler(async () => {
-    return { addresses: [] };
-  });
+  async function handleDeleteWialonRoute(route: { id: number; resourceId: number; name: string }) {
+    if (confirmDeleteWialonRouteId !== route.id) {
+      setConfirmDeleteWialonRouteId(route.id);
+      return;
+    }
 
-export const wialonPlanRoute = createServerFn({ method: "POST" })
-  .validator((input: unknown) =>
-    sessionSchema
-      .extend({
-        points: z.array(z.any()).optional(),
-      })
-      .parse(input),
-  )
-  .handler(async () => {
-    return { success: true, points: [] };
-  });
+    setDeletingId(route.id);
+    setConfirmDeleteWialonRouteId(null);
+    setError(null);
+    setMessage(null);
+    try {
+      await deleteRoute({
+        data: {
+          host: session.host,
+          sid: session.sid,
+          resourceId: route.resourceId,
+          zoneId: route.id,
+        },
+      });
+      setMessage(`Ruta "${route.name}" eliminada de Wialon.`);
+      if (focusedRouteId === route.id) setFocusedRouteId(null);
+      await queryClient.invalidateQueries({
+        queryKey: ["wialon-geofences", session.sid],
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo eliminar la ruta de Wialon.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
-export const wialonLogisticsRoutes = createServerFn({ method: "POST" })
-  .validator((input: unknown) => sessionSchema.parse(input))
-  .handler(async () => {
-    return { routes: [] };
-  });
+  return (
+    <div className="space-y-6">
+      <PlatformHeader session={session} />
+
+      {/* Barra de control superior */}
+      <div className="flex flex-col gap-4 rounded-xl border border-border/70 bg-card/60 p-4 backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Building2 className="size-5" />
+          </div>
+          <div>
+            <h2 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+              Rutas por Cliente / Recurso
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {resources.length} recurso{resources.length !== 1 ? "s" : ""} disponible
+              {resources.length !== 1 ? "s" : ""} en Wialon
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="route-client-filter" className="sr-only">
+            Filtrar por cliente o recurso
+          </label>
+          <select
+            id="route-client-filter"
+            className="rounded-lg border border-input bg-background px-3 py-2 text-xs font-semibold text-foreground outline-none focus:border-primary sm:text-sm"
+            value={filterResourceId}
+            onChange={(e) => {
+              const val = e.target.value;
+              setFilterResourceId(val === "all" ? "all" : Number(val));
+              setFocusedRouteId(null);
+            }}
+          >
+            <option value="all">🌐 Todos los clientes ({allRoutes.length} rutas)</option>
+            {resources.map((res) => {
+              const count = allRoutes.filter((r) => r.resourceId === res.id).length;
+              return (
+                <option key={res.id} value={res.id}>
+                  👤 {res.name} ({count} ruta{count !== 1 ? "s" : ""})
+                </option>
+              );
+            })}
+          </select>
+
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={query.isFetching}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
+            title="Sincronizar y recargar rutas desde Wialon"
+          >
+            <RefreshCw
+              className={`size-3.5 ${query.isFetching ? "animate-spin text-primary" : ""}`}
+            />
+            <span>{query.isFetching ? "Cargando…" : "Sincronizar"}</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.85fr)] xl:grid-cols-[minmax(0,1.45fr)_minmax(420px,0.8fr)]">
+        {/* Mapa */}
+        <div className="overflow-hidden rounded-xl border border-border/60 bg-card/40 shadow-sm">
+          <div className="flex items-center justify-between border-b border-border/50 bg-background/50 px-4 py-2 text-xs text-muted-foreground">
+            <span>
+              Mostrando {userMapRoutes.length + mapRoutes.length} ruta
+              {userMapRoutes.length + mapRoutes.length !== 1 ? "s" : ""} en el mapa
+              {userMapRoutes.length > 0 ? ` (${userMapRoutes.length} en tu cuenta)` : ""}
+            </span>
+            {focusedRouteId || focusedUserRouteId ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setFocusedRouteId(null);
+                  setFocusedUserRouteId(null);
+                }}
+                className="text-primary hover:underline"
+              >
+                Restablecer vista general
+              </button>
+            ) : null}
+          </div>
+          <ClientOnly
+            fallback={<div className="h-[560px] rounded-lg border border-border/60 bg-card/40" />}
+          >
+            <React.Suspense
+              fallback={<div className="h-[560px] rounded-lg border border-border/60 bg-card/40" />}
+            >
+              <WialonMap
+                units={[]}
+                geofences={[
+                  ...userMapRoutes,
+                  ...mapRoutes,
+                  ...plannedMapRoute,
+                  ...logisticsMapRoutes,
+                ]}
+                focusGeofenceId={focusedUserRouteId ?? focusedRouteId}
+                addressPoints={addressPoints}
+                drawMode={drawing ? "line" : null}
+                drawingResetKey={drawingResetKey}
+                onDraftChange={handleDraftChange}
+              />
+            </React.Suspense>
+          </ClientOnly>
+        </div>
+
+        {/* Formulario de creación */}
+        <form onSubmit={saveRoute} className="min-w-0 rounded-lg border border-border/60 p-5">
+          <div className="rounded-lg border border-border/60 bg-card/40 p-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Método de creación
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => selectInputMode("addresses")}
+                className={`rounded-md border px-3 py-2 text-sm font-semibold ${
+                  inputMode === "addresses"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                }`}
+              >
+                Direcciones escritas
+              </button>
+              <button
+                type="button"
+                onClick={() => selectInputMode("map")}
+                className={`rounded-md border px-3 py-2 text-sm font-semibold ${
+                  inputMode === "map"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+                }`}
+              >
+                Puntos en mapa
+              </button>
+            </div>
+          </div>
+
+          {inputMode === "addresses" ? (
+            <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+              <div className="flex items-start gap-3">
+                <Navigation className="mt-0.5 size-5 shrink-0 text-primary" />
+                <div>
+                  <h2 className="font-display text-sm font-bold uppercase tracking-widest">
+                    Planificador inteligente
+                  </h2>
+                </div>
+              </div>
+
+              <label className="mt-4 block text-sm">
+                Punto de salida
+                <input
+                  value={origin}
+                  onChange={(event) => updateOrigin(event.target.value)}
+                  className={inputClass}
+                  placeholder="Ej. Av. Vallarta 1000, Guadalajara o coordenadas (20.67, -103.34)"
+                  required
+                />
+              </label>
+
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm">Direcciones de destino</span>
+                  <button
+                    type="button"
+                    onClick={addAddress}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                  >
+                    <Plus className="size-3.5" /> Agregar
+                  </button>
+                </div>
+                {addresses.map((address, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="w-5 shrink-0 text-center text-xs text-muted-foreground">
+                      {index + 1}
+                    </span>
+                    <input
+                      value={address}
+                      onChange={(event) => updateAddress(index, event.target.value)}
+                      className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                      placeholder={`Dirección ${index + 1}, lugar o link Google Maps`}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeAddress(index)}
+                      disabled={addresses.length === 1}
+                      className="rounded-md p-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
+                      aria-label={`Eliminar dirección ${index + 1}`}
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => void handleGeocodeAddresses()}
+                  disabled={geocoding}
+                  className="w-full rounded-md border border-primary px-4 py-3 text-sm font-semibold text-primary hover:bg-primary/10 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {geocoding ? "Ubicando puntos..." : "Ubicar puntos en el mapa"}
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-3">
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={returnToOrigin}
+                    onChange={(e) => setReturnToOrigin(e.target.checked)}
+                    className="rounded border-input text-primary focus:ring-primary"
+                  />
+                  Regresar al punto de origen al finalizar la ruta
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => void handlePlanRoute()}
+                  disabled={planning}
+                  className="w-full rounded-md bg-primary px-4 py-3 text-sm font-bold text-primary-foreground hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60"
+                >
+                  {planning ? "Optimizando..." : "Optimizar y calcular ruta por calles"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+              <div className="flex items-start gap-3">
+                <Map className="mt-0.5 size-5 shrink-0 text-primary" />
+                <div>
+                  <h2 className="font-display text-sm font-bold uppercase tracking-widest">
+                    Trazar en el mapa
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Haz clic en el mapa para ir marcando los puntos en secuencia.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {!drawing ? (
+                  <button
+                    type="button"
+                    onClick={startDrawing}
+                    className="w-full rounded-md bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    Comenzar a dibujar en el mapa
+                  </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={resetDrawing}
+                      className="flex-1 rounded-md border border-destructive px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10"
+                    >
+                      Cancelar trazado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handlePlanRoute()}
+                      disabled={planning || !draft || draft.points.length < 2}
+                      className="flex-1 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {planning ? "Ajustando..." : "Ajustar a calles"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Configuración y Guardado */}
+          <div className="mt-6 space-y-4 rounded-lg border border-border/60 bg-card/20 p-4">
+            <label className="block text-sm">
+              Nombre de la ruta
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ej. Ruta Reparto Centro Morning"
+                className={inputClass}
+                required
+              />
+            </label>
+
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={syncToWialon}
+                onChange={(e) => setSyncToWialon(e.target.checked)}
+                className="rounded border-input text-primary focus:ring-primary"
+              />
+              Sincronizar también esta ruta en la plataforma Wialon
+            </label>
+
+            {syncToWialon && (
+              <label className="block text-xs">
+                Recurso Wialon de destino
+                <select
+                  value={selectedResourceId ?? ""}
+                  onChange={(e) => setResourceId(Number(e.target.value))}
+                  className={inputClass}
+                  required
+                >
+                  <option value="" disabled>
+                    Selecciona un recurso
+                  </option>
+                  {resources.map((res) => (
+                    <option key={res.id} value={res.id}>
+                      {res.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            {error && <p className="text-xs font-semibold text-destructive">{error}</p>}
+            {message && <p className="text-xs font-semibold text-emerald-500">{message}</p>}
+
+            <button
+              type="submit"
+              disabled={busy || !draft || draft.points.length < 2}
+              className="w-full rounded-md bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {busy ? "Guardando..." : "Guardar Ruta"}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Listado de rutas guardadas */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        {/* Mis Rutas Privadas */}
+        <div className="rounded-xl border border-border/70 bg-card/60 p-4">
+          <h3 className="flex items-center gap-2 font-display text-sm font-bold text-foreground">
+            <Lock className="size-4 text-primary" /> Rutas Privadas de Tu Cuenta ({userRoutes.length})
+          </h3>
+          <div className="mt-4 space-y-3">
+            {userRoutes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No has guardado rutas en tu cuenta.</p>
+            ) : (
+              userRoutes.map((route) => (
+                <div
+                  key={route.id}
+                  className="flex items-center justify-between rounded-lg border border-border/50 bg-background/40 p-3"
+                >
+                  <div>
+                    <p className="text-sm font-semibold">{route.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {route.distanceMeters ? formatDistance(route.distanceMeters) : "---"} •{" "}
+                      {route.durationSeconds ? formatDuration(route.durationSeconds) : "---"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFocusedUserRouteId((curr) => (curr === route.id ? null : route.id))
+                      }
+                      className="rounded p-1.5 hover:bg-accent"
+                      title="Ver en mapa"
+                    >
+                      {focusedUserRouteId === route.id ? (
+                        <EyeOff className="size-4 text-primary" />
+                      ) : (
+                        <Eye className="size-4 text-muted-foreground" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openShareForm(route)}
+                      className="rounded p-1.5 hover:bg-accent"
+                      title="Compartir"
+                    >
+                      <Link2 className="size-4 text-muted-foreground" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteUserRoute(route)}
+                      className="rounded p-1.5 hover:bg-destructive/10 text-destructive"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Rutas de Wialon */}
+        <div className="rounded-xl border border-border/70 bg-card/60 p-4">
+          <h3 className="flex items-center gap-2 font-display text-sm font-bold text-foreground">
+            <Layers className="size-4 text-primary" /> Rutas Sincronizadas en Wialon ({visibleRoutes.length})
+          </h3>
+          <div className="mt-4 space-y-3">
+            {visibleRoutes.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No hay rutas guardadas en Wialon.</p>
+            ) : (
+              visibleRoutes.map((route) => (
+                <div
+                  key={route.id}
+                  className="flex items-center justify-between rounded-lg border border-border/50 bg-background/40 p-3"
+                >
+                  <div>
+                    <p className="text-sm font-semibold">{route.name}</p>
+                    <p className="text-xs text-muted-foreground">{route.resource}</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFocusedRouteId((curr) => (curr === route.id ? null : route.id))
+                      }
+                      className="rounded p-1.5 hover:bg-accent"
+                      title="Ver en mapa"
+                    >
+                      {focusedRouteId === route.id ? (
+                        <EyeOff className="size-4 text-primary" />
+                      ) : (
+                        <Eye className="size-4 text-muted-foreground" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteWialonRoute(route)}
+                      className="rounded p-1.5 hover:bg-destructive/10 text-destructive"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
