@@ -58,7 +58,7 @@ function readParams(): {
       ? rawError
       : null;
 
-  const token =
+  const rawToken =
     hash.get("access_token") ??
     search.get("access_token") ??
     hash.get("token") ??
@@ -77,13 +77,15 @@ function readParams(): {
   const storedHost =
     window.sessionStorage.getItem("orblite.wialon.oauth-host") ||
     window.localStorage.getItem("orblite.wialon.oauth-host");
-  
+
   const host: "lite" | "full" =
     urlHost === "full" || storedHost === "full" ? "full" : "lite";
 
   const wialonError = errorCode
     ? WIALON_ERRORS[errorCode] || `Error de la plataforma Wialon (Código ${errorCode})`
     : null;
+
+  const token = rawToken ? decodeURIComponent(rawToken).trim() : null;
 
   return { token, host, wialonError, userName };
 }
@@ -92,10 +94,19 @@ function WialonCallbackPage() {
   const login = useServerFn(wialonLogin);
   const syncUser = useServerFn(syncWialonPlatformUser);
   const navigate = useNavigate();
+
+  const [mounted, setMounted] = React.useState(false);
   const [status, setStatus] = React.useState<"loading" | "error">("loading");
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
+  // Evitar error de hidratación #418 esperando al montaje en cliente
   React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!mounted) return;
+
     let cancelled = false;
 
     async function run() {
@@ -114,11 +125,11 @@ function WialonCallbackPage() {
       }
 
       try {
-        // Autenticación realizada 100% mediante Server Function para evitar bloqueos CORS
-        const res = await login({ data: { host, token } });
+        const res = (await login({ data: { host, token } })) as any;
 
-        if (!res?.sid) {
-          throw new Error("No se obtuvo un EID/SID de sesión válido de Wialon.");
+        if (!res || !res.sid) {
+          const detail = res?.error ? `: ${res.error}` : "";
+          throw new Error(`No se obtuvo un EID/SID de sesión válido de Wialon${detail}`);
         }
 
         const effectiveSid = res.sid;
@@ -126,7 +137,7 @@ function WialonCallbackPage() {
         const effectiveUserId = res.userId || 0;
         const effectiveUserName = userName || res.userName || "Usuario";
 
-        // Sincronización de perfil
+        // Sincronización de perfil de usuario
         let profile: PlatformUserProfile | null = null;
         try {
           profile = (await syncUser({
@@ -138,7 +149,7 @@ function WialonCallbackPage() {
             },
           })) as PlatformUserProfile | null;
         } catch (syncErr) {
-          console.warn("[Wialon Callback] Error al sincronizar datos de usuario:", syncErr);
+          console.warn("[Wialon Callback] Error al sincronizar usuario:", syncErr);
         }
 
         const session: WialonSession = {
@@ -168,7 +179,18 @@ function WialonCallbackPage() {
     return () => {
       cancelled = true;
     };
-  }, [login, syncUser, navigate]);
+  }, [mounted, login, syncUser, navigate]);
+
+  // Si no ha cargado el cliente, renderizamos un loader neutro
+  if (!mounted) {
+    return (
+      <div className="flex min-h-[65vh] flex-col items-center justify-center p-6 text-center">
+        <div className="mx-auto max-w-md rounded-2xl border border-border/80 bg-card p-8 shadow-xl">
+          <div className="mx-auto size-12 animate-spin rounded-full border-3 border-primary border-t-transparent" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[65vh] flex-col items-center justify-center p-6 text-center">
