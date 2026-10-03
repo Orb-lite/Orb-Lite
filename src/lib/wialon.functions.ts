@@ -200,7 +200,7 @@ function getWialonBaseUrl(host: string): string {
   if (host === "full") {
     return process.env.WIALON_FULL_HOST || "https://hst-api.wialon.com";
   }
-  return process.env.WIALON_LITE_HOST || "https://local.orb-lite.com";
+  return process.env.WIALON_LITE_HOST || "https://hst-api.wialon.us";
 }
 
 async function callWialonApi<T = Record<string, unknown>>(
