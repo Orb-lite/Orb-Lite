@@ -8,13 +8,19 @@ import {
   type WialonHost,
 } from "@/lib/wialon.server";
 
-const hostSchema = z.enum(["lite", "full"]);
+// ==========================================
+// ESQUEMAS Y TIPOS DE DATOS
+// ==========================================
 
-const sessionSchema = z.object({
+export const hostSchema = z.enum(["lite", "full"]);
+
+export const sessionSchema = z.object({
   host: hostSchema,
   sid: z.string().min(1),
   token: z.string().optional(),
 });
+
+export type WialonSessionInput = z.infer<typeof sessionSchema>;
 
 export type WialonUnit = {
   id: number;
@@ -51,7 +57,7 @@ export type WialonGeofence = {
   resourceId: number;
   resource: string;
   name: string;
-  type: 1 | 2 | 3;
+  type: 1 | 2 | 3; // 1: Polígono, 2: Línea, 3: Círculo
   color: string;
   points: WialonGeofencePoint[];
 };
@@ -69,8 +75,51 @@ export type WialonSensor = {
   value: string;
 };
 
-const ONLINE_WINDOW = 10 * 60;
+export type WialonCommand = {
+  id: number;
+  name: string;
+  type: string;
+  link: string;
+};
+
+export type WialonVideoCamera = {
+  index: number;
+  name: string;
+  active: boolean;
+  recording: boolean;
+  flags: number;
+};
+
+export type WialonVideoUnit = {
+  id: number;
+  name: string;
+  cameraCount: number;
+  brand: string | null;
+};
+
+export type WialonAccessLevel = "consulta" | "completo";
+
+export type WialonUnitDetailResponse = {
+  unit: WialonUnit;
+  uniqueId: string | null;
+  phone: string | null;
+  hwTypeId: number | null;
+  sensors: WialonSensor[];
+  commands: WialonCommand[];
+  params: Array<{ key: string; value: string }>;
+};
+
+// ==========================================
+// CONSTANTES Y HELPERS AUXILIARES
+// ==========================================
+
+const ONLINE_WINDOW = 10 * 60; // 10 minutos
 const MAX_HISTORY_MESSAGES = 3000;
+
+const ACCESS_MASKS = {
+  consulta: 0x1 | 0x20,
+  completo: 0x1 | 0x2 | 0x4 | 0x20 | 0x40 | 0x100 | 0x200 | 0x400,
+} as const;
 
 function normalizeUnit(
   item: {
@@ -101,6 +150,35 @@ function normalizeUnit(
     creatorName: creatorId != null ? (userNames?.get(creatorId) ?? null) : null,
   };
 }
+
+function detectCameraBrand(...texts: Array<string | undefined | null>): string | null {
+  const haystack = texts.filter(Boolean).join(" ").toLowerCase();
+  if (!haystack) return null;
+  const brands: Array<[RegExp, string]> = [
+    [/cmsv6|cmsv7|icarvisions|icar vision/, "CMSV6 (iCarVisions)"],
+    [/streamax/, "Streamax"],
+    [/howen/, "Howen"],
+    [/jimi|concox|jimiilab/, "Jimi/Concox"],
+    [/queclink/, "Queclink"],
+    [/teltonika/, "Teltonika"],
+    [/ruptela/, "Ruptela"],
+    [/fifotrack/, "Fifotrack"],
+    [/topflytech|topfly/, "Topflytech"],
+    [/meitrack/, "Meitrack"],
+    [/hikvision/, "Hikvision"],
+    [/dahua/, "Dahua"],
+    [/mdvr|mobile dvr/, "MDVR genérico"],
+    [/adas|dms/, "Cámara ADAS/DMS"],
+  ];
+  for (const [pattern, brand] of brands) {
+    if (pattern.test(haystack)) return brand;
+  }
+  return null;
+}
+
+// ==========================================
+// FUNCIONES DEL SERVIDOR (SERVER FUNCTIONS)
+// ==========================================
 
 /** Inicia sesión en Wialon con usuario y contraseña directos. */
 export const wialonLoginWithCredentials = createServerFn({ method: "POST" })
@@ -287,31 +365,7 @@ export const wialonUnits = createServerFn({ method: "POST" })
     };
   });
 
-function detectCameraBrand(...texts: Array<string | undefined | null>): string | null {
-  const haystack = texts.filter(Boolean).join(" ").toLowerCase();
-  if (!haystack) return null;
-  const brands: Array<[RegExp, string]> = [
-    [/cmsv6|cmsv7|icarvisions|icar vision/, "CMSV6 (iCarVisions)"],
-    [/streamax/, "Streamax"],
-    [/howen/, "Howen"],
-    [/jimi|concox|jimiilab/, "Jimi/Concox"],
-    [/queclink/, "Queclink"],
-    [/teltonika/, "Teltonika"],
-    [/ruptela/, "Ruptela"],
-    [/fifotrack/, "Fifotrack"],
-    [/topflytech|topfly/, "Topflytech"],
-    [/meitrack/, "Meitrack"],
-    [/hikvision/, "Hikvision"],
-    [/dahua/, "Dahua"],
-    [/mdvr|mobile dvr/, "MDVR genérico"],
-    [/adas|dms/, "Cámara ADAS/DMS"],
-  ];
-  for (const [pattern, brand] of brands) {
-    if (pattern.test(haystack)) return brand;
-  }
-  return null;
-}
-
+/** Obtiene configuración de cámaras de una unidad específica. */
 export const wialonVideoSettings = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
@@ -322,13 +376,7 @@ export const wialonVideoSettings = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
-    let cameras: Array<{
-      index: number;
-      name: string;
-      active: boolean;
-      recording: boolean;
-      flags: number;
-    }> = [];
+    let cameras: WialonVideoCamera[] = [];
 
     try {
       const { data: result } = await wialonCallWithAutoRenew<{
@@ -352,6 +400,7 @@ export const wialonVideoSettings = createServerFn({ method: "POST" })
     return { cameras };
   });
 
+/** Obtiene el inventario global de unidades con video y marca/hardware de cámara. */
 export const wialonVideoUnits = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
@@ -376,8 +425,8 @@ export const wialonVideoUnits = createServerFn({ method: "POST" })
       },
     ];
 
-    const [hwRes] = await Promise.all([
-      wialonCall<{ items?: Array<{ id?: number; nm?: string }> }>(
+    try {
+      const hwRes = await wialonCall<{ items?: Array<{ id?: number; nm?: string }> }>(
         host,
         "core/search_items",
         {
@@ -388,45 +437,39 @@ export const wialonVideoUnits = createServerFn({ method: "POST" })
           to: 0,
         },
         data.sid,
-      ).catch((err) => {
-        console.error("[video] search avl_hw error:", err);
-        return { items: [] };
-      }),
-    ]);
-
-    for (const hw of hwRes.items ?? []) {
-      if (hw.id != null && hw.nm) hwNames.set(hw.id, hw.nm);
+      );
+      for (const hw of hwRes.items ?? []) {
+        if (hw.id != null && hw.nm) hwNames.set(hw.id, hw.nm);
+      }
+    } catch (reason) {
+      console.error("[video] search avl_hw error:", reason);
     }
 
-    const searchResults = await Promise.all(
-      specs.map((spec) =>
-        wialonCall<{ items?: Array<{ id?: number; nm?: string; hw?: number }> }>(
+    const byId = new Map<number, { id: number; nm?: string; hw?: number }>();
+    for (const spec of specs) {
+      try {
+        const res = await wialonCall<{ items?: Array<{ id?: number; nm?: string; hw?: number }> }>(
           host,
           "core/search_items",
           { spec, force: 1, flags: 1 | 0x2000, from: 0, to: 0 },
           data.sid,
-        ).catch((reason) => {
-          console.error("[video] search_items error:", reason);
-          return { items: [] };
-        }),
-      ),
-    );
-
-    const byId = new Map<number, { id: number; nm?: string; hw?: number }>();
-    for (const res of searchResults) {
-      for (const item of res.items ?? []) {
-        if (item.id != null) {
-          byId.set(item.id, {
-            id: item.id,
-            ...(item.nm != null ? { nm: item.nm } : {}),
-            ...(item.hw != null ? { hw: item.hw } : {}),
-          });
+        );
+        for (const item of res.items ?? []) {
+          if (item.id != null) {
+            byId.set(item.id, {
+              id: item.id,
+              ...(item.nm != null ? { nm: item.nm } : {}),
+              ...(item.hw != null ? { hw: item.hw } : {}),
+            });
+          }
         }
+      } catch (reason) {
+        console.error("[video] search_items error:", reason);
       }
     }
 
     const items = [...byId.values()];
-    const units: Array<{ id: number; name: string; cameraCount: number; brand: string | null }> = [];
+    const units: WialonVideoUnit[] = [];
 
     for (let i = 0; i < items.length; i += 40) {
       const chunk = items.slice(i, i + 40);
@@ -473,6 +516,7 @@ export const wialonVideoUnits = createServerFn({ method: "POST" })
     return { units };
   });
 
+/** Carga el historial de recorridos y mensajes de la unidad. */
 export const wialonHistory = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
@@ -529,7 +573,7 @@ export const wialonHistory = createServerFn({ method: "POST" })
     try {
       await wialonCall(host, "messages/unload", {}, data.sid);
     } catch {
-      // sin sesión de mensajes activa
+      // Sin sesión activa de mensajes
     }
 
     const withPos = messages.filter((m) => m.lat != null && m.lon != null);
@@ -543,6 +587,7 @@ export const wialonHistory = createServerFn({ method: "POST" })
     };
   });
 
+/** Obtiene datos agregados del CMS (recursos, usuarios y unidades). */
 export const wialonCmsOverview = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
@@ -583,6 +628,7 @@ export const wialonCmsOverview = createServerFn({ method: "POST" })
     return { resources, users, units };
   });
 
+/** Consulta catálogo de tipos de hardware soportados por Wialon. */
 export const wialonHwTypes = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema.extend({ search: z.string().trim().optional() }).parse(input),
@@ -606,6 +652,7 @@ export const wialonHwTypes = createServerFn({ method: "POST" })
     return { types: list.slice(0, 400) };
   });
 
+/** Crea una nueva unidad dentro de Wialon. */
 export const wialonCreateUnit = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
@@ -654,6 +701,7 @@ export const wialonCreateUnit = createServerFn({ method: "POST" })
     return { id, name: created.item?.nm ?? data.name };
   });
 
+/** Crea un nuevo usuario en la plataforma. */
 export const wialonCreateUser = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
@@ -681,13 +729,7 @@ export const wialonCreateUser = createServerFn({ method: "POST" })
     return { id, name: created.item?.nm ?? data.name };
   });
 
-const ACCESS_MASKS = {
-  consulta: 0x1 | 0x20,
-  completo: 0x1 | 0x2 | 0x4 | 0x20 | 0x40 | 0x100 | 0x200 | 0x400,
-} as const;
-
-export type WialonAccessLevel = keyof typeof ACCESS_MASKS;
-
+/** Consulta los permisos y límites configurados de un usuario/cuenta. */
 export const wialonPermissions = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema.extend({ userId: z.number().int() }).parse(input),
@@ -782,6 +824,7 @@ export const wialonPermissions = createServerFn({ method: "POST" })
     };
   });
 
+/** Otorga permisos en masa sobre unidades a un usuario objetivo. */
 export const wialonGrantUnits = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
@@ -821,13 +864,14 @@ export const wialonGrantUnits = createServerFn({ method: "POST" })
           );
           grantedCount++;
         } catch (singleErr) {
-          console.error(`[wialonGrantUnits] Error en unidad ${unitId}:`, singleErr);
+          console.error(`[wialonGrantUnits] Error al asignar unidad ${unitId}:`, singleErr);
         }
       }
       return { granted: grantedCount };
     }
   });
 
+/** Verifica si la sesión actual con Wialon sigue activa. */
 export const wialonPing = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
@@ -856,11 +900,12 @@ export const wialonPing = createServerFn({ method: "POST" })
     }
   });
 
+/** Trae detalle extendido de una unidad (sensores, comandos, parámetros). */
 export const wialonUnitDetail = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<WialonUnitDetailResponse> => {
     const host = data.host as WialonHost;
 
     const res = await wialonCall<{
@@ -898,7 +943,7 @@ export const wialonUnitDetail = createServerFn({ method: "POST" })
       };
     });
 
-    const commands = Object.values(item.cmds ?? {}).map((c) => ({
+    const commands: WialonCommand[] = Object.values(item.cmds ?? {}).map((c) => ({
       id: c.id,
       name: c.n ?? `Comando ${c.id}`,
       type: c.c ?? "",
@@ -919,6 +964,7 @@ export const wialonUnitDetail = createServerFn({ method: "POST" })
     };
   });
 
+/** Envía un comando a un dispositivo GPS. */
 export const wialonSendCommand = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     sessionSchema
@@ -947,6 +993,7 @@ export const wialonSendCommand = createServerFn({ method: "POST" })
     return { sent: true as const };
   });
 
+/** Obtiene la lista de geocercas y sus recursos asociados. */
 export const wialonGeofences = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
