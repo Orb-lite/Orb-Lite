@@ -156,3 +156,107 @@ export async function wialonCall<T = unknown>(
 
   return json as T;
 }
+
+
+/**
+ * Inicia sesión directamente en Wialon mediante token/login.
+ * Busca a través de los centros de datos (hst-api.wialon.us y hst-api.wialon.com)
+ * para canjear un token OAuth por un Session ID (eid) activo.
+ */
+export async function wialonLoginWithToken(
+  preferredHost: WialonHost,
+  token: string,
+): Promise<{ sid: string; host: WialonHost; userId: number; userName: string }> {
+  const hosts: WialonHost[] = preferredHost === "full" ? ["full", "lite"] : ["lite", "full"];
+  let lastError: unknown = null;
+
+  for (const h of hosts) {
+    try {
+      const url = new URL(`${BASES[h]}/wialon/ajax.html`);
+      url.searchParams.set("svc", "token/login");
+      const res = await fetch(url.toString(), {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          params: JSON.stringify({ token: token.trim(), fl: 1 }),
+        }).toString(),
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+
+      if (!res.ok) continue;
+      const data = (await res.json()) as any;
+      if (data && typeof data === "object") {
+        if (data.eid) {
+          logDebug(`[wialonLoginWithToken] Login exitoso en ${h}, eid=${data.eid.slice(0, 10)}...`);
+          return {
+            sid: data.eid,
+            host: h,
+            userId: data.user?.id ?? 0,
+            userName: data.user?.nm ?? "Usuario",
+          };
+        }
+        if (data.error) {
+          lastError = new WialonError(Number(data.error), data.reason);
+        }
+      }
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("No se pudo iniciar sesión con el token de Wialon.");
+}
+
+/**
+ * Middleware de ejecución resiliente:
+ * - Detecta si el SID actual expiró (error 1) o es inválido (error 4).
+ * - Si se proporciona el token de Wialon, ejecuta un token/login automático y transparente.
+ * - Reintenta la operación con el nuevo SID sin requerir intervención del usuario.
+ * - Devuelve { data, refreshedSid } para que el frontend actualice su sesión sin parpadeos.
+ */
+export async function wialonCallWithAutoRenew<T = unknown>(
+  host: WialonHost,
+  svc: string,
+  params: unknown,
+  sid: string,
+  token?: string,
+): Promise<{ data: T; refreshedSid?: string }> {
+  let activeSid = sid;
+  let refreshedSid: string | undefined = undefined;
+
+  // Si sid es en realidad un token de 72 caracteres o sid no parece un eid
+  if (activeSid && activeSid.length >= 60 && token) {
+    try {
+      const loginRes = await wialonLoginWithToken(host, token);
+      if (loginRes?.sid) {
+        activeSid = loginRes.sid;
+        refreshedSid = loginRes.sid;
+      }
+    } catch (e) {
+      logDebug(`[wialonAutoRenew] Error en pre-login con token: ${e}`);
+    }
+  }
+
+  try {
+    const result = await wialonCall<T>(host, svc, params, activeSid);
+    return { data: result, refreshedSid };
+  } catch (err: unknown) {
+    // Si la sesión expiró (error 1) o falló por credenciales (error 4) y tenemos el token:
+    if (err instanceof WialonError && (err.code === 1 || err.code === 4) && token) {
+      logDebug(`[wialonAutoRenew] Sesión Wialon expirada (código ${err.code}). Intentando autorefresh transparente con token...`);
+      try {
+        const loginRes = await wialonLoginWithToken(host, token);
+        if (loginRes?.sid) {
+          activeSid = loginRes.sid;
+          refreshedSid = loginRes.sid;
+          logDebug(`[wialonAutoRenew] Sesión renovada con éxito (${activeSid.slice(0, 10)}...). Reintentando llamada ${svc}...`);
+          const retriedResult = await wialonCall<T>(host, svc, params, activeSid);
+          return { data: retriedResult, refreshedSid };
+        }
+      } catch (renewErr) {
+        logDebug(`[wialonAutoRenew] Falló la renovación automática de sesión: ${renewErr}`);
+      }
+    }
+    throw err;
+  }
+}

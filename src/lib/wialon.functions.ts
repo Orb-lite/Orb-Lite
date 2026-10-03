@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import {
   wialonCall,
+  wialonCallWithAutoRenew,
   isSessionExpired,
   WialonError,
   WIALON_HOSTS,
@@ -10,7 +11,7 @@ import {
 import { smartGeocode } from "@/lib/geocoding";
 
 const hostSchema = z.enum(["lite", "full"]);
-const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1) });
+const sessionSchema = z.object({ host: hostSchema, sid: z.string().min(1), token: z.string().optional() });
 
 export type WialonUnit = {
   id: number;
@@ -233,7 +234,7 @@ export const wialonLogout = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Lista de unidades con su última posición, IMEI y usuario creador. */
+/** Lista de unidades con su última posición, IMEI y usuario creador con autorefresh de sesión. */
 export const wialonUnits = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
@@ -245,31 +246,93 @@ export const wialonUnits = createServerFn({ method: "POST" })
       sortType: "sys_name",
     });
 
-    // 1 = base, 4 = facturación (creador), 256 = propiedades avanzadas (IMEI), 1024 = posición
-    const [unitsRes, usersRes] = await Promise.all([
-      wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
-        host,
-        "core/search_items",
-        {
-          spec: searchSpec("avl_unit"),
-          force: 1,
-          flags: 1 + 4 + 256 + 1024,
-          from: 0,
-          to: 0,
-        },
-        data.sid,
-      ),
-      // Si la cuenta no puede listar usuarios, solo se omite el nombre del creador.
-      wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
-        host,
-        "core/search_items",
-        { spec: searchSpec("user"), force: 1, flags: 1, from: 0, to: 0 },
-        data.sid,
-      ).catch((error) => {
-        if (isSessionExpired(error)) throw error;
-        return { items: [] as Array<{ id: number; nm?: string }> };
-      }),
-    ]);
+    // Banderas de Wialon Remote API:
+    // 1 (0x1) = Base info (id, nm, cls, mu)
+    // 4 (0x4) = Facturación y creador (bact)
+    // 256 (0x100) = Propiedades avanzadas (IMEI / uid, hw type, phone)
+    // 1024 (0x400) = Última posición conocida y mensaje de telemetría (pos, lmsg)
+    const unitFlags = 1 | 4 | 256 | 1024;
+
+    const { data: unitsRes, refreshedSid } = await wialonCallWithAutoRenew<{
+      items?: Array<Parameters<typeof normalizeUnit>[0]>;
+    }>(
+      host,
+      "core/search_items",
+      {
+        spec: searchSpec("avl_unit"),
+        force: 1,
+        flags: unitFlags,
+        from: 0,
+        to: 0,
+      },
+      data.sid,
+      data.token,
+    );
+
+    const activeSid = refreshedSid || data.sid;
+    let rawUnits = unitsRes.items ?? [];
+
+    // Fallback: Si no hay unidades directas, buscar grupos de unidades (avl_unit_group)
+    if (rawUnits.length === 0) {
+      try {
+        const { data: groupsRes } = await wialonCallWithAutoRenew<{
+          items?: Array<{ u?: number[] }>;
+        }>(
+          host,
+          "core/search_items",
+          {
+            spec: searchSpec("avl_unit_group"),
+            force: 1,
+            flags: 1 | 0x100,
+            from: 0,
+            to: 0,
+          },
+          activeSid,
+          data.token,
+        );
+
+        const groupUnitIds = new Set<number>();
+        for (const grp of groupsRes.items ?? []) {
+          for (const uid of grp.u ?? []) {
+            groupUnitIds.add(uid);
+          }
+        }
+
+        if (groupUnitIds.size > 0) {
+          const { data: detailedUnits } = await wialonCallWithAutoRenew<{
+            items?: Array<Parameters<typeof normalizeUnit>[0]>;
+          }>(
+            host,
+            "core/search_items",
+            {
+              spec: {
+                itemsType: "avl_unit",
+                propName: "sys_id",
+                propValueMask: Array.from(groupUnitIds).join(","),
+                sortType: "sys_name",
+              },
+              force: 1,
+              flags: unitFlags,
+              from: 0,
+              to: 0,
+            },
+            activeSid,
+            data.token,
+          );
+          rawUnits = detailedUnits.items ?? [];
+        }
+      } catch (groupErr) {
+        console.warn("[wialonUnits] Fallback de grupos omitido:", groupErr);
+      }
+    }
+
+    // Consultar usuarios para nombres de creador
+    const usersRes = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
+      host,
+      "core/search_items",
+      { spec: searchSpec("user"), force: 1, flags: 1, from: 0, to: 0 },
+      activeSid,
+    ).catch(() => ({ items: [] as Array<{ id: number; nm?: string }> }));
 
     const userNames = new Map<number, string>();
     for (const user of usersRes.items ?? []) {
@@ -277,7 +340,8 @@ export const wialonUnits = createServerFn({ method: "POST" })
     }
 
     return {
-      units: (unitsRes.items ?? []).map((item) => normalizeUnit(item, userNames)),
+      units: rawUnits.map((item) => normalizeUnit(item, userNames)),
+      refreshedSid,
     };
   });
 
@@ -999,15 +1063,20 @@ export const wialonGeofences = createServerFn({ method: "POST" })
     ];
     const byId = new Map<number, ZoneResource>();
     // Wialon solo acepta una petición a la vez por sesión: ir en secuencia.
+    let refreshedSidCapture: string | undefined = undefined;
     const results: PromiseSettledResult<{ items?: ZoneResource[] }>[] = [];
     for (const spec of specs) {
       try {
-        const value = await wialonCall<{ items?: ZoneResource[] }>(
+        const { data: value, refreshedSid } = await wialonCallWithAutoRenew<{ items?: ZoneResource[] }>(
           host,
           "core/search_items",
-          { spec, force: 1, flags: 0x1 | 0x1000, from: 0, to: 0 },
+          { spec, force: 1, flags: 1 | 4096, from: 0, to: 0 },
           data.sid,
+          data.token,
         );
+        if (refreshedSid) {
+          refreshedSidCapture = refreshedSid;
+        }
         results.push({ status: "fulfilled", value });
       } catch (reason) {
         console.error("[geocercas] search_items", spec.propType ?? "direct", reason);

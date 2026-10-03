@@ -12,6 +12,64 @@ export type Database = {
   };
   public: {
     Tables: {
+      platform_users: {
+        Row: {
+          company: string | null;
+          created_at: string | null;
+          customer_number: number | null;
+          custom_settings: Json | null;
+          email: string | null;
+          full_name: string | null;
+          host: string;
+          id: string;
+          is_parent: boolean;
+          parent_user_id: number | null;
+          phone: string | null;
+          role: string;
+          shared_permissions: Json | null;
+          updated_at: string | null;
+          wialon_user_id: number;
+          wialon_username: string;
+        };
+        Insert: {
+          company?: string | null;
+          created_at?: string | null;
+          customer_number?: number | null;
+          custom_settings?: Json | null;
+          email?: string | null;
+          full_name?: string | null;
+          host: string;
+          id?: string;
+          is_parent?: boolean;
+          parent_user_id?: number | null;
+          phone?: string | null;
+          role?: string;
+          shared_permissions?: Json | null;
+          updated_at?: string | null;
+          wialon_user_id: number;
+          wialon_username: string;
+        };
+        Update: {
+          company?: string | null;
+          created_at?: string | null;
+          customer_number?: number | null;
+          custom_settings?: Json | null;
+          email?: string | null;
+          full_name?: string | null;
+          host?: string;
+          id?: string;
+          is_parent?: boolean;
+          parent_user_id?: number | null;
+          phone?: string | null;
+          role?: string;
+          shared_permissions?: Json | null;
+          updated_at?: string | null;
+          wialon_user_id?: number;
+          wialon_username?: string;
+        };
+        Relationships: [];
+      };
+
       crm_access_codes: {
         Row: {
           code_hash: string;

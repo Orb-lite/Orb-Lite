@@ -35,15 +35,54 @@ function MapaView({ session }: { session: WialonSession }) {
   const { hidden, setVisible } = useHiddenUnits(session);
 
   const query = useQuery({
-    queryKey: ["wialon-units", session.sid],
-    queryFn: () => fetchUnits({ data: { host: session.host, sid: session.sid } }),
+    queryKey: ["wialon-units", session.sid, session.host],
+    queryFn: () => {
+      const storedToken =
+        session.token ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem("wialon_token") || undefined
+          : undefined);
+      return fetchUnits({
+        data: {
+          host: session.host,
+          sid: session.sid,
+          token: storedToken,
+        },
+      });
+    },
     refetchInterval: 20000,
   });
+
   const geofencesQuery = useQuery({
-    queryKey: ["wialon-geofences", session.sid],
-    queryFn: () => fetchGeofences({ data: { host: session.host, sid: session.sid } }),
+    queryKey: ["wialon-geofences", session.sid, session.host],
+    queryFn: () => {
+      const storedToken =
+        session.token ||
+        (typeof window !== "undefined"
+          ? localStorage.getItem("wialon_token") || undefined
+          : undefined);
+      return fetchGeofences({
+        data: {
+          host: session.host,
+          sid: session.sid,
+          token: storedToken,
+        },
+      });
+    },
     refetchInterval: 60000,
   });
+
+  React.useEffect(() => {
+    const refreshed =
+      (query.data as any)?.refreshedSid ||
+      (geofencesQuery.data as any)?.refreshedSid;
+    if (refreshed && refreshed !== session.sid) {
+      writeSession({
+        ...session,
+        sid: refreshed,
+      });
+    }
+  }, [query.data, geofencesQuery.data, session]);
 
   const units = query.data?.units ?? [];
   const geofences = geofencesQuery.data?.zones ?? [];

@@ -8,6 +8,7 @@ export type WialonSession = {
   host: "lite" | "full";
   userId: number;
   userName: string;
+  token?: string;
   profile?: PlatformUserProfile | null;
 };
 
@@ -29,7 +30,14 @@ export function readSession(): WialonSession | null {
     const raw = window.sessionStorage.getItem(KEY) || window.localStorage.getItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as WialonSession;
-    return parsed?.sid && parsed?.host ? parsed : null;
+    if (!parsed?.sid || !parsed?.host) return null;
+    if (!parsed.token) {
+      const storedToken =
+        window.localStorage.getItem("wialon_token") ||
+        window.sessionStorage.getItem("wialon_token");
+      if (storedToken) parsed.token = storedToken;
+    }
+    return parsed;
   } catch {
     return null;
   }
@@ -40,9 +48,15 @@ export function writeSession(session: WialonSession | null) {
   if (session) {
     window.sessionStorage.setItem(KEY, JSON.stringify(session));
     window.localStorage.setItem(KEY, JSON.stringify(session));
+    if (session.token) {
+      window.localStorage.setItem("wialon_token", session.token);
+      window.sessionStorage.setItem("wialon_token", session.token);
+    }
   } else {
     window.sessionStorage.removeItem(KEY);
     window.localStorage.removeItem(KEY);
+    window.localStorage.removeItem("wialon_token");
+    window.sessionStorage.removeItem("wialon_token");
   }
   window.dispatchEvent(new Event("wialon-session-change"));
 }
