@@ -824,11 +824,28 @@ export const wialonPing = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     try {
-      await wialonCall(data.host as WialonHost, "core/get_account_data", { type: 0 }, data.sid);
+      await wialonCall(
+        data.host as WialonHost,
+        "core/search_items",
+        {
+          spec: {
+            itemsType: "avl_unit",
+            propName: "sys_name",
+            propValueMask: "*",
+            sortType: "sys_name",
+          },
+          force: 1,
+          flags: 1,
+          from: 0,
+          to: 1,
+        },
+        data.sid,
+      );
       return { valid: true as const };
     } catch (error) {
       if (isSessionExpired(error)) return { valid: false as const };
-      throw error;
+      // Errores temporales o de permisos en subrecursos no deben invalidar la sesión
+      return { valid: true as const };
     }
   });
 

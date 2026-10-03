@@ -1,4 +1,4 @@
-﻿import * as fs from "node:fs";
+import * as fs from "node:fs";
 
 function logDebug(line: string) {
   try {
@@ -66,12 +66,12 @@ export class WialonError extends Error {
     super(wialonErrorText(code, reason));
     this.name = "WialonError";
     this.code = code;
-    this.recoverable = recoverable ?? (code === 1 || code === 7);
+    this.recoverable = recoverable ?? (code === 1);
   }
 }
 
 export function isSessionExpired(error: unknown): boolean {
-  return error instanceof WialonError && (error.code === 1 || error.code === 7);
+  return error instanceof WialonError && error.code === 1;
 }
 
 export function isRecoverableError(error: unknown): boolean {

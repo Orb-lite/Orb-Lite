@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ShieldCheck, MapPin, Video, KeyRound, ArrowRight, User, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { PLATFORM_URLS, useWialonSession, writeSession, type WialonSession } from "@/lib/wialon-session";
+import { PLATFORM_URLS, readSession, useWialonSession, writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin, wialonLoginWithCredentials } from "@/lib/wialon.functions";
 import { syncWialonPlatformUser, type PlatformUserProfile } from "@/lib/platform-user.functions";
 
@@ -91,6 +91,13 @@ function WialonLoginPage() {
         localStorage.removeItem("wialon_session");
         localStorage.removeItem("wialon_token");
         sessionStorage.clear();
+        return;
+      }
+
+      // Si ya hay una sesión activa en el navegador, redirigir directo al mapa
+      const existing = readSession();
+      if (existing?.sid) {
+        void navigate({ to: "/wialon/mapa" });
         return;
       }
     }

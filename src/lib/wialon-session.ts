@@ -68,7 +68,7 @@ export function useWialonSession(): WialonSession | null | undefined {
   return session;
 }
 
-/** Mantiene viva la sesión de Wialon y cierra si la plataforma la invalidó. */
+/** Mantiene viva la sesión de Wialon periódicamente y cierra si la plataforma la invalidó. */
 export function useWialonKeepAlive(
   session: WialonSession | null | undefined,
   ping: (args: {
@@ -76,20 +76,23 @@ export function useWialonKeepAlive(
   }) => Promise<{ valid: boolean }>,
 ) {
   React.useEffect(() => {
-    if (!session) return;
+    if (!session || !session.sid) return;
     let cancelled = false;
 
     async function check() {
       try {
         const result = await ping({ data: { host: session!.host, sid: session!.sid } });
-        if (!cancelled && !result.valid) writeSession(null);
+        if (!cancelled && result && result.valid === false) {
+          console.warn("[useWialonKeepAlive] Sesión invalidada por la plataforma Wialon.");
+          writeSession(null);
+        }
       } catch {
-        // error temporal de red: se reintenta en el siguiente ciclo
+        // error temporal de red: se reintenta en el siguiente ciclo sin expulsar al usuario
       }
     }
 
+    // Intervalo de keepalive cada 4 minutos para mantener el socket/sesión de Wialon activo
     const timer = window.setInterval(check, 4 * 60 * 1000);
-    void check();
 
     return () => {
       cancelled = true;
