@@ -3,95 +3,69 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { writeSession, type WialonSession } from "@/lib/wialon-session";
-import { wialonLogin } from "@/lib/wialon.functions";
 import { syncWialonPlatformUser, type PlatformUserProfile } from "@/lib/platform-user.functions";
 
 export const Route = createFileRoute("/wialon/callback")({
   head: () => ({
-    meta: [
-      { title: "Iniciando sesión en la plataforma | ORB-LITE" },
-      {
-        name: "description",
-        content: "Validando tu acceso a la plataforma de rastreo satelital ORB-LITE.",
-      },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Iniciando sesión | ORB-LITE" }],
   }),
   component: WialonCallbackPage,
 });
 
-const WIALON_ERRORS: Record<string, string> = {
-  "1": "Sesión inválida o expirada. Vuelve a iniciar sesión.",
-  "2": "Servicio no disponible temporalmente en Wialon.",
-  "3": "Sin permisos suficientes para acceder a la cuenta.",
-  "4": "Parámetros o credenciales inválidas.",
-  "7": "Acceso denegado. Revisa que tu usuario y contraseña sean correctos.",
-  "8": "Usuario o contraseña de Wialon incorrectos.",
-  "1002": "La cuenta de Wialon se encuentra suspendida o bloqueada.",
-};
+// Función cliente directa para evitar bloqueos de IP en Vercel Serverless
+async function loginWialonDirect(host: "lite" | "full", token: string) {
+  const primaryUrl =
+    host === "full" ? "https://hst-api.wialon.com" : "https://hst-api.wialon.us";
 
-function readParams(): {
-  token: string | null;
-  host: "lite" | "full";
-  wialonError: string | null;
-  userName: string | null;
-} {
-  if (typeof window === "undefined") {
-    return { token: null, host: "lite", wialonError: null, userName: null };
+  const endpoints = Array.from(
+    new Set([
+      primaryUrl,
+      "https://hst-api.wialon.com",
+      "https://hst-api.wialon.us",
+      "https://hst-api.wialon.eu",
+    ])
+  );
+
+  let lastError: string | null = null;
+
+  for (const baseUrl of endpoints) {
+    try {
+      const body = new URLSearchParams({
+        params: JSON.stringify({ token, fl: 1 }),
+      });
+
+      const response = await fetch(`${baseUrl}/wialon/ajax.html?svc=token/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+      });
+
+      if (!response.ok) continue;
+
+      const res = await response.json();
+
+      if (res?.eid || res?.sid) {
+        const resolvedHost = baseUrl.includes("wialon.us") ? "lite" : "full";
+        return {
+          sid: res.eid || res.sid,
+          userName: res.au || res.user?.nm || "Usuario Wialon",
+          userId: res.user?.id || 0,
+          host: resolvedHost,
+        };
+      }
+
+      if (res?.error) {
+        lastError = `Wialon rechazó el token (Código ${res.error})`;
+      }
+    } catch (err: any) {
+      console.warn(`Error de conexión con ${baseUrl}`, err);
+    }
   }
 
-  const search = new URLSearchParams(window.location.search);
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-
-  const rawError =
-    search.get("error") ??
-    hash.get("error") ??
-    search.get("svc_error") ??
-    hash.get("svc_error");
-
-  const errorCode =
-    rawError &&
-    rawError !== "0" &&
-    rawError !== "none" &&
-    rawError !== "null" &&
-    rawError !== "undefined"
-      ? rawError
-      : null;
-
-  const rawToken =
-    hash.get("access_token") ??
-    search.get("access_token") ??
-    hash.get("token") ??
-    search.get("token") ??
-    hash.get("eid") ??
-    search.get("eid");
-
-  const userName =
-    hash.get("user_name") ??
-    search.get("user_name") ??
-    hash.get("user") ??
-    search.get("user") ??
-    null;
-
-  const urlHost = search.get("host") ?? hash.get("host");
-  const storedHost =
-    window.sessionStorage.getItem("orblite.wialon.oauth-host") ||
-    window.localStorage.getItem("orblite.wialon.oauth-host");
-
-  const host: "lite" | "full" =
-    urlHost === "full" || storedHost === "full" ? "full" : "lite";
-
-  const wialonError = errorCode
-    ? WIALON_ERRORS[errorCode] || `Error de la plataforma Wialon (Código ${errorCode})`
-    : null;
-
-  const token = rawToken ? decodeURIComponent(rawToken).trim() : null;
-
-  return { token, host, wialonError, userName };
+  throw new Error(lastError || "No se pudo obtener una sesión válida de Wialon.");
 }
 
 function WialonCallbackPage() {
-  const login = useServerFn(wialonLogin);
   const syncUser = useServerFn(syncWialonPlatformUser);
   const navigate = useNavigate();
 
@@ -99,7 +73,6 @@ function WialonCallbackPage() {
   const [status, setStatus] = React.useState<"loading" | "error">("loading");
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
-  // Evitar error de hidratación #418 esperando al montaje en cliente
   React.useEffect(() => {
     setMounted(true);
   }, []);
@@ -107,90 +80,69 @@ function WialonCallbackPage() {
   React.useEffect(() => {
     if (!mounted) return;
 
-    let cancelled = false;
-
     async function run() {
-      const { token, host, wialonError, userName } = readParams();
+      // 1. Obtener parámetros de la URL
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const search = new URLSearchParams(window.location.search);
 
-      if (wialonError) {
-        setStatus("error");
-        setErrorMessage(wialonError);
-        return;
-      }
+      const token =
+        hash.get("access_token") ??
+        search.get("access_token") ??
+        hash.get("token") ??
+        search.get("token");
+
+      const urlHost = search.get("host") ?? hash.get("host");
+      const host = urlHost === "full" ? "full" : "lite";
 
       if (!token) {
         setStatus("error");
-        setErrorMessage("No se detectó un token de acceso de Wialon. Por favor intenta entrar de nuevo.");
+        setErrorMessage("No se recibió token de acceso desde Wialon.");
         return;
       }
 
       try {
-        const res = (await login({ data: { host, token } })) as any;
+        // 2. Autenticar DIRECTAMENTE desde el navegador (evita bloqueo IP de Vercel)
+        const wialonRes = await loginWialonDirect(host, token);
 
-        if (!res || !res.sid) {
-          const detail = res?.error ? `: ${res.error}` : "";
-          throw new Error(`No se obtuvo un EID/SID de sesión válido de Wialon${detail}`);
-        }
-
-        const effectiveSid = res.sid;
-        const effectiveHost = res.host || host;
-        const effectiveUserId = res.userId || 0;
-        const effectiveUserName = userName || res.userName || "Usuario";
-
-        // Sincronización de perfil de usuario
+        // 3. Sincronizar usuario con el servidor
         let profile: PlatformUserProfile | null = null;
         try {
           profile = (await syncUser({
             data: {
-              wialonUserId: effectiveUserId,
-              wialonUsername: effectiveUserName,
-              host: effectiveHost,
-              sid: effectiveSid,
+              wialonUserId: wialonRes.userId,
+              wialonUsername: wialonRes.userName,
+              host: wialonRes.host,
+              sid: wialonRes.sid,
             },
           })) as PlatformUserProfile | null;
-        } catch (syncErr) {
-          console.warn("[Wialon Callback] Error al sincronizar usuario:", syncErr);
+        } catch (err) {
+          console.warn("Fallo sincronización de perfil:", err);
         }
 
+        // 4. Guardar sesión
         const session: WialonSession = {
-          sid: effectiveSid,
-          host: effectiveHost,
-          userId: effectiveUserId,
-          userName: profile?.fullName || effectiveUserName,
+          sid: wialonRes.sid,
+          host: wialonRes.host,
+          userId: wialonRes.userId,
+          userName: profile?.fullName || wialonRes.userName,
           profile,
         };
 
         writeSession(session);
         localStorage.setItem("wialon_token", token);
-        toast.success(`¡Bienvenido a la plataforma, ${session.userName}!`);
+        toast.success(`¡Bienvenido, ${session.userName}!`);
+
         void navigate({ to: "/wialon/mapa" });
       } catch (err: any) {
-        if (cancelled) return;
-        console.error("[Wialon Callback] Fallo de autenticación en servidor:", err);
         setStatus("error");
-        setErrorMessage(
-          err?.message || "No se pudo validar la sesión con los servidores de Wialon."
-        );
+        setErrorMessage(err.message || "Error al autenticar con Wialon.");
       }
     }
 
     void run();
+  }, [mounted, syncUser, navigate]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [mounted, login, syncUser, navigate]);
-
-  // Si no ha cargado el cliente, renderizamos un loader neutro
-  if (!mounted) {
-    return (
-      <div className="flex min-h-[65vh] flex-col items-center justify-center p-6 text-center">
-        <div className="mx-auto max-w-md rounded-2xl border border-border/80 bg-card p-8 shadow-xl">
-          <div className="mx-auto size-12 animate-spin rounded-full border-3 border-primary border-t-transparent" />
-        </div>
-      </div>
-    );
-  }
+  if (!mounted) return null;
 
   return (
     <div className="flex min-h-[65vh] flex-col items-center justify-center p-6 text-center">
@@ -198,12 +150,9 @@ function WialonCallbackPage() {
         {status === "loading" ? (
           <>
             <div className="mx-auto size-12 animate-spin rounded-full border-3 border-primary border-t-transparent" />
-            <h1 className="mt-5 font-display text-xl font-bold uppercase tracking-wide text-foreground">
-              Abriendo tu plataforma de rastreo…
+            <h1 className="mt-5 font-display text-xl font-bold uppercase tracking-wide">
+              Abriendo tu plataforma...
             </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Cargando unidades satelitales, sensores y mapa en tiempo real.
-            </p>
           </>
         ) : (
           <>
@@ -215,9 +164,9 @@ function WialonCallbackPage() {
             <button
               type="button"
               onClick={() => void navigate({ to: "/wialon" })}
-              className="mt-6 flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90 transition-opacity"
+              className="mt-6 flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-bold uppercase text-primary-foreground shadow"
             >
-              Volver a la pantalla de acceso
+              Volver a intentar
             </button>
           </>
         )}
