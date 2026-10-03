@@ -88,45 +88,6 @@ function readParams(): {
   return { token, host, wialonError, userName };
 }
 
-/**
- * Autenticación directa en navegador contra todos los centros de datos de Wialon.
- * Garantiza la obtención de un `eid` válido de sesión para cargar unidades en vivo.
- */
-async function directBrowserTokenLogin(
-  preferredHost: "lite" | "full",
-  token: string,
-): Promise<{ sid: string; host: "lite" | "full"; userId: number; userName: string } | null> {
-  const endpoints: Array<{ host: "lite" | "full"; base: string }> = [
-    { host: preferredHost, base: preferredHost === "full" ? "https://hst-api.wialon.com" : "https://hst-api.wialon.us" },
-    { host: preferredHost === "full" ? "lite" : "full", base: preferredHost === "full" ? "https://hst-api.wialon.us" : "https://hst-api.wialon.com" },
-    { host: "full", base: "https://hst-api.wialon.eu" },
-    { host: "full", base: "https://hst-api.wialon.org" },
-  ];
-
-  for (const ep of endpoints) {
-    try {
-      const url = `${ep.base}/wialon/ajax.html?svc=token/login`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          params: JSON.stringify({ token, fl: 1 }),
-        }).toString(),
-      });
-      const data = (await res.json()) as any;
-      if (data?.eid) {
-        return {
-          sid: data.eid,
-          host: ep.host,
-          userId: data.user?.id ?? 0,
-          userName: data.user?.nm ?? "Usuario",
-        };
-      }
-    } catch {}
-  }
-  return null;
-}
-
 function WialonCallbackPage() {
   const login = useServerFn(wialonLogin);
   const syncUser = useServerFn(syncWialonPlatformUser);
@@ -153,32 +114,19 @@ function WialonCallbackPage() {
       }
 
       try {
-        let authResult: { sid: string; host: "lite" | "full"; userId: number; userName: string } | null = null;
+        // Autenticación realizada 100% mediante Server Function para evitar bloqueos CORS
+        const res = await login({ data: { host, token } });
 
-        // 1. Probar en servidor
-        try {
-          const res = await login({ data: { host, token } });
-          if (res?.sid) {
-            authResult = res as any;
-          }
-        } catch (serverErr) {
-          console.warn("[Wialon Callback] Server login falló, probando en navegador directo:", serverErr);
+        if (!res?.sid) {
+          throw new Error("No se obtuvo un EID/SID de sesión válido de Wialon.");
         }
 
-        // 2. Si el servidor no obtuvo un eid válido (ej. devolvió el token raw), autenticar directo en el cliente
-        if (!authResult || authResult.sid.length >= 40) {
-          const direct = await directBrowserTokenLogin(host, token);
-          if (direct) {
-            authResult = direct;
-          }
-        }
+        const effectiveSid = res.sid;
+        const effectiveHost = res.host || host;
+        const effectiveUserId = res.userId || 0;
+        const effectiveUserName = userName || res.userName || "Usuario";
 
-        const effectiveSid = authResult?.sid || token;
-        const effectiveHost = authResult?.host || host;
-        const effectiveUserId = authResult?.userId || 0;
-        const effectiveUserName = userName || authResult?.userName || "Usuario";
-
-        // 3. Sincronizar usuario y jerarquía en base de datos de ORB-LITE (sin pasar login por Supabase)
+        // Sincronización de perfil
         let profile: PlatformUserProfile | null = null;
         try {
           profile = (await syncUser({
@@ -207,20 +155,11 @@ function WialonCallbackPage() {
         void navigate({ to: "/wialon/mapa" });
       } catch (err: any) {
         if (cancelled) return;
-        console.warn("[Wialon Callback] Fallo total de resolución:", err);
-
-        const fallbackSession: WialonSession = {
-          sid: token,
-          host,
-          userId: 0,
-          userName: userName || "Usuario Wialon",
-          profile: null,
-        };
-
-        writeSession(fallbackSession);
-        localStorage.setItem("wialon_token", token);
-        toast.success(`¡Bienvenido a la plataforma!`);
-        void navigate({ to: "/wialon/mapa" });
+        console.error("[Wialon Callback] Fallo de autenticación en servidor:", err);
+        setStatus("error");
+        setErrorMessage(
+          err?.message || "No se pudo validar la sesión con los servidores de Wialon."
+        );
       }
     }
 
