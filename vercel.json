@@ -11,6 +11,10 @@
   },
   "rewrites": [
     {
+      "source": "/wialon-api/:path*",
+      "destination": "https://hst-api.wialon.us/:path*"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index.js"
     },
@@ -19,7 +23,7 @@
       "destination": "/api/index.js"
     },
     {
-      "source": "/((?!assets/|api/|_server/|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.json|.*\\..*).*)",
+      "source": "/((?!assets/|wialon-api/|api/|_server/|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.json|.*\\..*).*)",
       "destination": "/index.html"
     }
   ],
@@ -39,10 +43,6 @@
         {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
         },
         {
           "key": "X-XSS-Protection",
