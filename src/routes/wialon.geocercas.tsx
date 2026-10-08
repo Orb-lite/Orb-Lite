@@ -264,10 +264,10 @@ function GeocercasView({ session }: { session: WialonSession }) {
             }}
           >
             <option value="all">
-              🌐 Todos los clientes ({polygonOrCircleZones.length} geocercas)
+              🌐 Todos los clientes ({allZones.length} geocercas)
             </option>
             {resources.map((res) => {
-              const count = polygonOrCircleZones.filter((z) => z.resourceId === res.id).length;
+              const count = allZones.filter((z) => z.resourceId === res.id).length;
               return (
                 <option key={res.id} value={res.id}>
                   👤 {res.name} ({count} geocerca{count !== 1 ? "s" : ""})

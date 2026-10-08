@@ -694,6 +694,8 @@ function RutasView({ session }: { session: WialonSession }) {
         data: {
           userId: session.userId,
           routeId: route.id,
+          host: session.host,
+          sid: session.sid,
         },
       });
       setMessage(`Ruta "${route.name}" eliminada de tu cuenta.`);
@@ -701,6 +703,7 @@ function RutasView({ session }: { session: WialonSession }) {
       await queryClient.invalidateQueries({
         queryKey: ["user-routes", session.userId],
       });
+      await userRoutesQuery.refetch();
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "No se pudo eliminar la ruta de tu cuenta.",
@@ -734,6 +737,7 @@ function RutasView({ session }: { session: WialonSession }) {
       await queryClient.invalidateQueries({
         queryKey: ["wialon-geofences", session.sid],
       });
+      await query.refetch();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo eliminar la ruta de Wialon.");
     } finally {
@@ -1162,14 +1166,37 @@ function RutasView({ session }: { session: WialonSession }) {
                     >
                       <Link2 className="size-4 text-muted-foreground" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteUserRoute(route)}
-                      className="rounded p-1.5 hover:bg-destructive/10 text-destructive"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
+                    {confirmDeleteUserRouteId === route.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteUserRoute(route)}
+                          disabled={deletingUserRouteId === route.id}
+                          className="inline-flex items-center gap-1 rounded bg-destructive px-2 py-1 text-xs font-semibold text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
+                          title="Confirmar eliminación"
+                        >
+                          <span>{deletingUserRouteId === route.id ? "…" : "¿Borrar?"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteUserRouteId(null)}
+                          className="rounded px-1.5 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors"
+                          title="Cancelar"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteUserRoute(route)}
+                        disabled={deletingUserRouteId === route.id}
+                        className="rounded p-1.5 hover:bg-destructive/10 text-destructive transition-colors disabled:opacity-50"
+                        title="Eliminar ruta"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -1210,14 +1237,37 @@ function RutasView({ session }: { session: WialonSession }) {
                         <Eye className="size-4 text-muted-foreground" />
                       )}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => void handleDeleteWialonRoute(route)}
-                      className="rounded p-1.5 hover:bg-destructive/10 text-destructive"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
+                    {confirmDeleteWialonRouteId === route.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteWialonRoute(route)}
+                          disabled={deletingId === route.id}
+                          className="inline-flex items-center gap-1 rounded bg-destructive px-2 py-1 text-xs font-semibold text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
+                          title="Confirmar eliminación"
+                        >
+                          <span>{deletingId === route.id ? "…" : "¿Borrar?"}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteWialonRouteId(null)}
+                          className="rounded px-1.5 py-1 text-xs text-muted-foreground hover:bg-muted transition-colors"
+                          title="Cancelar"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void handleDeleteWialonRoute(route)}
+                        disabled={deletingId === route.id}
+                        className="rounded p-1.5 hover:bg-destructive/10 text-destructive transition-colors disabled:opacity-50"
+                        title="Eliminar de Wialon"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))

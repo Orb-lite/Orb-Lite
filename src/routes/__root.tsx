@@ -14,7 +14,6 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { SiteHeader, SiteFooter } from "../components/site-chrome";
 import { Toaster } from "../components/ui/sonner";
-import { AssistantChat } from "../components/assistant/assistant-chat";
 
 function NotFoundComponent() {
   return (
@@ -146,9 +145,6 @@ function RootComponent() {
         <Outlet />
         <SiteFooter />
         <Toaster position="top-center" />
-        <ClientOnly>
-          <AssistantChat />
-        </ClientOnly>
       </div>
     </QueryClientProvider>
   );

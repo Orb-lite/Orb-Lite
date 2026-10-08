@@ -106,56 +106,27 @@ export async function getUserRoutesFromStorage(
 ): Promise<StoredUserRoute[]> {
   const ids = Array.isArray(userIds) ? userIds : [userIds];
   if (ids.length === 0) return [];
-
-  // 1. Intentar user_routes
   try {
     const { data, error } = await supabaseAdmin
       .from("user_routes")
       .select("*")
       .in("user_id", ids)
       .order("created_at", { ascending: false });
-    if (!error && data && Array.isArray(data) && data.length > 0) {
+    if (!error && data) {
       const dbRoutes = (data as RouteRow[]).map(rowToRoute);
       for (const r of dbRoutes) {
         inMemoryRoutes.set(r.id, r);
         if (r.shareToken) inMemoryRoutes.set(r.shareToken, r);
       }
+      return dbRoutes;
     }
   } catch (err) {
-    console.warn("[user-routes] Supabase user_routes query skipped:", err);
+    console.warn("[user-routes] Supabase offline, using in-memory store:", err);
   }
 
-  // 2. Consultar registros de rutas en shared_links (unit_id = 'route') para garantizar 100% de persistencia
-  try {
-    const { data: routeLinks } = await supabaseAdmin
-      .from("shared_links")
-      .select("*")
-      .eq("unit_id", "route")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
-
-    if (Array.isArray(routeLinks)) {
-      for (const row of routeLinks) {
-        if (!row.is_active || !row.name || !row.name.startsWith("{")) continue;
-        try {
-          const parsed = JSON.parse(row.name) as StoredUserRoute;
-          if (parsed?.id && parsed?.name) {
-            inMemoryRoutes.set(parsed.id, parsed);
-            if (row.token && !row.token.startsWith("rtok_")) {
-              parsed.shareToken = row.token;
-            }
-            if (parsed.shareToken) inMemoryRoutes.set(parsed.shareToken, parsed);
-          }
-        } catch {}
-      }
-    }
-  } catch (err) {
-    console.warn("[user-routes] Supabase shared_links route query:", err);
-  }
-
-  // Retornar las rutas del usuario o todas si es una consulta de cuenta
+  // Fallback en memoria
   return Array.from(inMemoryRoutes.values())
-    .filter((r) => ids.length === 0 || ids.includes(r.userId) || ids.includes(0))
+    .filter((r) => ids.includes(r.userId))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -174,32 +145,10 @@ export async function saveUserRouteToStorage(
     inMemoryRoutes.set(newRoute.shareToken, newRoute);
   }
 
-  // 1. Guardar primero en user_routes para clave foránea
   try {
-    await supabaseAdmin.from("user_routes").upsert(routeToRow(newRoute), { onConflict: "id" });
+    await supabaseAdmin.from("user_routes").insert(routeToRow(newRoute));
   } catch (err) {
-    console.warn("[user-routes] Could not sync insert to user_routes table:", err);
-  }
-
-  // 2. Guardar en shared_links con unit_id = 'route' y route_id enlazado
-  try {
-    const token = newRoute.shareToken || `rtok_${newRoute.id}`;
-    await supabaseAdmin.from("shared_links").upsert(
-      {
-        id: crypto.randomUUID(),
-        name: JSON.stringify(newRoute),
-        token,
-        unit_id: "route",
-        route_id: newRoute.id,
-        is_active: true,
-        created_by_id: String(newRoute.userId),
-        created_by_name: newRoute.userName || null,
-        created_at: newRoute.createdAt,
-      },
-      { onConflict: "id" },
-    );
-  } catch (err) {
-    console.warn("[user-routes] Supabase shared_links insert:", err);
+    console.warn("[user-routes] Could not sync insert to Supabase, persisted in memory:", err);
   }
 
   return newRoute;
@@ -210,28 +159,21 @@ export async function deleteUserRouteFromStorage(
   routeId: string,
   allowedUserIds?: number[],
 ): Promise<boolean> {
-  const route = inMemoryRoutes.get(routeId);
+  const existing = inMemoryRoutes.get(routeId);
+  if (existing?.shareToken) {
+    inMemoryRoutes.delete(existing.shareToken);
+  }
   inMemoryRoutes.delete(routeId);
-  if (route?.shareToken) {
-    inMemoryRoutes.delete(route.shareToken);
+
+  for (const [key, val] of inMemoryRoutes.entries()) {
+    if (val.id === routeId) {
+      inMemoryRoutes.delete(key);
+    }
   }
 
   try {
-    const tokensToDelete = [`rtok_${routeId}`];
-    if (route?.shareToken) tokensToDelete.push(route.shareToken);
-
     await supabaseAdmin.from("user_route_assignments").delete().eq("route_id", routeId);
-    await supabaseAdmin
-      .from("shared_links")
-      .delete()
-      .or(`route_id.eq.${routeId},token.in.(${tokensToDelete.map((t) => `"${t}"`).join(",")})`);
-
-    // Actualizar también is_active a false como garantía si RLS bloquea hard delete
-    await supabaseAdmin
-      .from("shared_links")
-      .update({ is_active: false })
-      .or(`route_id.eq.${routeId},token.in.(${tokensToDelete.map((t) => `"${t}"`).join(",")})`);
-
+    await supabaseAdmin.from("shared_links").delete().eq("route_id", routeId);
     if (allowedUserIds && allowedUserIds.length > 0) {
       await supabaseAdmin
         .from("user_routes")
@@ -239,7 +181,7 @@ export async function deleteUserRouteFromStorage(
         .eq("id", routeId)
         .in("user_id", allowedUserIds);
     } else {
-      await supabaseAdmin.from("user_routes").delete().eq("id", routeId).eq("user_id", userId);
+      await supabaseAdmin.from("user_routes").delete().eq("id", routeId);
     }
   } catch (err) {
     console.warn("[user-routes] Could not sync delete to Supabase:", err);
@@ -268,23 +210,6 @@ export async function getRouteByShareToken(token: string): Promise<StoredUserRou
       inMemoryRoutes.set(token, found);
       inMemoryRoutes.set(found.id, found);
       return found;
-    }
-
-    const { data: linkData } = await supabaseAdmin
-      .from("shared_links")
-      .select("*")
-      .eq("token", token)
-      .maybeSingle();
-
-    if (linkData && linkData.is_active && linkData.name && linkData.name.startsWith("{")) {
-      try {
-        const parsed = JSON.parse(linkData.name) as StoredUserRoute;
-        if (parsed?.id) {
-          inMemoryRoutes.set(token, parsed);
-          inMemoryRoutes.set(parsed.id, parsed);
-          return parsed;
-        }
-      } catch {}
     }
   } catch (err) {
     console.warn("[user-routes] Supabase token query failed, relying on memory:", err);
@@ -331,36 +256,22 @@ export async function setRouteShare(
   inMemoryRoutes.set(route.id, route);
   inMemoryRoutes.set(shareToken, route);
 
-    try {
-      await supabaseAdmin.from("user_routes").upsert(routeToRow(route), { onConflict: "id" });
-    } catch (err) {
-      console.warn("[user-routes] Could not upsert to user_routes:", err);
-    }
-
-    try {
-      const { data: existingLink } = await supabaseAdmin
-        .from("shared_links")
-        .select("id")
-        .eq("token", shareToken)
-        .maybeSingle();
-
-      const linkId = existingLink?.id || crypto.randomUUID();
-      await supabaseAdmin.from("shared_links").upsert(
-        {
-          id: linkId,
-          name: JSON.stringify(route),
-          token: shareToken,
-          unit_id: "route",
-          route_id: route.id,
-          is_active: true,
-          created_by_id: String(userId),
-          created_by_name: route.userName || null,
-        },
-        { onConflict: "id" },
-      );
-    } catch (err) {
-      console.warn("[user-routes] Could not sync share update to shared_links:", err);
-    }
+  try {
+    await supabaseAdmin.from("user_routes").update(routeToRow(route)).eq("id", route.id);
+    await supabaseAdmin.from("shared_links").upsert(
+      {
+        name: route.name,
+        token: shareToken,
+        route_id: route.id,
+        is_active: true,
+        created_by_id: String(userId),
+        created_by_name: route.userName || null,
+      },
+      { onConflict: "token" },
+    );
+  } catch (err) {
+    console.warn("[user-routes] Could not sync share update to Supabase:", err);
+  }
 
   return route;
 }
@@ -391,12 +302,6 @@ export async function markSharedStop(
 
   try {
     await supabaseAdmin.from("user_routes").update({ stops: route.stops }).eq("id", route.id);
-    if (route.shareToken) {
-      await supabaseAdmin
-        .from("shared_links")
-        .update({ name: JSON.stringify(route) })
-        .eq("token", route.shareToken);
-    }
   } catch (err) {
     console.warn("[user-routes] Could not sync stop update to Supabase:", err);
   }
@@ -415,12 +320,6 @@ export async function updateSharedRoute(
 
   try {
     await supabaseAdmin.from("user_routes").update(routeToRow(route)).eq("id", route.id);
-    if (route.shareToken) {
-      await supabaseAdmin
-        .from("shared_links")
-        .update({ name: JSON.stringify(route) })
-        .eq("token", route.shareToken);
-    }
   } catch (err) {
     console.warn("[user-routes] Could not sync route update to Supabase:", err);
   }
