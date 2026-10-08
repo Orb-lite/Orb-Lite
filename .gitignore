@@ -1,0 +1,13 @@
+node_modules/
+build/
+dist/
+.output/
+.vercel/
+.tanstack/
+.wrangler/
+coverage/
+*.log
+bun.lock*
+api/server/
+.env*
+!.env.example

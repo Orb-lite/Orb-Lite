@@ -1,0 +1,59 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "build": {
+    "env": {
+      "DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS": "1"
+    }
+  },
+  "env": {
+    "DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS": "1"
+  },
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "{api/**,dist/**}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/images/(.*)",
+      "destination": "/images/$1"
+    },
+    {
+      "source": "/favicon.png",
+      "destination": "/favicon.png"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/robots.txt"
+    },
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.js?_url=/api/$1"
+    },
+    {
+      "source": "/_serverFn/(.*)",
+      "destination": "/api/index.js?_url=/_serverFn/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ]
+}
