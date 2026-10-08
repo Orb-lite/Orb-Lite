@@ -1307,16 +1307,27 @@ export const wialonDeleteGeofence = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    await wialonCall(
-      data.host as WialonHost,
-      "resource/update_zone",
-      {
-        itemId: data.resourceId,
-        id: data.zoneId,
-        callMode: "delete",
-      },
-      data.sid,
-    );
+    const primary = data.host as WialonHost;
+    const hostsToTry: WialonHost[] = [primary, primary === "lite" ? "full" : "lite"];
+    let lastErr: unknown;
+    for (const host of hostsToTry) {
+      try {
+        await wialonCall(
+          host,
+          "resource/update_zone",
+          {
+            itemId: data.resourceId,
+            id: data.zoneId,
+            callMode: "delete",
+          },
+          data.sid,
+        );
+        return { ok: true, zoneId: data.zoneId };
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    if (lastErr) throw lastErr;
     return { ok: true, zoneId: data.zoneId };
   });
 

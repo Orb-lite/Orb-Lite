@@ -160,29 +160,40 @@ export async function deleteUserRouteFromStorage(
   allowedUserIds?: number[],
 ): Promise<boolean> {
   const existing = inMemoryRoutes.get(routeId);
-  if (existing?.shareToken) {
-    inMemoryRoutes.delete(existing.shareToken);
+  const shareToken = existing?.shareToken;
+  if (shareToken) {
+    inMemoryRoutes.delete(shareToken);
   }
   inMemoryRoutes.delete(routeId);
 
   for (const [key, val] of inMemoryRoutes.entries()) {
-    if (val.id === routeId) {
+    if (val.id === routeId || val.shareToken === routeId || (shareToken && val.shareToken === shareToken)) {
       inMemoryRoutes.delete(key);
     }
   }
 
   try {
+    // 1. Eliminar asignaciones de la ruta
     await supabaseAdmin.from("user_route_assignments").delete().eq("route_id", routeId);
+
+    // 2. Eliminar de user_routes
+    await supabaseAdmin.from("user_routes").delete().eq("id", routeId);
+
+    // 3. Eliminar de shared_links por route_id
     await supabaseAdmin.from("shared_links").delete().eq("route_id", routeId);
-    if (allowedUserIds && allowedUserIds.length > 0) {
-      await supabaseAdmin
-        .from("user_routes")
-        .delete()
-        .eq("id", routeId)
-        .in("user_id", allowedUserIds);
-    } else {
-      await supabaseAdmin.from("user_routes").delete().eq("id", routeId);
+
+    // 4. Eliminar de shared_links por token o enlace público
+    await supabaseAdmin.from("shared_links").delete().eq("token", `rtok_${routeId}`);
+    if (shareToken) {
+      await supabaseAdmin.from("shared_links").delete().eq("token", shareToken);
     }
+    await supabaseAdmin.from("shared_links").delete().eq("token", routeId);
+
+    // 5. Eliminar de shared_links cualquier registro que contenga el id de la ruta en su JSON o nombre
+    await supabaseAdmin
+      .from("shared_links")
+      .delete()
+      .ilike("name", `%"id":"${routeId}"%`);
   } catch (err) {
     console.warn("[user-routes] Could not sync delete to Supabase:", err);
   }

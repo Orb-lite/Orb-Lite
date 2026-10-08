@@ -242,6 +242,43 @@ export async function clientDirectFetchGeofences(
   return null;
 }
 
+/** Elimina una geocerca o ruta directamente por JSONP desde el navegador con tolerancia a hosts */
+export async function clientDirectDeleteGeofence(
+  preferredHost: "lite" | "full",
+  sid: string,
+  resourceId: number,
+  zoneId: number,
+): Promise<boolean> {
+  const hosts: Array<{ host: "lite" | "full"; base: string }> =
+    preferredHost === "full"
+      ? [
+          { host: "full", base: "https://hst-api.wialon.com" },
+          { host: "lite", base: "https://hst-api.wialon.us" },
+        ]
+      : [
+          { host: "lite", base: "https://hst-api.wialon.us" },
+          { host: "full", base: "https://hst-api.wialon.com" },
+        ];
+
+  for (const { base } of hosts) {
+    try {
+      const params = encodeURIComponent(
+        JSON.stringify({
+          itemId: resourceId,
+          id: zoneId,
+          callMode: "delete",
+        }),
+      );
+      const url = `${base}/wialon/ajax.html?svc=resource/update_zone&params=${params}&sid=${sid}`;
+      const data = await jsonpRequest<any>(url, 6000);
+      if (data && (data.error === undefined || data.error === 0 || Array.isArray(data))) {
+        return true;
+      }
+    } catch {}
+  }
+  return false;
+}
+
 /** Descarga detalle y sensores de unidad directamente por JSONP */
 export async function clientDirectFetchUnitDetail(
   preferredHost: "lite" | "full",
@@ -405,7 +442,7 @@ export async function fetchReliableGeofences(options: {
   return { zones: [], resources: [] };
 }
 
-/** Consulta resiliente de rutas de usuario: serverFn + Supabase directo + localStorage */
+/** Consulta resiliente de rutas de usuario: serverFn (autoritativo) + Supabase directo filtrado + localStorage */
 export async function fetchReliableUserRoutes(options: {
   session: WialonSession;
   fetchUserRoutesServerFn?: (args: {
@@ -414,91 +451,68 @@ export async function fetchReliableUserRoutes(options: {
 }): Promise<{ routes: StoredUserRoute[] }> {
   const { session, fetchUserRoutesServerFn } = options;
 
-  // 1. ServerFn
+  // 1. ServerFn (fuente autoritativa de verdad si el servidor responde)
   if (fetchUserRoutesServerFn) {
     try {
       const res = await fetchUserRoutesServerFn({
         data: { userId: session.userId, host: session.host, sid: session.sid },
       });
-      if (res?.routes && Array.isArray(res.routes) && res.routes.length > 0) {
-        return res;
+      if (res && Array.isArray(res.routes)) {
+        // Si el servidor respondió exitosamente, esta es la lista exacta (incluso vacía [])
+        return { routes: res.routes };
       }
-    } catch {}
+    } catch (err) {
+      console.warn("[fetchReliableUserRoutes] ServerFn falló, recurriendo a respaldo offline:", err);
+    }
   }
 
-  // 2. Supabase directo desde el cliente (user_routes y shared_links)
+  // 2. Solo si el servidor falló por error de red/desconexión: Supabase directo filtrado estrictamente por este usuario
   try {
-    const { data, error } = await supabase
+    const query = supabase
       .from("user_routes")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && Array.isArray(data) && data.length > 0) {
-      const filteredData =
-        session.userId > 0
-          ? data.filter((row: any) => row.user_id === session.userId || row.user_id === 0)
-          : data;
+    const { data, error } =
+      session.userId > 0 ? await query.eq("user_id", session.userId) : await query;
 
-      if (filteredData.length > 0) {
-        const routes: StoredUserRoute[] = filteredData.map((row: any) => ({
-          id: row.id,
-          userId: row.user_id,
-          userName: row.user_name || undefined,
-          name: row.name,
-          color: row.color || "#92d700",
-          points: row.points || [],
-          routeStops: row.route_stops || undefined,
-          origin: row.origin || undefined,
-          addresses: row.addresses || undefined,
-          distanceMeters: row.distance_meters || undefined,
-          durationSeconds: row.duration_seconds || undefined,
-          createdAt: row.created_at || new Date().toISOString(),
-          shareToken: row.share_token || undefined,
-          stops: row.stops || undefined,
-          reportEmail: row.report_email || undefined,
-          reportSentAt: row.report_sent_at || undefined,
-        }));
-        return { routes };
-      }
+    if (!error && Array.isArray(data)) {
+      const routes: StoredUserRoute[] = data.map((row: any) => ({
+        id: row.id,
+        userId: row.user_id,
+        userName: row.user_name || undefined,
+        name: row.name,
+        color: row.color || "#92d700",
+        points: row.points || [],
+        routeStops: row.route_stops || undefined,
+        origin: row.origin || undefined,
+        addresses: row.addresses || undefined,
+        distanceMeters: row.distance_meters || undefined,
+        durationSeconds: row.duration_seconds || undefined,
+        createdAt: row.created_at || new Date().toISOString(),
+        shareToken: row.share_token || undefined,
+        stops: row.stops || undefined,
+        reportEmail: row.report_email || undefined,
+        reportSentAt: row.report_sent_at || undefined,
+      }));
+      return { routes };
     }
   } catch {}
 
-  // 2b. Supabase shared_links con unit_id = 'route'
-  try {
-    const { data: routeLinks } = await supabase
-      .from("shared_links")
-      .select("*")
-      .eq("unit_id", "route")
-      .order("created_at", { ascending: false });
-
-    if (Array.isArray(routeLinks) && routeLinks.length > 0) {
-      const parsedRoutes: StoredUserRoute[] = [];
-      for (const row of routeLinks) {
-        if (!row.name || !row.name.startsWith("{")) continue;
-        try {
-          const parsed = JSON.parse(row.name);
-          if (parsed?.id && parsed?.name) {
-            if (row.token && !row.token.startsWith("rtok_")) {
-              parsed.shareToken = row.token;
-            }
-            parsedRoutes.push(parsed);
-          }
-        } catch {}
-      }
-      if (parsedRoutes.length > 0) {
-        return { routes: parsedRoutes };
-      }
-    }
-  } catch {}
-
-  // 3. LocalStorage
+  // 3. Fallback a caché local del usuario si existe
   try {
     if (typeof window !== "undefined") {
-      const local = localStorage.getItem("orb_lite_user_routes");
+      const local =
+        localStorage.getItem(`orb_lite_user_routes_${session.userId}`) ||
+        localStorage.getItem("orb_lite_user_routes");
       if (local) {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return { routes: parsed };
+        if (Array.isArray(parsed)) {
+          const filtered =
+            session.userId > 0
+              ? parsed.filter((r: any) => r.userId === session.userId || !r.userId)
+              : parsed;
+          return { routes: filtered };
         }
       }
     }

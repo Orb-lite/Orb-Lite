@@ -26,7 +26,11 @@ import {
   type WialonUnit,
 } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
-import { fetchReliableGeofences, fetchReliableUnits } from "@/lib/wialon-client-api";
+import {
+  fetchReliableGeofences,
+  fetchReliableUnits,
+  clientDirectDeleteGeofence,
+} from "@/lib/wialon-client-api";
 
 export const Route = createFileRoute("/wialon/geocercas")({
   head: () => ({
@@ -158,21 +162,48 @@ function GeocercasView({ session }: { session: WialonSession }) {
     setConfirmDeleteId(null);
     setError(null);
     setMessage(null);
+
+    // 1. Remoción optimista inmediata del listado y mapa
+    queryClient.setQueryData(
+      ["wialon-geofences", session.sid, session.host],
+      (prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          zones: (prev.zones ?? []).filter((z: any) => z.id !== zone.id),
+        };
+      },
+    );
+    if (focusedGeofenceId === zone.id) setFocusedGeofenceId(null);
+
     try {
-      await deleteGeofence({
-        data: {
-          host: session.host,
-          sid: session.sid,
-          resourceId: zone.resourceId,
-          zoneId: zone.id,
-        },
-      });
+      // 2. Borrado vía ServerFn con fallback a JSONP cliente
+      try {
+        await deleteGeofence({
+          data: {
+            host: session.host,
+            sid: session.sid,
+            resourceId: zone.resourceId,
+            zoneId: zone.id,
+          },
+        });
+      } catch (serverErr) {
+        const directOk = await clientDirectDeleteGeofence(
+          session.host,
+          session.sid,
+          zone.resourceId,
+          zone.id,
+        );
+        if (!directOk) throw serverErr;
+      }
+
       setMessage(`Geocerca "${zone.name}" eliminada de Wialon.`);
-      if (focusedGeofenceId === zone.id) setFocusedGeofenceId(null);
       await queryClient.invalidateQueries({
         queryKey: ["wialon-geofences", session.sid],
       });
+      await query.refetch();
     } catch (cause) {
+      await query.refetch();
       setError(
         cause instanceof Error ? cause.message : "No se pudo eliminar la geocerca de Wialon.",
       );

@@ -48,10 +48,12 @@ import {
   type StoredUserRoute,
 } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
+import { supabase } from "@/integrations/supabase/client";
 import {
   fetchReliableUnits,
   fetchReliableUserRoutes,
   fetchReliableGeofences,
+  clientDirectDeleteGeofence,
 } from "@/lib/wialon-client-api";
 
 export const Route = createFileRoute("/wialon/rutas")({
@@ -689,7 +691,37 @@ function RutasView({ session }: { session: WialonSession }) {
     setConfirmDeleteUserRouteId(null);
     setError(null);
     setMessage(null);
+
+    // 1. Remoción optimista inmediata del listado y mapa
+    queryClient.setQueryData<{ routes: StoredUserRoute[] }>(
+      ["user-routes", session.userId],
+      (prev) => ({
+        routes: (prev?.routes ?? []).filter((r) => r.id !== route.id),
+      }),
+    );
+    if (focusedUserRouteId === route.id) setFocusedUserRouteId(null);
+
+    // 2. Limpieza de caché de almacenamiento local del navegador
     try {
+      if (typeof window !== "undefined") {
+        const localKeys = [`orb_lite_user_routes_${session.userId}`, "orb_lite_user_routes"];
+        for (const key of localKeys) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              localStorage.setItem(
+                key,
+                JSON.stringify(parsed.filter((r: any) => r.id !== route.id)),
+              );
+            }
+          }
+        }
+      }
+    } catch {}
+
+    try {
+      // 3. Borrado en servidor (memoria + base de datos + shared_links)
       await deleteUserRouteFn({
         data: {
           userId: session.userId,
@@ -698,13 +730,28 @@ function RutasView({ session }: { session: WialonSession }) {
           sid: session.sid,
         },
       });
+
+      // 4. Limpieza directa adicional en Supabase desde el cliente por redundancia
+      try {
+        await Promise.allSettled([
+          supabase.from("user_routes").delete().eq("id", route.id),
+          supabase.from("shared_links").delete().eq("route_id", route.id),
+          supabase.from("shared_links").delete().eq("token", `rtok_${route.id}`),
+          ...(route.shareToken
+            ? [supabase.from("shared_links").delete().eq("token", route.shareToken)]
+            : []),
+          supabase.from("shared_links").delete().eq("token", route.id),
+          supabase.from("shared_links").delete().ilike("name", `%"id":"${route.id}"%`),
+        ]);
+      } catch {}
+
       setMessage(`Ruta "${route.name}" eliminada de tu cuenta.`);
-      if (focusedUserRouteId === route.id) setFocusedUserRouteId(null);
       await queryClient.invalidateQueries({
         queryKey: ["user-routes", session.userId],
       });
       await userRoutesQuery.refetch();
     } catch (cause) {
+      await userRoutesQuery.refetch();
       setError(
         cause instanceof Error ? cause.message : "No se pudo eliminar la ruta de tu cuenta.",
       );
@@ -723,22 +770,48 @@ function RutasView({ session }: { session: WialonSession }) {
     setConfirmDeleteWialonRouteId(null);
     setError(null);
     setMessage(null);
+
+    // 1. Remoción optimista inmediata del listado y mapa
+    queryClient.setQueryData(
+      ["wialon-geofences", session.sid, session.host],
+      (prev: any) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          zones: (prev.zones ?? []).filter((z: any) => z.id !== route.id),
+        };
+      },
+    );
+    if (focusedRouteId === route.id) setFocusedRouteId(null);
+
     try {
-      await deleteRoute({
-        data: {
-          host: session.host,
-          sid: session.sid,
-          resourceId: route.resourceId,
-          zoneId: route.id,
-        },
-      });
+      // 2. Borrado vía ServerFn con fallback a JSONP cliente
+      try {
+        await deleteRoute({
+          data: {
+            host: session.host,
+            sid: session.sid,
+            resourceId: route.resourceId,
+            zoneId: route.id,
+          },
+        });
+      } catch (serverErr) {
+        const directOk = await clientDirectDeleteGeofence(
+          session.host,
+          session.sid,
+          route.resourceId,
+          route.id,
+        );
+        if (!directOk) throw serverErr;
+      }
+
       setMessage(`Ruta "${route.name}" eliminada de Wialon.`);
-      if (focusedRouteId === route.id) setFocusedRouteId(null);
       await queryClient.invalidateQueries({
         queryKey: ["wialon-geofences", session.sid],
       });
       await query.refetch();
     } catch (cause) {
+      await query.refetch();
       setError(cause instanceof Error ? cause.message : "No se pudo eliminar la ruta de Wialon.");
     } finally {
       setDeletingId(null);
