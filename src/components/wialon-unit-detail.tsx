@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { X } from "lucide-react";
+import { X, Share2 } from "lucide-react";
 import { wialonSendCommand, wialonUnitDetail } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
 
@@ -54,12 +54,22 @@ export function WialonUnitDetail({
           <h2 className="font-display text-lg font-bold uppercase tracking-wide">
             {data?.unit.name ?? "Detalle de unidad"}
           </h2>
-          <button
-            onClick={onClose}
-            className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm hover:border-primary hover:text-primary"
-          >
-            <X className="size-4" /> Cerrar
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/wialon/compartir?unitId=${unitId}`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-primary hover:bg-primary/20"
+              title="Generar enlace de rastreo en tiempo real"
+            >
+              <Share2 className="size-3.5" />
+              <span>Compartir</span>
+            </a>
+            <button
+              onClick={onClose}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-sm hover:border-primary hover:text-primary"
+            >
+              <X className="size-4" /> Cerrar
+            </button>
+          </div>
         </div>
 
         {detail.isLoading ? <p className="mt-4 text-sm text-muted-foreground">Cargando…</p> : null}

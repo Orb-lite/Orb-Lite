@@ -127,6 +127,19 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   });
 
   React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const urlUnitId = params.get("unitId");
+      if (urlUnitId) {
+        const parsed = Number(urlUnitId);
+        if (!Number.isNaN(parsed) && parsed > 0) {
+          setSelectedUnitId(parsed);
+          setShareMode("single");
+          setCreateDialogOpen(true);
+          return;
+        }
+      }
+    }
     if (units.length > 0 && selectedUnitId === "custom") {
       setSelectedUnitId(units[0]!.id);
     }

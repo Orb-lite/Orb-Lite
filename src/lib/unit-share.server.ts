@@ -210,23 +210,30 @@ export async function createSharedUnitLink(params: {
       units: linkRecord.units,
       lastPosition: linkRecord.lastPosition,
       isUnlimited: linkRecord.isUnlimited,
+      durationHours: linkRecord.durationHours,
       notes: linkRecord.notes,
       clientName: linkRecord.clientName,
       clientPhone: linkRecord.clientPhone,
       clientEmail: linkRecord.clientEmail,
+      createdByUserId: linkRecord.createdByUserId,
+      createdByUsername: linkRecord.createdByUsername,
     };
 
-    await supabaseAdmin.from("shared_links").insert({
-      id: linkRecord.id,
-      name: JSON.stringify(metaPayload),
-      token: linkRecord.token,
-      unit_id: String(linkRecord.unitId),
-      route_id: null,
-      expires_at: linkRecord.isUnlimited ? null : linkRecord.expiresAt,
-      is_active: linkRecord.status === "active",
-      created_by_name: linkRecord.createdByUsername || linkRecord.clientName || null,
-      created_at: linkRecord.createdAt,
-    });
+    await supabaseAdmin.from("shared_links").upsert(
+      {
+        id: linkRecord.id,
+        name: JSON.stringify(metaPayload),
+        token: linkRecord.token,
+        unit_id: String(linkRecord.unitId),
+        route_id: null,
+        expires_at: linkRecord.isUnlimited ? null : linkRecord.expiresAt,
+        is_active: linkRecord.status === "active",
+        created_by_id: linkRecord.createdByUserId ? String(linkRecord.createdByUserId) : null,
+        created_by_name: linkRecord.createdByUsername || linkRecord.clientName || null,
+        created_at: linkRecord.createdAt,
+      },
+      { onConflict: "id" },
+    );
   } catch (err) {
     console.warn("[unit-share] Supabase offline, link saved in resilient memory:", err);
   }
@@ -278,7 +285,8 @@ export async function getSharedUnitLinks(params?: {
           clientPhone: meta?.clientPhone || null,
           clientEmail: meta?.clientEmail || null,
           notes: meta?.notes || null,
-          createdByUserId: meta?.createdByUserId ?? null,
+          createdByUserId:
+            meta?.createdByUserId ?? (row.created_by_id ? Number(row.created_by_id) : null),
           createdByUsername: row.created_by_name || meta?.createdByUsername || null,
           durationHours: row.expires_at ? 24 : 0,
           isUnlimited: !row.expires_at || Boolean(meta?.isUnlimited),
@@ -390,9 +398,10 @@ export async function getSharedUnitByToken(token: string): Promise<SharedUnitLin
           clientPhone: meta?.clientPhone || null,
           clientEmail: meta?.clientEmail || null,
           notes: meta?.notes || null,
-          createdByUserId: null,
-          createdByUsername: data.created_by_name || null,
-          durationHours: data.expires_at ? 24 : 0,
+          createdByUserId:
+            meta?.createdByUserId ?? (data.created_by_id ? Number(data.created_by_id) : null),
+          createdByUsername: data.created_by_name || meta?.createdByUsername || null,
+          durationHours: meta?.durationHours ?? (data.expires_at ? 24 : 0),
           isUnlimited: !data.expires_at || Boolean(meta?.isUnlimited),
           createdAt: data.created_at,
           expiresAt: data.expires_at || new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString(),
@@ -479,13 +488,17 @@ export async function deleteSharedUnitLink(token: string): Promise<boolean> {
   if (link) {
     inMemoryUnitShares.delete(token);
     inMemoryUnitShares.delete(link.id);
+  } else {
+    inMemoryUnitShares.delete(token);
   }
 
   try {
     if (link) {
       await supabaseAdmin.from("shared_link_assignments").delete().eq("shared_link_id", link.id);
+      await supabaseAdmin.from("shared_links").delete().eq("id", link.id);
     }
     await supabaseAdmin.from("shared_links").delete().eq("token", token);
+    await supabaseAdmin.from("shared_links").update({ is_active: false }).eq("token", token);
   } catch {
     // Ignorar
   }

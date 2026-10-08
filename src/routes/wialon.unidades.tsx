@@ -1,8 +1,8 @@
 import * as React from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search, Share2 } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { WialonUnitDetail } from "@/components/wialon-unit-detail";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -99,7 +99,7 @@ function UnidadesView({ session }: { session: WialonSession }) {
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Velocidad</th>
               <th className="px-4 py-3">Última señal</th>
-              <th className="px-4 py-3 text-right">Detalle</th>
+              <th className="px-4 py-3 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -131,12 +131,22 @@ function UnidadesView({ session }: { session: WialonSession }) {
                     : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => setDetailId(unit.id)}
-                    className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary"
-                  >
-                    Ver detalle
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    <a
+                      href={`/wialon/compartir?unitId=${unit.id}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary"
+                      title="Compartir enlace de rastreo en tiempo real"
+                    >
+                      <Share2 className="size-3.5" />
+                      <span>Compartir</span>
+                    </a>
+                    <button
+                      onClick={() => setDetailId(unit.id)}
+                      className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary"
+                    >
+                      Detalle
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
