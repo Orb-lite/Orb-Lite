@@ -179,7 +179,7 @@ async function directBrowserTokenLogin(
 
       // Si el token es de 32 caracteres (ya es un eid/sid activo), probar validez
       if (token.length === 32) {
-        const checkUrl = `${base}/wialon/ajax.html?svc=core/get_account_data&params=%7B%7D&sid=${token}`;
+        const checkUrl = `${base}/wialon/ajax.html?svc=core/get_account_data&params=%7B%22type%22:1%7D&sid=${token}`;
         const checkData = await jsonpRequest<any>(checkUrl, 5000);
         if (checkData && !checkData.error) {
           const uObj = checkData.u || checkData.user;

@@ -188,7 +188,7 @@ export const wialonLogin = createServerFn({ method: "POST" })
         const acc = await wialonCall<{ user?: { id?: number; nm?: string } }>(
           h,
           "core/get_account_data",
-          {},
+          { type: 1 },
           cleanToken,
         );
         if (acc && typeof acc === "object" && !("error" in acc)) {
@@ -309,7 +309,7 @@ export const wialonLoginWithSid = createServerFn({ method: "POST" })
       }>(
         host,
         "core/get_account_data",
-        {},
+        { type: 1 },
         data.sid,
       );
       const uObj = res?.u || res?.user;
@@ -947,14 +947,14 @@ export const wialonPing = createServerFn({ method: "POST" })
     const host = data.host as WialonHost;
     try {
       // core/get_account_data es universal y no requiere permisos sobre avl_unit
-      await wialonCall(host, "core/get_account_data", {}, data.sid);
+      await wialonCall(host, "core/get_account_data", { type: 1 }, data.sid);
       return { valid: true as const };
     } catch (error) {
       if (isSessionExpired(error)) {
         // Reintentar en el host alternativo por si la sesión cambió de datacenter
         const altHost: WialonHost = host === "lite" ? "full" : "lite";
         try {
-          await wialonCall(altHost, "core/get_account_data", {}, data.sid);
+          await wialonCall(altHost, "core/get_account_data", { type: 1 }, data.sid);
           return { valid: true as const };
         } catch (altErr) {
           if (isSessionExpired(altErr)) return { valid: false as const };
