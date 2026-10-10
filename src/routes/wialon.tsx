@@ -23,6 +23,7 @@ const tabs = [
   { to: "/wialon/rutas", label: "Rutas", fullOnly: false },
   { to: "/wialon/compartir", label: "Compartir", fullOnly: false },
   { to: "/wialon/unidades", label: "Unidades", fullOnly: false },
+  { to: "/wialon/comandos", label: "Comandos TCP", fullOnly: false },
   { to: "/wialon/historial", label: "Historial", fullOnly: false },
   { to: "/wialon/reportes", label: "Reportes", fullOnly: false },
   { to: "/wialon/video", label: "Cámaras", fullOnly: false },

@@ -34,6 +34,7 @@ import { Route as WialonIndexRouteImport } from './routes/wialon.index'
 import { Route as WialonAlertasRouteImport } from './routes/wialon.alertas'
 import { Route as WialonCallbackRouteImport } from './routes/wialon.callback'
 import { Route as WialonCmsRouteImport } from './routes/wialon.cms'
+import { Route as WialonComandosRouteImport } from './routes/wialon.comandos'
 import { Route as WialonCompartirRouteImport } from './routes/wialon.compartir'
 import { Route as WialonGeocercasRouteImport } from './routes/wialon.geocercas'
 import { Route as WialonHistorialRouteImport } from './routes/wialon.historial'
@@ -172,6 +173,11 @@ const WialonCmsRoute = WialonCmsRouteImport.update({
   path: '/cms',
   getParentRoute: () => WialonRoute,
 } as any)
+const WialonComandosRoute = WialonComandosRouteImport.update({
+  id: '/comandos',
+  path: '/comandos',
+  getParentRoute: () => WialonRoute,
+} as any)
 const WialonCompartirRoute = WialonCompartirRouteImport.update({
   id: '/compartir',
   path: '/compartir',
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/wialon/alertas': typeof WialonAlertasRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/comandos': typeof WialonComandosRoute
   '/wialon/compartir': typeof WialonCompartirRoute
   '/wialon/geocercas': typeof WialonGeocercasRoute
   '/wialon/historial': typeof WialonHistorialRoute
@@ -297,6 +304,7 @@ export interface FileRoutesByTo {
   '/wialon/alertas': typeof WialonAlertasRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/comandos': typeof WialonComandosRoute
   '/wialon/compartir': typeof WialonCompartirRoute
   '/wialon/geocercas': typeof WialonGeocercasRoute
   '/wialon/historial': typeof WialonHistorialRoute
@@ -337,6 +345,7 @@ export interface FileRoutesById {
   '/wialon/alertas': typeof WialonAlertasRoute
   '/wialon/callback': typeof WialonCallbackRoute
   '/wialon/cms': typeof WialonCmsRoute
+  '/wialon/comandos': typeof WialonComandosRoute
   '/wialon/compartir': typeof WialonCompartirRoute
   '/wialon/geocercas': typeof WialonGeocercasRoute
   '/wialon/historial': typeof WialonHistorialRoute
@@ -377,6 +386,7 @@ export interface FileRouteTypes {
     | '/wialon/alertas'
     | '/wialon/callback'
     | '/wialon/cms'
+    | '/wialon/comandos'
     | '/wialon/compartir'
     | '/wialon/geocercas'
     | '/wialon/historial'
@@ -414,6 +424,7 @@ export interface FileRouteTypes {
     | '/wialon/alertas'
     | '/wialon/callback'
     | '/wialon/cms'
+    | '/wialon/comandos'
     | '/wialon/compartir'
     | '/wialon/geocercas'
     | '/wialon/historial'
@@ -453,6 +464,7 @@ export interface FileRouteTypes {
     | '/wialon/alertas'
     | '/wialon/callback'
     | '/wialon/cms'
+    | '/wialon/comandos'
     | '/wialon/compartir'
     | '/wialon/geocercas'
     | '/wialon/historial'
@@ -668,6 +680,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WialonCmsRouteImport
       parentRoute: typeof WialonRoute
     }
+    '/wialon/comandos': {
+      id: '/wialon/comandos'
+      path: '/comandos'
+      fullPath: '/wialon/comandos'
+      preLoaderRoute: typeof WialonComandosRouteImport
+      parentRoute: typeof WialonRoute
+    }
     '/wialon/compartir': {
       id: '/wialon/compartir'
       path: '/compartir'
@@ -776,6 +795,7 @@ interface WialonRouteChildren {
   WialonAlertasRoute: typeof WialonAlertasRoute
   WialonCallbackRoute: typeof WialonCallbackRoute
   WialonCmsRoute: typeof WialonCmsRoute
+  WialonComandosRoute: typeof WialonComandosRoute
   WialonCompartirRoute: typeof WialonCompartirRoute
   WialonGeocercasRoute: typeof WialonGeocercasRoute
   WialonHistorialRoute: typeof WialonHistorialRoute
@@ -792,6 +812,7 @@ const WialonRouteChildren: WialonRouteChildren = {
   WialonAlertasRoute: WialonAlertasRoute,
   WialonCallbackRoute: WialonCallbackRoute,
   WialonCmsRoute: WialonCmsRoute,
+  WialonComandosRoute: WialonComandosRoute,
   WialonCompartirRoute: WialonCompartirRoute,
   WialonGeocercasRoute: WialonGeocercasRoute,
   WialonHistorialRoute: WialonHistorialRoute,

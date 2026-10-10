@@ -179,11 +179,7 @@ export const wialonLogin = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
-    let cleanToken = data.token.trim();
-    try {
-      cleanToken = decodeURIComponent(cleanToken);
-    } catch {}
-    cleanToken = cleanToken.replace(/^["']|["']$/g, "").trim();
+    const cleanToken = data.token.trim();
     const hostCandidates: WialonHost[] = [host, host === "lite" ? "full" : "lite"];
 
     // 1. Probar si el token ya es un session ID activo (eid)
@@ -372,7 +368,8 @@ export const wialonLogout = createServerFn({ method: "POST" })
 export const wialonUnits = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost;
+    const primaryHost = data.host as WialonHost;
+    const hostsToTry: WialonHost[] = [primaryHost, primaryHost === "lite" ? "full" : "lite"];
     const searchSpec = (itemsType: string) => ({
       itemsType,
       propName: "sys_name",
@@ -380,31 +377,81 @@ export const wialonUnits = createServerFn({ method: "POST" })
       sortType: "sys_name",
     });
 
-    // 1 = base, 4 = facturación (creador), 256 = propiedades avanzadas (IMEI), 1024 = posición
-    const [unitsRes, usersRes] = await Promise.all([
-      wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
-        host,
-        "core/search_items",
-        {
-          spec: searchSpec("avl_unit"),
-          force: 1,
-          flags: 1 + 4 + 256 + 1024,
-          from: 0,
-          to: 0,
-        },
-        data.sid,
-      ),
-      // Si la cuenta no puede listar usuarios, solo se omite el nombre del creador.
-      wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
-        host,
-        "core/search_items",
-        { spec: searchSpec("user"), force: 1, flags: 1, from: 0, to: 0 },
-        data.sid,
-      ).catch((error) => {
-        if (isSessionExpired(error)) throw error;
-        return { items: [] as Array<{ id: number; nm?: string }> };
-      }),
-    ]);
+    let unitsRes: { items?: Array<Parameters<typeof normalizeUnit>[0]> } = { items: [] };
+    let usersRes: { items?: Array<{ id: number; nm?: string }> } = { items: [] };
+    let detectedHost: WialonHost = primaryHost;
+
+    for (const h of hostsToTry) {
+      try {
+        // 1. Intentar con flags completos (base, facturación/creador, IMEI, posición GPS en vivo)
+        try {
+          unitsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
+            h,
+            "core/search_items",
+            {
+              spec: searchSpec("avl_unit"),
+              force: 1,
+              flags: 1 + 4 + 256 + 1024,
+              from: 0,
+              to: 0,
+            },
+            data.sid,
+          );
+        } catch (flagsErr: any) {
+          // Si falló por permisos (Error 7 Access Denied en subcuentas al pedir facturación 4 o IMEI 256)
+          // Reintentar con flags esenciales (1 = nombre/icono + 1024 = posición GPS completa en tiempo real)
+          try {
+            unitsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
+              h,
+              "core/search_items",
+              {
+                spec: searchSpec("avl_unit"),
+                force: 1,
+                flags: 1 + 1024,
+                from: 0,
+                to: 0,
+              },
+              data.sid,
+            );
+          } catch {
+            // Último recurso: solo flags básicos
+            unitsRes = await wialonCall<{ items?: Array<Parameters<typeof normalizeUnit>[0]> }>(
+              h,
+              "core/search_items",
+              {
+                spec: searchSpec("avl_unit"),
+                force: 1,
+                flags: 1,
+                from: 0,
+                to: 0,
+              },
+              data.sid,
+            );
+          }
+        }
+
+        // Consultar usuarios creadores para enriquecer la visualización
+        try {
+          usersRes = await wialonCall<{ items?: Array<{ id: number; nm?: string }> }>(
+            h,
+            "core/search_items",
+            { spec: searchSpec("user"), force: 1, flags: 1, from: 0, to: 0 },
+            data.sid,
+          );
+        } catch {
+          usersRes = { items: [] };
+        }
+
+        if (unitsRes?.items && unitsRes.items.length > 0) {
+          detectedHost = h;
+          break;
+        }
+      } catch (err) {
+        if (isSessionExpired(err) && h === hostsToTry[hostsToTry.length - 1]) {
+          throw err;
+        }
+      }
+    }
 
     const userNames = new Map<number, string>();
     for (const user of usersRes.items ?? []) {
@@ -413,6 +460,7 @@ export const wialonUnits = createServerFn({ method: "POST" })
 
     return {
       units: (unitsRes.items ?? []).map((item) => normalizeUnit(item, userNames)),
+      detectedHost,
     };
   });
 
@@ -487,31 +535,53 @@ export const wialonVideoSettings = createServerFn({ method: "POST" })
 export const wialonVideoUnits = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
-    const host = data.host as WialonHost;
+    const primaryHost = data.host as WialonHost;
+    const hostsToTry: WialonHost[] = [primaryHost, primaryHost === "lite" ? "full" : "lite"];
 
     type RawUnit = { id: number; nm?: string; hw?: number };
     const byId = new Map<number, RawUnit>();
 
-    try {
-      const res = await wialonCall<{ items?: RawUnit[] }>(
-        host,
-        "core/search_items",
-        {
-          spec: { itemsType: "avl_unit", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
-          force: 1,
-          flags: 1 + 1024 + 4,
-          from: 0,
-          to: 0,
-        },
-        data.sid,
-      );
-      for (const item of res?.items ?? []) {
-        if (item?.id != null) {
-          byId.set(item.id, item);
+    for (const h of hostsToTry) {
+      try {
+        let res: { items?: RawUnit[] } | null = null;
+        try {
+          res = await wialonCall<{ items?: RawUnit[] }>(
+            h,
+            "core/search_items",
+            {
+              spec: { itemsType: "avl_unit", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
+              force: 1,
+              flags: 1 + 1024,
+              from: 0,
+              to: 0,
+            },
+            data.sid,
+          );
+        } catch {
+          res = await wialonCall<{ items?: RawUnit[] }>(
+            h,
+            "core/search_items",
+            {
+              spec: { itemsType: "avl_unit", propName: "sys_name", propValueMask: "*", sortType: "sys_name" },
+              force: 1,
+              flags: 1,
+              from: 0,
+              to: 0,
+            },
+            data.sid,
+          );
         }
+
+        for (const item of res?.items ?? []) {
+          if (item?.id != null) {
+            byId.set(item.id, item);
+          }
+        }
+
+        if (byId.size > 0) break;
+      } catch (reason) {
+        console.warn("[video] search avl_unit error:", reason);
       }
-    } catch (reason) {
-      console.warn("[video] search avl_unit error:", reason);
     }
 
     const items = [...byId.values()];
@@ -950,11 +1020,19 @@ export const wialonUnitDetail = createServerFn({ method: "POST" })
       };
     });
 
-    const commands = Object.values(item.cmds ?? {}).map((c) => ({
+    const rawCmds = item.cmds
+      ? Array.isArray(item.cmds)
+        ? item.cmds
+        : Object.values(item.cmds)
+      : [];
+
+    const commands = rawCmds.map((c: any) => ({
       id: c.id,
       name: c.n ?? `Comando ${c.id}`,
       type: c.c ?? "",
       link: c.l ?? "auto",
+      param: c.p ?? "",
+      description: c.d ?? "",
     }));
 
     return {
@@ -1007,8 +1085,7 @@ export const wialonSendCommand = createServerFn({ method: "POST" })
 export const wialonGeofences = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
-    const primaryHost = data.host as WialonHost;
-    const hostsToTry: WialonHost[] = [primaryHost, primaryHost === "lite" ? "full" : "lite"];
+    const host = data.host as WialonHost;
 
     type ZoneResource = {
       id: number;
@@ -1044,35 +1121,35 @@ export const wialonGeofences = createServerFn({ method: "POST" })
         propType: "accounttree",
       },
     ];
-    let byId = new Map<number, ZoneResource>();
-    let activeHost: WialonHost = primaryHost;
-
-    for (const h of hostsToTry) {
-      const results: PromiseSettledResult<{ items?: ZoneResource[] }>[] = [];
-      for (const spec of specs) {
-        try {
-          const value = await wialonCall<{ items?: ZoneResource[] }>(
-            h,
-            "core/search_items",
-            { spec, force: 1, flags: 0x1 | 0x1000, from: 0, to: 0 },
-            data.sid,
-          );
-          results.push({ status: "fulfilled", value });
-        } catch (reason) {
-          results.push({ status: "rejected", reason });
-        }
+    const byId = new Map<number, ZoneResource>();
+    // Wialon solo acepta una petición a la vez por sesión: ir en secuencia.
+    const results: PromiseSettledResult<{ items?: ZoneResource[] }>[] = [];
+    for (const spec of specs) {
+      try {
+        const value = await wialonCall<{ items?: ZoneResource[] }>(
+          host,
+          "core/search_items",
+          { spec, force: 1, flags: 0x1 | 0x1000, from: 0, to: 0 },
+          data.sid,
+        );
+        results.push({ status: "fulfilled", value });
+      } catch (reason) {
+        console.error("[geocercas] search_items", spec.propType ?? "direct", reason);
+        results.push({ status: "rejected", reason });
       }
-      for (const r of results) {
-        if (r.status !== "fulfilled") continue;
-        for (const item of r.value.items ?? []) {
-          const prev = byId.get(item.id);
-          byId.set(item.id, { ...prev, ...item, zl: { ...(prev?.zl ?? {}), ...(item.zl ?? {}) } });
-        }
+    }
+    for (const r of results) {
+      if (r.status !== "fulfilled") continue;
+      for (const item of r.value.items ?? []) {
+        const prev = byId.get(item.id);
+        byId.set(item.id, { ...prev, ...item, zl: { ...(prev?.zl ?? {}), ...(item.zl ?? {}) } });
       }
-      if (byId.size > 0) {
-        activeHost = h;
-        break;
-      }
+    }
+    // Si la sesión expiró o fue rechazada en todas las consultas, propagar el error
+    const allRejected = results.length > 0 && results.every((r) => r.status === "rejected");
+    if (allRejected) {
+      const firstErr = (results[0] as PromiseRejectedResult).reason;
+      if (isSessionExpired(firstErr)) throw firstErr;
     }
     const resources = { items: [...byId.values()] };
 
@@ -1145,7 +1222,7 @@ export const wialonGeofences = createServerFn({ method: "POST" })
       let answers: unknown[] = [];
       try {
         const r = await wialonCall<unknown[]>(
-          activeHost,
+          host,
           "core/batch",
           {
             params: chunk.map((resource) => ({
@@ -1307,27 +1384,16 @@ export const wialonDeleteGeofence = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const primary = data.host as WialonHost;
-    const hostsToTry: WialonHost[] = [primary, primary === "lite" ? "full" : "lite"];
-    let lastErr: unknown;
-    for (const host of hostsToTry) {
-      try {
-        await wialonCall(
-          host,
-          "resource/update_zone",
-          {
-            itemId: data.resourceId,
-            id: data.zoneId,
-            callMode: "delete",
-          },
-          data.sid,
-        );
-        return { ok: true, zoneId: data.zoneId };
-      } catch (err) {
-        lastErr = err;
-      }
-    }
-    if (lastErr) throw lastErr;
+    await wialonCall(
+      data.host as WialonHost,
+      "resource/update_zone",
+      {
+        itemId: data.resourceId,
+        id: data.zoneId,
+        callMode: "delete",
+      },
+      data.sid,
+    );
     return { ok: true, zoneId: data.zoneId };
   });
 

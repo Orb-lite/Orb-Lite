@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw, Search, Share2 } from "lucide-react";
+import { RefreshCw, Search, Share2, Terminal } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { WialonUnitDetail } from "@/components/wialon-unit-detail";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -131,10 +131,18 @@ function UnidadesView({ session }: { session: WialonSession }) {
                     : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-2">
+                  <div className="flex items-center justify-end gap-1.5">
+                    <a
+                      href={`/wialon/comandos?unitId=${unit.id}`}
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary transition-colors"
+                      title="Registrar y enviar comandos TCP en Wialon"
+                    >
+                      <Terminal className="size-3.5" />
+                      <span>Comandos</span>
+                    </a>
                     <a
                       href={`/wialon/compartir?unitId=${unit.id}`}
-                      className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary"
+                      className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary transition-colors"
                       title="Compartir enlace de rastreo en tiempo real"
                     >
                       <Share2 className="size-3.5" />
@@ -142,7 +150,7 @@ function UnidadesView({ session }: { session: WialonSession }) {
                     </a>
                     <button
                       onClick={() => setDetailId(unit.id)}
-                      className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary"
+                      className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary transition-colors"
                     >
                       Detalle
                     </button>

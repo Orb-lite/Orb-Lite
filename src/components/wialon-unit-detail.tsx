@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { X, Share2 } from "lucide-react";
+import { X, Share2, Terminal } from "lucide-react";
 import { wialonSendCommand, wialonUnitDetail } from "@/lib/wialon.functions";
 import type { WialonSession } from "@/lib/wialon-session";
 
@@ -133,13 +133,30 @@ export function WialonUnitDetail({
             </section>
 
             <section>
-              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Comandos ({data.commands.length})
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                  Comandos de la Unidad ({data.commands.length})
+                </h3>
+                <a
+                  href={`/wialon/comandos?unitId=${unitId}`}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                >
+                  <Terminal className="size-3" />
+                  <span>Gestionar Comandos TCP</span>
+                </a>
+              </div>
               {data.commands.length === 0 ? (
-                <p className="mt-2 text-muted-foreground">
-                  No hay comandos configurados para esta unidad.
-                </p>
+                <div className="mt-2 rounded-md border border-dashed border-border/80 p-3 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    No hay comandos configurados en Wialon para este equipo.
+                  </p>
+                  <a
+                    href={`/wialon/comandos?unitId=${unitId}`}
+                    className="mt-1.5 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                  >
+                    Registrar comandos Teltonika / TCP &rarr;
+                  </a>
+                </div>
               ) : (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {data.commands.map((command, index) => (
@@ -147,9 +164,13 @@ export function WialonUnitDetail({
                       key={`${command.id}-${index}`}
                       disabled={busy === command.name}
                       onClick={() => void runCommand(command.name, command.link)}
-                      className="rounded-md border border-border px-3 py-2 text-sm hover:border-primary hover:text-primary disabled:opacity-60"
+                      className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:border-primary hover:text-primary disabled:opacity-60 flex items-center gap-1.5"
+                      title={command.link ? `Canal: ${command.link}` : undefined}
                     >
-                      {busy === command.name ? "Enviando…" : command.name}
+                      <span>{busy === command.name ? "Enviando…" : command.name}</span>
+                      <span className="rounded bg-muted px-1 py-0.5 text-[9px] uppercase font-mono text-muted-foreground">
+                        {command.link || "tcp"}
+                      </span>
                     </button>
                   ))}
                 </div>
