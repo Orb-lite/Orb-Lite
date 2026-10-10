@@ -276,14 +276,13 @@ export const wialonSaveUnitCommand = createServerFn({ method: "POST" })
     const payload = {
       itemId: data.unitId,
       id: isUpdate ? data.commandId : 0,
-      callMode,
       n: data.name.trim(),
       c: data.commandType,
       l: data.linkType || "tcp",
       p: finalParam,
-      d: data.description.trim(),
       a: data.access ?? 0,
       f: 0,
+      callMode,
     };
 
     const res = await wialonCall<any>(
@@ -293,12 +292,22 @@ export const wialonSaveUnitCommand = createServerFn({ method: "POST" })
       data.sid,
     );
 
+    const createdId = Array.isArray(res)
+      ? typeof res[0] === "object" && res[0] !== null
+        ? res[0].id
+        : typeof res[0] === "number"
+          ? res[0]
+          : typeof res[1] === "object" && res[1] !== null
+            ? res[1].id
+            : data.commandId || 1
+      : res?.id || data.commandId || 1;
+
     return {
       success: true,
       mode: callMode,
       result: res,
       command: {
-        id: Array.isArray(res) ? res[0] : res?.id || data.commandId || 1,
+        id: createdId,
         name: data.name,
         type: data.commandType,
         linkType: data.linkType || "tcp",
@@ -389,14 +398,13 @@ export const wialonBatchAddTeltonikaCommands = createServerFn({ method: "POST" }
           {
             itemId: data.unitId,
             id: 0,
-            callMode: "create",
             n: preset.name,
             c: preset.commandType,
             l: preset.linkType,
             p: preset.param,
-            d: preset.description,
             a: 0,
             f: 0,
+            callMode: "create",
           },
           data.sid,
         );
