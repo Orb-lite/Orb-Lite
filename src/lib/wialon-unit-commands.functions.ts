@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { wialonCall, WialonError, type WialonHost } from "@/lib/wialon.server";
+import { wialonCall, type WialonHost } from "@/lib/wialon.server";
 
 const hostSchema = z.enum(["lite", "full"]);
 
@@ -281,48 +281,24 @@ export const wialonSaveUnitCommand = createServerFn({ method: "POST" })
       c: data.commandType,
       l: data.linkType || "tcp",
       p: finalParam,
+      d: data.description.trim(),
       a: data.access ?? 0,
+      f: 0,
     };
 
-    let res: any;
-    try {
-      res = await wialonCall<any>(
-        host,
-        "unit/update_command_definition",
-        payload,
-        data.sid,
-      );
-    } catch (err: any) {
-      // Si el equipo o protocolo rechaza "tcp" explícito (error 4), intentar con canal automático ("")
-      if (err instanceof WialonError && err.code === 4 && payload.l !== "") {
-        payload.l = "";
-        res = await wialonCall<any>(
-          host,
-          "unit/update_command_definition",
-          payload,
-          data.sid,
-        );
-      } else {
-        throw err;
-      }
-    }
-
-    const createdId = Array.isArray(res)
-      ? typeof res[0] === "object" && res[0] !== null
-        ? res[0].id
-        : typeof res[0] === "number"
-          ? res[0]
-          : typeof res[1] === "object" && res[1] !== null
-            ? res[1].id
-            : data.commandId || 1
-      : res?.id || data.commandId || 1;
+    const res = await wialonCall<any>(
+      host,
+      "unit/update_command_definition",
+      payload,
+      data.sid,
+    );
 
     return {
       success: true,
       mode: callMode,
       result: res,
       command: {
-        id: createdId,
+        id: Array.isArray(res) ? res[0] : res?.id || data.commandId || 1,
         name: data.name,
         type: data.commandType,
         linkType: data.linkType || "tcp",
@@ -407,26 +383,23 @@ export const wialonBatchAddTeltonikaCommands = createServerFn({ method: "POST" }
       }
 
       try {
-        const cmdPayload = {
-          itemId: data.unitId,
-          id: 0,
-          callMode: "create",
-          n: preset.name,
-          c: preset.commandType,
-          l: preset.linkType,
-          p: preset.param,
-          a: 0,
-        };
-        try {
-          await wialonCall(host, "unit/update_command_definition", cmdPayload, data.sid);
-        } catch (callErr: any) {
-          if (callErr instanceof WialonError && callErr.code === 4) {
-            cmdPayload.l = "";
-            await wialonCall(host, "unit/update_command_definition", cmdPayload, data.sid);
-          } else {
-            throw callErr;
-          }
-        }
+        await wialonCall(
+          host,
+          "unit/update_command_definition",
+          {
+            itemId: data.unitId,
+            id: 0,
+            callMode: "create",
+            n: preset.name,
+            c: preset.commandType,
+            l: preset.linkType,
+            p: preset.param,
+            d: preset.description,
+            a: 0,
+            f: 0,
+          },
+          data.sid,
+        );
         addedCount++;
         existingNames.add(preset.name.trim().toLowerCase());
       } catch (err: any) {

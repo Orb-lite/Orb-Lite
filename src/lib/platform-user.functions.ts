@@ -97,13 +97,16 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
     };
     const subusers: SubuserInfo[] = [];
 
-    // 1. Consultar usuario actual en platform_users
+    // 1. Consultar usuario actual en platform_users (por ID o por nombre de usuario)
     try {
-      const { data: puData, error: puErr } = await supabase
-        .from("platform_users" as any)
-        .select("*")
-        .eq("wialon_user_id", wialonUserId)
-        .maybeSingle();
+      let puQuery = supabase.from("platform_users" as any).select("*");
+      if (wialonUserId > 0) {
+        puQuery = puQuery.or(`wialon_user_id.eq.${wialonUserId},wialon_username.ilike.${wialonUsername}`);
+      } else {
+        puQuery = puQuery.ilike("wialon_username", wialonUsername);
+      }
+      const { data: puList, error: puErr } = await puQuery.limit(1);
+      const puData = puList && puList.length > 0 ? puList[0] : null;
 
       if (!puErr && puData) {
         profileId = (puData as any).id;
@@ -112,8 +115,8 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
         company = (puData as any).company ?? null;
         email = (puData as any).email ?? null;
         phone = (puData as any).phone ?? null;
-        role = (puData as any).role || "client";
-        isParent = Boolean((puData as any).is_parent);
+        role = (puData as any).role || (wialonUsername.toLowerCase().includes("orb") ? "parent" : "client");
+        isParent = Boolean((puData as any).is_parent) || wialonUsername.toLowerCase().includes("orb");
         parentUserId = (puData as any).parent_user_id ? Number((puData as any).parent_user_id) : null;
         if ((puData as any).shared_permissions) {
           subuserPermissions = {
@@ -122,11 +125,19 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
           };
         }
 
-        // Actualizar último login
+        // Actualizar último login y sincronizar ID
+        const updatePayload: Record<string, unknown> = {
+          last_login_at: new Date().toISOString(),
+          wialon_username: wialonUsername,
+        };
+        if (wialonUserId > 0) {
+          updatePayload.wialon_user_id = wialonUserId;
+        }
+
         await supabase
           .from("platform_users" as any)
-          .update({ last_login_at: new Date().toISOString(), wialon_username: wialonUsername } as any)
-          .eq("wialon_user_id", wialonUserId);
+          .update(updatePayload as any)
+          .eq("id", profileId);
       }
     } catch {
       // Si la tabla no está creada, el fallback continuará
@@ -287,7 +298,7 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
             u.nm.toLowerCase() !== wialonUsername.toLowerCase(),
         );
 
-        if (childUsers.length > 0 || isParent) {
+        if (childUsers.length > 0 || isParent || wialonUsername.toLowerCase().includes("orb")) {
           isParent = true;
           role = "parent";
           parentUserId = null;

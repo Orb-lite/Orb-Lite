@@ -164,11 +164,11 @@ async function directBrowserTokenLogin(
   // 1. Probar JSONP directo a Wialon (bypassea CORS 100%)
   for (const { host, base } of hostsToTry) {
     try {
-      const params = encodeURIComponent(JSON.stringify({ token, fl: 1 }));
+      const params = encodeURIComponent(JSON.stringify({ token, fl: 7 }));
       const jsonpUrl = `${base}/wialon/ajax.html?svc=token/login&params=${params}`;
       const data = await jsonpRequest<any>(jsonpUrl, 6000);
       if (data?.eid) {
-        const uObj = data.u || data.user;
+        const uObj = data.user || data.u;
         return {
           sid: data.eid,
           host,
@@ -179,10 +179,10 @@ async function directBrowserTokenLogin(
 
       // Si el token es de 32 caracteres (ya es un eid/sid activo), probar validez
       if (token.length === 32) {
-        const checkUrl = `${base}/wialon/ajax.html?svc=core/get_account_data&params=%7B%22type%22:1%7D&sid=${token}`;
+        const checkUrl = `${base}/wialon/ajax.html?svc=core/get_account_data&params=%7B%7D&sid=${token}`;
         const checkData = await jsonpRequest<any>(checkUrl, 5000);
         if (checkData && !checkData.error) {
-          const uObj = checkData.u || checkData.user;
+          const uObj = checkData.user || checkData.u;
           return {
             sid: token,
             host,
@@ -214,13 +214,13 @@ async function directBrowserTokenLogin(
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams({
-          params: JSON.stringify({ token, fl: 1 }),
+          params: JSON.stringify({ token, fl: 7 }),
         }).toString(),
       });
       if (res.ok) {
         const data = (await res.json()) as any;
         if (data?.eid) {
-          const uObj = data.u || data.user;
+          const uObj = data.user || data.u;
           return {
             sid: data.eid,
             host: p.host,
@@ -292,7 +292,12 @@ function WialonCallbackPage() {
         const effectiveSid = authResult.sid;
         const effectiveHost = authResult.host || host;
         const effectiveUserId = authResult.userId || 0;
-        const effectiveUserName = userName || authResult.userName || "Usuario";
+        const effectiveUserName =
+          authResult.userName && authResult.userName !== "Usuario"
+            ? authResult.userName
+            : userName && userName !== "Usuario"
+              ? userName
+              : "Orb_lite";
 
         // 3. Sincronizar usuario y jerarquía en base de datos de ORB-LITE (sin pasar login por Supabase)
         let profile: PlatformUserProfile | null = null;

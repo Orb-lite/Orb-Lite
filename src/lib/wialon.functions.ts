@@ -140,9 +140,6 @@ export const wialonLoginWithCredentials = createServerFn({ method: "POST" })
               if (found) {
                 userId = found.id;
                 userName = found.nm;
-              } else if (uSearch?.items?.length) {
-                userId = uSearch.items[0]!.id;
-                userName = uSearch.items[0]!.nm;
               }
             } catch {}
           }
@@ -188,7 +185,7 @@ export const wialonLogin = createServerFn({ method: "POST" })
         const acc = await wialonCall<{ user?: { id?: number; nm?: string } }>(
           h,
           "core/get_account_data",
-          { type: 1 },
+          {},
           cleanToken,
         );
         if (acc && typeof acc === "object" && !("error" in acc)) {
@@ -208,9 +205,12 @@ export const wialonLogin = createServerFn({ method: "POST" })
                 },
                 cleanToken,
               );
-              if (uSearch?.items?.length) {
-                userId = uSearch.items[0].id;
-                userName = uSearch.items[0].nm;
+              const found = (uSearch?.items || []).find(
+                (u) => u.nm.toLowerCase() === userName.toLowerCase(),
+              );
+              if (found) {
+                userId = found.id;
+                userName = found.nm;
               }
             } catch {}
           }
@@ -228,15 +228,16 @@ export const wialonLogin = createServerFn({ method: "POST" })
     let lastError: unknown = null;
     for (const h of hostCandidates) {
       try {
+        // fl: 7 solicita flags completos de usuario (0x2 = objeto user con id y nm)
         const result = await wialonCall<{
           eid?: string;
           au?: string;
           u?: { id?: number; nm?: string };
           user?: { id?: number; nm?: string };
-        }>(h, "token/login", { token: cleanToken, fl: 1 });
+        }>(h, "token/login", { token: cleanToken, fl: 7 });
 
         if (result?.eid) {
-          const uObj = result.u || result.user;
+          const uObj = result.user || result.u;
           let userId = uObj?.id ?? 0;
           let userName = uObj?.nm ?? result.au ?? "Usuario";
           if (userId === 0) {
@@ -259,9 +260,6 @@ export const wialonLogin = createServerFn({ method: "POST" })
               if (found) {
                 userId = found.id;
                 userName = found.nm;
-              } else if (userSearch?.items?.length) {
-                userId = userSearch.items[0]!.id;
-                userName = userSearch.items[0]!.nm;
               }
             } catch {}
           }
@@ -309,7 +307,7 @@ export const wialonLoginWithSid = createServerFn({ method: "POST" })
       }>(
         host,
         "core/get_account_data",
-        { type: 1 },
+        {},
         data.sid,
       );
       const uObj = res?.u || res?.user;
@@ -338,9 +336,6 @@ export const wialonLoginWithSid = createServerFn({ method: "POST" })
         if (found) {
           userId = found.id;
           userName = found.nm;
-        } else if (uSearch?.items?.length) {
-          userId = uSearch.items[0]!.id;
-          userName = uSearch.items[0]!.nm;
         }
       } catch {}
     }
@@ -947,14 +942,14 @@ export const wialonPing = createServerFn({ method: "POST" })
     const host = data.host as WialonHost;
     try {
       // core/get_account_data es universal y no requiere permisos sobre avl_unit
-      await wialonCall(host, "core/get_account_data", { type: 1 }, data.sid);
+      await wialonCall(host, "core/get_account_data", {}, data.sid);
       return { valid: true as const };
     } catch (error) {
       if (isSessionExpired(error)) {
         // Reintentar en el host alternativo por si la sesión cambió de datacenter
         const altHost: WialonHost = host === "lite" ? "full" : "lite";
         try {
-          await wialonCall(altHost, "core/get_account_data", { type: 1 }, data.sid);
+          await wialonCall(altHost, "core/get_account_data", {}, data.sid);
           return { valid: true as const };
         } catch (altErr) {
           if (isSessionExpired(altErr)) return { valid: false as const };

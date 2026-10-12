@@ -693,8 +693,8 @@ function RutasView({ session }: { session: WialonSession }) {
     setMessage(null);
 
     // 1. Remoción optimista inmediata del listado y mapa
-    queryClient.setQueriesData<{ routes: StoredUserRoute[] }>(
-      { queryKey: ["user-routes"] },
+    queryClient.setQueryData<{ routes: StoredUserRoute[] }>(
+      ["user-routes", session.userId],
       (prev) => ({
         routes: (prev?.routes ?? []).filter((r) => r.id !== route.id),
       }),
@@ -747,10 +747,7 @@ function RutasView({ session }: { session: WialonSession }) {
 
       setMessage(`Ruta "${route.name}" eliminada de tu cuenta.`);
       await queryClient.invalidateQueries({
-        queryKey: ["user-routes"],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["unit-shares"],
+        queryKey: ["user-routes", session.userId],
       });
       await userRoutesQuery.refetch();
     } catch (cause) {

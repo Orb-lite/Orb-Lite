@@ -110,7 +110,7 @@ PROCESOS QUE PUEDES EJECUTAR:
 
 6. "geofence" (Geocercas por Cliente / Recurso):
    - name: Nombre de la geocerca (ej. "Bodega Guadalajara / Cliente Norte")
-   - resourceName: Guardar en cliente / recurso de Wialon (ej. "AlfredoRetana", "Recurso Principal")
+   - resourceName: Guardar en cliente / recurso de Wialon (ej. "Orb_lite", "Recurso Principal")
    - type: Forma de geocerca ("circle" = Círculo, "polygon" = Polígono)
    - centerCoordinates: Coordenadas del centro o puntos ("lat, lon")
    - radiusMeters: Radio en metros (para círculos, mínimo 10)
@@ -473,8 +473,8 @@ function getFieldDefinitions(
           key: "resourceName",
           label: "Guardar en cliente / Recurso de Wialon",
           type: "text",
-          value: values.resourceName || "AlfredoRetana",
-          placeholder: "Ej. AlfredoRetana",
+          value: values.resourceName || "Orb_lite",
+          placeholder: "Ej. Orb_lite",
           required: true,
         },
         {
@@ -835,7 +835,7 @@ export function analyzeProcessRequirements(
         {
           field: "resourceName",
           label: "Guardar en Cliente / Recurso Wialon",
-          why: "Cuenta o recurso de Wialon donde se almacenará la zona (ej. AlfredoRetana).",
+          why: "Cuenta o recurso de Wialon donde se almacenará la zona (ej. Orb_lite).",
           isRequired: true,
           isComplete: Boolean(fields.resourceName && String(fields.resourceName).trim().length > 0),
         },
@@ -1175,7 +1175,7 @@ function localRuleFallback(
   ) {
     const values = {
       name: "",
-      resourceName: "AlfredoRetana",
+      resourceName: "Orb_lite",
       type: "circle",
       radiusMeters: 150,
       centerCoordinates: "20.6736, -103.3440",

@@ -215,34 +215,32 @@ export async function deleteUserRouteFromStorage(
   if (route?.shareToken) {
     inMemoryRoutes.delete(route.shareToken);
   }
-  for (const [key, val] of inMemoryRoutes.entries()) {
-    if (val.id === routeId || val.shareToken === routeId) {
-      inMemoryRoutes.delete(key);
-    }
-  }
 
   try {
     const tokensToDelete = [`rtok_${routeId}`];
     if (route?.shareToken) tokensToDelete.push(route.shareToken);
 
     await supabaseAdmin.from("user_route_assignments").delete().eq("route_id", routeId);
+    await supabaseAdmin
+      .from("shared_links")
+      .delete()
+      .or(`route_id.eq.${routeId},token.in.(${tokensToDelete.map((t) => `"${t}"`).join(",")})`);
 
-    // Borrado definitivo e incondicional de user_routes por su ID único
-    await supabaseAdmin.from("user_routes").delete().eq("id", routeId);
-
-    // Borrado de shared_links por route_id, tokens y nombre JSON
-    await supabaseAdmin.from("shared_links").delete().eq("route_id", routeId);
-    for (const token of tokensToDelete) {
-      await supabaseAdmin.from("shared_links").delete().eq("token", token);
-    }
-    await supabaseAdmin.from("shared_links").delete().ilike("name", `%"id":"${routeId}"%`);
-    await supabaseAdmin.from("shared_links").delete().ilike("name", `%"${routeId}"%`);
-
-    // Inactivar como salvaguarda
+    // Actualizar también is_active a false como garantía si RLS bloquea hard delete
     await supabaseAdmin
       .from("shared_links")
       .update({ is_active: false })
       .or(`route_id.eq.${routeId},token.in.(${tokensToDelete.map((t) => `"${t}"`).join(",")})`);
+
+    if (allowedUserIds && allowedUserIds.length > 0) {
+      await supabaseAdmin
+        .from("user_routes")
+        .delete()
+        .eq("id", routeId)
+        .in("user_id", allowedUserIds);
+    } else {
+      await supabaseAdmin.from("user_routes").delete().eq("id", routeId).eq("user_id", userId);
+    }
   } catch (err) {
     console.warn("[user-routes] Could not sync delete to Supabase:", err);
   }
