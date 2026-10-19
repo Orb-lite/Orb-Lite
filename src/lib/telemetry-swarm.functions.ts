@@ -692,31 +692,35 @@ export const WIALON_API_CATALOG: WialonApiDefinition[] = [
   },
 ];
 
+export const WIALON_ERROR_CODES = [
+  { code: 1, name: "Invalid session", desc: "El SID expiró o no existe. El Swarm debe renovar sesión." },
+  { code: 2, name: "Invalid service name", desc: "El parámetro svc no existe en la Remote API." },
+  { code: 3, name: "Invalid result", desc: "La respuesta generada por Wialon no pudo serializarse." },
+  { code: 4, name: "Invalid input", desc: "Parámetros obligatorios faltantes o tipos incorrectos (ej. falta f:0)." },
+  { code: 5, name: "Error performing request", desc: "Fallo interno en el cluster de Wialon." },
+  { code: 7, name: "Access denied", desc: "El token o usuario no tiene permisos ACL para este objeto." },
+  { code: 1001, name: "No messages for selected interval", desc: "Sin telemetría en el rango solicitado." },
+  { code: 1003, name: "Only one request is allowed at the moment", desc: "Wialon rechaza ráfagas concurrentes sobre la misma sesión." },
+  { code: 1004, name: "Limit of messages has been reached", desc: "Límite de tasa de consultas por minuto excedido." },
+];
+
+export const SWARM_ARCHITECTURE = {
+  name: "ORB-LITE Serverless Telemetry Swarm",
+  engine: "Nitro / TanStack Start Serverless Functions",
+  wialonEndpoint: "https://hst-api.wialon.com/wialon/ajax.html",
+  features: [
+    "Warm SID Reuse (Caché en contenedor serverless con TTL 90 min)",
+    "Auto-Recover on Error 1 (Renovación atómica sin interrupción al CRM)",
+    "Rate-Limit Serializer (Cola anti-error 1003/1004)",
+    "Fallback JSONP Directo para el navegador si el proxy backend es bloqueado",
+  ],
+};
+
 export const getWialonApiCatalog = createServerFn({ method: "GET" }).handler(async () => {
   return {
     catalog: WIALON_API_CATALOG,
-    errorCodes: [
-      { code: 1, name: "Invalid session", desc: "El SID expiró o no existe. El Swarm debe renovar sesión." },
-      { code: 2, name: "Invalid service name", desc: "El parámetro svc no existe en la Remote API." },
-      { code: 3, name: "Invalid result", desc: "La respuesta generada por Wialon no pudo serializarse." },
-      { code: 4, name: "Invalid input", desc: "Parámetros obligatorios faltantes o tipos incorrectos (ej. falta f:0)." },
-      { code: 5, name: "Error performing request", desc: "Fallo interno en el cluster de Wialon." },
-      { code: 7, name: "Access denied", desc: "El token o usuario no tiene permisos ACL para este objeto." },
-      { code: 1001, name: "No messages for selected interval", desc: "Sin telemetría en el rango solicitado." },
-      { code: 1003, name: "Only one request is allowed at the moment", desc: "Wialon rechaza ráfagas concurrentes sobre la misma sesión." },
-      { code: 1004, name: "Limit of messages has been reached", desc: "Límite de tasa de consultas por minuto excedido." },
-    ],
-    swarmArchitecture: {
-      name: "ORB-LITE Serverless Telemetry Swarm",
-      engine: "Nitro / TanStack Start Serverless Functions",
-      wialonEndpoint: "https://hst-api.wialon.com/wialon/ajax.html",
-      features: [
-        "Warm SID Reuse (Caché en contenedor serverless con TTL 90 min)",
-        "Auto-Recover on Error 1 (Renovación atómica sin interrupción al CRM)",
-        "Rate-Limit Serializer (Cola anti-error 1003/1004)",
-        "Fallback JSONP Directo para el navegador si el proxy backend es bloqueado",
-      ],
-    },
+    errorCodes: WIALON_ERROR_CODES,
+    swarmArchitecture: SWARM_ARCHITECTURE,
   };
 });
 

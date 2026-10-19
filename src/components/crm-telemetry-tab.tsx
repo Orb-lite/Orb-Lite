@@ -33,6 +33,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  WIALON_API_CATALOG,
+  WIALON_ERROR_CODES,
+  SWARM_ARCHITECTURE,
   getWialonApiCatalog,
   testWialonApiEndpoint,
   type WialonApiDefinition,
@@ -98,8 +101,24 @@ export function CrmTelemetryTab() {
     staleTime: 1000 * 60 * 30,
   });
 
-  const catalog: WialonApiDefinition[] = query.data?.catalog ?? [];
-  const errorCodes = query.data?.errorCodes ?? [];
+  // Always guarantee full catalog immediately without waiting for async query
+  const catalog: WialonApiDefinition[] =
+    query.data?.catalog && query.data.catalog.length > 0
+      ? query.data.catalog
+      : WIALON_API_CATALOG;
+
+  const errorCodes =
+    query.data?.errorCodes && query.data.errorCodes.length > 0
+      ? query.data.errorCodes
+      : WIALON_ERROR_CODES;
+
+  const categoryCounts = React.useMemo(() => {
+    const counts: Record<string, number> = { all: catalog.length };
+    for (const item of catalog) {
+      counts[item.category] = (counts[item.category] || 0) + 1;
+    }
+    return counts;
+  }, [catalog]);
 
   const filteredCatalog = React.useMemo(() => {
     return catalog.filter((api) => {
@@ -114,8 +133,10 @@ export function CrmTelemetryTab() {
   }, [catalog, selectedCategory, search]);
 
   const selectedApi = React.useMemo(() => {
-    return catalog.find((a) => a.id === selectedApiId) || catalog[0];
-  }, [catalog, selectedApiId]);
+    const foundInFiltered = filteredCatalog.find((a) => a.id === selectedApiId);
+    if (foundInFiltered) return foundInFiltered;
+    return filteredCatalog[0] ?? catalog[0];
+  }, [catalog, filteredCatalog, selectedApiId]);
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -286,27 +307,41 @@ export function CrmTelemetryTab() {
 
             {/* Categorías */}
             <div className="flex flex-wrap gap-1">
-              {Object.entries(CATEGORY_LABELS).map(([catKey, catLabel]) => (
-                <button
-                  key={catKey}
-                  type="button"
-                  onClick={() => setSelectedCategory(catKey)}
-                  className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                    selectedCategory === catKey
-                      ? "bg-primary text-primary-foreground font-semibold"
-                      : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                  }`}
-                >
-                  {catLabel}
-                </button>
-              ))}
+              {Object.entries(CATEGORY_LABELS).map(([catKey, catLabel]) => {
+                const count = categoryCounts[catKey] ?? 0;
+                return (
+                  <button
+                    key={catKey}
+                    type="button"
+                    onClick={() => setSelectedCategory(catKey)}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                      selectedCategory === catKey
+                        ? "bg-primary text-primary-foreground font-semibold shadow-2xs"
+                        : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {catLabel} <span className="opacity-75 font-mono text-[10px]">({count})</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Lista de Endpoints */}
             <div className="space-y-1.5 max-h-[600px] overflow-y-auto pr-1">
               {filteredCatalog.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-                  No se encontraron endpoints con ese filtro.
+                <div className="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground space-y-2">
+                  <p>No se encontraron endpoints con ese filtro.</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedCategory("all");
+                      setSearch("");
+                    }}
+                    className="text-xs h-7"
+                  >
+                    Mostrar todas las APIs ({catalog.length})
+                  </Button>
                 </div>
               ) : (
                 filteredCatalog.map((api) => {
