@@ -10,6 +10,7 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
+import { Analytics } from "@vercel/analytics/react";
 
 import appCss from "../styles.css?url";
 import { SiteHeader, SiteFooter } from "../components/site-chrome";
@@ -152,6 +153,7 @@ function RootComponent() {
           <AssistantChat />
         </ClientOnly>
       </div>
+      <Analytics />
     </QueryClientProvider>
   );
 }
