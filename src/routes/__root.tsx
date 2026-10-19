@@ -9,11 +9,12 @@ import {
   ClientOnly,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { SiteHeader, SiteFooter } from "../components/site-chrome";
 import { Toaster } from "../components/ui/sonner";
+import { AssistantChat } from "../components/assistant/assistant-chat";
 
 function NotFoundComponent() {
   return (
@@ -135,7 +136,9 @@ function RootShell({ children }: { children: ReactNode }) {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
+  const context = Route.useRouteContext();
+  const [fallbackClient] = useState(() => new QueryClient());
+  const queryClient = context?.queryClient ?? fallbackClient;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -145,6 +148,9 @@ function RootComponent() {
         <Outlet />
         <SiteFooter />
         <Toaster position="top-center" />
+        <ClientOnly>
+          <AssistantChat />
+        </ClientOnly>
       </div>
     </QueryClientProvider>
   );

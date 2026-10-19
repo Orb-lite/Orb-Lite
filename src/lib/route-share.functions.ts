@@ -80,7 +80,7 @@ export const shareUserRoute = createServerFn({ method: "POST" })
       .object({
         userId: z.number().int().nonnegative(),
         routeId: z.string().min(1),
-        reportEmail: z.string().trim().email().max(255).optional().or(z.literal("")),
+        reportEmail: z.string().trim().email().max(255).optional().nullable().or(z.literal("")),
       })
       .parse(input),
   )
@@ -91,9 +91,9 @@ export const shareUserRoute = createServerFn({ method: "POST" })
     const route = routes.find((r) => r.id === data.routeId);
     if (!route) throw new Error("Ruta no encontrada.");
 
-    const email = data.reportEmail && data.reportEmail.trim() ? data.reportEmail.trim() : undefined;
-    if (email) {
-      await rememberReportEmail(data.userId, email);
+    const cleanEmail = data.reportEmail?.trim() || undefined;
+    if (cleanEmail) {
+      await rememberReportEmail(data.userId, cleanEmail);
     }
 
     const hasCorrectStops =
@@ -112,7 +112,7 @@ export const shareUserRoute = createServerFn({ method: "POST" })
         data.routeId,
         token,
         route.stops,
-        email ?? route.reportEmail,
+        cleanEmail,
       );
       if (!saved) throw new Error("No se pudo generar el enlace.");
       return { token };
@@ -122,24 +122,20 @@ export const shareUserRoute = createServerFn({ method: "POST" })
     let visitPoints: Array<{ lat: number; lon: number; label?: string }> = route.routeStops?.length
       ? route.routeStops
       : route.points;
-    // Si no hay paradas explícitas pero hay direcciones, intentar ubicarlas sin romper
+    // Rutas anteriores guardaban cientos de vértices sin separar las visitas.
+    // Recuperar las direcciones para no crear un check por cada vértice.
     if (!route.routeStops?.length && labels.length > 0) {
-      try {
-        const { smartGeocode } = await import("./geocoding");
-        const places = [route.origin ?? "", ...labels].filter(Boolean);
-        const resolved: Array<{ lat: number; lon: number; label: string }> = [];
-        for (const place of places) {
-          try {
-            const location = await smartGeocode(place);
-            resolved.push({ lat: location.lat, lon: location.lon, label: place });
-          } catch {
-            // Si falla la geocodificación de un punto, no bloquear
-          }
+      const { smartGeocode } = await import("./geocoding");
+      const places = [route.origin ?? "", ...labels];
+      visitPoints = [];
+      for (const place of places) {
+        try {
+          const location = await smartGeocode(place);
+          visitPoints.push({ lat: location.lat, lon: location.lon, label: place });
+        } catch {
+          throw new Error(`No se pudo ubicar "${place}". Actualiza la ruta antes de compartirla.`);
         }
-        if (resolved.length > 0) {
-          visitPoints = resolved;
-        }
-      } catch {}
+      }
     }
     const stops: SharedRouteStop[] = visitPoints.map((point, index) => ({
       label:
@@ -149,7 +145,7 @@ export const shareUserRoute = createServerFn({ method: "POST" })
       lat: point.lat,
       lon: point.lon,
     }));
-    const saved = await setRouteShare(data.userId, data.routeId, token, stops, email ?? route.reportEmail);
+    const saved = await setRouteShare(data.userId, data.routeId, token, stops, cleanEmail);
     if (!saved) throw new Error("No se pudo generar el enlace.");
     return { token };
   });

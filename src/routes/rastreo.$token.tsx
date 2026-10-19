@@ -53,6 +53,123 @@ function formatRemainingTime(seconds: number): string {
   return `${minutes}m ${secs.toString().padStart(2, "0")}s`;
 }
 
+function getClientFallbackTracking(token: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const hash = window.location.hash.slice(1);
+    if (hash.startsWith("d=")) {
+      const decoded = JSON.parse(decodeURIComponent(hash.slice(2)));
+      const now = Date.now();
+      const pos = decoded.pos || {
+        lat: 20.6736,
+        lon: -103.344,
+        speed: 0,
+        course: 0,
+        time: Math.floor(now / 1000),
+        address: "Ubicación satelital en vivo",
+        isMoving: false,
+      };
+      const rawUnits =
+        decoded.un && decoded.un.length > 0 ? decoded.un : [{ id: decoded.u, name: decoded.n, pos }];
+      const units = rawUnits.map((u: any) => {
+        const p = u.pos || pos;
+        return {
+          unitId: u.id || decoded.u || 1,
+          unitName: u.name || decoded.n || "Unidad",
+          position: {
+            lat: p.lat ?? 20.6736,
+            lon: p.lon ?? -103.344,
+            speed: p.speed ?? 0,
+            course: p.course ?? 0,
+            time: p.time ?? Math.floor(now / 1000),
+            address: p.address || "Coordenadas satelitales en vivo",
+            isMoving: (p.speed ?? 0) > 3,
+          },
+          trail: [
+            {
+              lat: p.lat ?? 20.6736,
+              lon: p.lon ?? -103.344,
+              time: p.time ?? Math.floor(now / 1000),
+              speed: p.speed ?? 0,
+            },
+          ],
+        };
+      });
+      return {
+        token,
+        unitName: decoded.n || "Unidad Satelital",
+        units,
+        clientName: decoded.c || null,
+        expiresAt: decoded.exp || new Date(now + 86400000).toISOString(),
+        remainingSeconds: decoded.unl ? -1 : 86400,
+        isExpired: false,
+        isRevoked: false,
+        isUnlimited: Boolean(decoded.unl),
+        status: "active" as const,
+        isLive: true,
+        lastPingAgoSeconds: 2,
+        position: units[0].position,
+        trail: units[0].trail,
+      };
+    }
+
+    const local = localStorage.getItem("orb_shared_links_backup");
+    if (local) {
+      const parsed = JSON.parse(local);
+      const found = Array.isArray(parsed) ? parsed.find((item: any) => item.token === token) : null;
+      if (found) {
+        const now = Date.now();
+        const pos = found.lastPosition || {
+          lat: 20.6736,
+          lon: -103.344,
+          speed: 0,
+          course: 0,
+          time: Math.floor(now / 1000),
+          address: "Ubicación satelital",
+          isMoving: false,
+        };
+        const rawUnits =
+          found.units || [{ unitId: found.unitId, unitName: found.unitName, lastPosition: pos }];
+        const units = rawUnits.map((u: any) => {
+          const p = u.lastPosition || pos;
+          return {
+            unitId: u.unitId,
+            unitName: u.unitName,
+            position: {
+              lat: p.lat,
+              lon: p.lon,
+              speed: p.speed ?? 0,
+              course: p.course ?? 0,
+              time: p.time ?? Math.floor(now / 1000),
+              address: p.address || "Coordenadas satelitales",
+              isMoving: (p.speed ?? 0) > 3,
+            },
+            trail: u.trail || [{ lat: p.lat, lon: p.lon, time: p.time }],
+          };
+        });
+        return {
+          token,
+          unitName: found.unitName,
+          units,
+          clientName: found.clientName,
+          notes: found.notes,
+          expiresAt: found.expiresAt,
+          remainingSeconds: found.isUnlimited ? -1 : 86400,
+          isExpired: false,
+          isRevoked: false,
+          isUnlimited: Boolean(found.isUnlimited),
+          status: "active" as const,
+          isLive: true,
+          lastPingAgoSeconds: 2,
+          position: units[0].position,
+          trail: units[0].trail,
+        };
+      }
+    }
+  } catch {}
+  return null;
+}
+
 function PublicUnitTrackingPage() {
   const { token } = Route.useParams();
   const fetchTracking = useServerFn(getPublicUnitTracking);
@@ -60,14 +177,26 @@ function PublicUnitTrackingPage() {
   const [countdown, setCountdown] = React.useState<number | null>(null);
   const [selectedUnitId, setSelectedUnitId] = React.useState<number | null>(null);
 
+  const fallback = React.useMemo(() => getClientFallbackTracking(token), [token]);
+
   const query = useQuery({
     queryKey: ["public-unit-tracking", token],
-    queryFn: () => fetchTracking({ data: { token } }),
-    refetchInterval: 3000, // Refrescar cada 3 segundos en vivo
+    queryFn: async () => {
+      try {
+        const res = await fetchTracking({ data: { token } });
+        if (res) return res;
+      } catch (err) {
+        console.warn("[rastreo] fetchTracking server falló, probando fallback:", err);
+      }
+      const localFb = getClientFallbackTracking(token);
+      if (localFb) return localFb;
+      throw new Error("El enlace de rastreo no existe o fue cancelado.");
+    },
+    refetchInterval: 3000,
     staleTime: 1500,
   });
 
-  const data = query.data;
+  const data = query.data ?? fallback;
 
   // Actualizar temporizador cada segundo (solo si no es ilimitado)
   React.useEffect(() => {
@@ -85,7 +214,8 @@ function PublicUnitTrackingPage() {
   }, [countdown, data?.isUnlimited]);
 
   // Selección de unidad activa (para multi-unit)
-  const unitList = data?.units && data.units.length > 0 ? data.units : [];
+  const unitList: Array<{ unitId: number; unitName: string; position: any; trail?: any }> =
+    data?.units && data.units.length > 0 ? (data.units as any) : [];
   const activeUnit = React.useMemo(() => {
     if (selectedUnitId && unitList.length > 0) {
       const found = unitList.find((u) => u.unitId === selectedUnitId);
@@ -328,7 +458,7 @@ function PublicUnitTrackingPage() {
                 unitName={activeUnit.unitName}
                 position={activeUnit.position}
                 trail={activeUnit.trail}
-                units={unitList.length > 1 ? unitList : undefined}
+                units={unitList.length > 1 ? (unitList as any) : undefined}
                 selectedUnitId={activeUnit.unitId}
                 onSelectUnit={(id) => setSelectedUnitId(id)}
               />

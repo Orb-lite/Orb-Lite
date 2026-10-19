@@ -23,6 +23,7 @@ import {
   type PlatformUserProfile,
   type SubuserInfo,
 } from "@/lib/platform-user.functions";
+import { clientFetchSubaccounts } from "@/lib/wialon-client-api";
 import { writeSession, type WialonSession } from "@/lib/wialon-session";
 
 export const Route = createFileRoute("/wialon/usuarios")({
@@ -50,22 +51,70 @@ function UsuariosView({ session }: { session: WialonSession }) {
 
   // Consulta en tiempo real de subcuentas y perfil
   const { data: profile, isLoading, refetch, isFetching } = useQuery<PlatformUserProfile | null>({
-    queryKey: ["platform-user-profile", session.userId],
+    queryKey: ["platform-user-profile", session.userId, session.host, session.sid],
     queryFn: async (): Promise<PlatformUserProfile | null> => {
-      const res = (await syncUserFn({
-        data: {
-          wialonUserId: session.userId,
-          wialonUsername: session.userName,
-          host: session.host,
-          sid: session.sid,
-        },
-      })) as PlatformUserProfile | null;
+      let res: PlatformUserProfile | null = null;
+      try {
+        res = (await syncUserFn({
+          data: {
+            wialonUserId: session.userId,
+            wialonUsername: session.userName,
+            host: session.host,
+            sid: session.sid,
+          },
+        })) as PlatformUserProfile | null;
+      } catch (err) {
+        console.warn("[UsuariosView] syncUserFn falló, probando cliente directo:", err);
+      }
+
+      // Si no hay subcuentas o falló el server, consultar Wialon directamente por JSONP
+      if (!res?.subusers || res.subusers.length === 0) {
+        try {
+          const directSub = await clientFetchSubaccounts(
+            session.host,
+            session.sid,
+            session.userId,
+            session.userName,
+          );
+          if (directSub.subusers.length > 0 || !res) {
+            res = {
+              wialonUserId: session.userId,
+              wialonUsername: session.userName,
+              host: session.host,
+              customerNumber: res?.customerNumber ?? null,
+              fullName: res?.fullName || session.userName,
+              company: res?.company ?? null,
+              email: res?.email ?? null,
+              phone: res?.phone ?? null,
+              role: directSub.isParent ? "parent" : (res?.role || "client"),
+              isParent: directSub.isParent,
+              parentUserId: res?.parentUserId ?? null,
+              parentUsername: res?.parentUsername ?? null,
+              subusers: directSub.subusers.length > 0 ? (directSub.subusers as any) : (res?.subusers ?? []),
+              subuserPermissions: res?.subuserPermissions ?? {
+                routes: true,
+                geofences: true,
+                tracking_links: true,
+              },
+              billing: res?.billing ?? null,
+              renewals: res?.renewals ?? [],
+              orders: res?.orders ?? [],
+              savedRoutesCount: res?.savedRoutesCount ?? 0,
+            };
+          }
+        } catch (subErr) {
+          console.warn("[UsuariosView] clientFetchSubaccounts falló:", subErr);
+        }
+      }
+
       setCurrentProfile(res);
       // Actualizar sesión en local
-      writeSession({
-        ...session,
-        profile: res,
-      });
+      if (res) {
+        writeSession({
+          ...session,
+          profile: res,
+        });
+      }
       return res;
     },
     initialData: session.profile ?? null,

@@ -24,11 +24,12 @@ import {
   CheckSquare,
   Square,
   Users,
+  Route as RouteIcon,
 } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { type WialonSession } from "@/lib/wialon-session";
 import { wialonUnits } from "@/lib/wialon.functions";
-import { fetchReliableUnits } from "@/lib/wialon-client-api";
+import { clientFetchUnits } from "@/lib/wialon-client-api";
 import {
   createUnitShare,
   listUnitShares,
@@ -107,43 +108,56 @@ function WialonSharePage({ session }: { session: WialonSession }) {
   // Queries
   const unitsQuery = useQuery({
     queryKey: ["wialon-units", session.sid, session.host],
-    queryFn: () => fetchReliableUnits({ session, fetchUnitsServerFn: fetchUnits }),
+    queryFn: async () => {
+      try {
+        const res = await fetchUnits({ data: { host: session.host, sid: session.sid } });
+        if (res?.units && res.units.length > 0) return res;
+      } catch {}
+      return await clientFetchUnits(session.host, session.sid);
+    },
     staleTime: 30000,
   });
 
-  const units = unitsQuery.data?.units ?? [];
-
   const sharesQuery = useQuery({
     queryKey: ["unit-shares", session.userId, session.host],
-    queryFn: () =>
-      fetchShares({
-        data: {
-          host: session.host,
-          sid: session.sid,
-          userId: session.userId,
-        },
-      }),
+    queryFn: async () => {
+      let serverLinks: SharedUnitLink[] = [];
+      try {
+        const res = await fetchShares({
+          data: {
+            host: session.host,
+            sid: session.sid,
+            userId: session.userId,
+          },
+        });
+        if (res?.links) serverLinks = res.links;
+      } catch (err) {
+        console.warn("[Compartir] fetchShares server falló:", err);
+      }
+
+      // Mezclar con respaldo en localStorage
+      try {
+        const local = localStorage.getItem("orb_shared_links_backup");
+        if (local) {
+          const localLinks: SharedUnitLink[] = JSON.parse(local);
+          if (Array.isArray(localLinks)) {
+            const map = new Map<string, SharedUnitLink>();
+            for (const item of [...serverLinks, ...localLinks]) {
+              if (item?.token && !map.has(item.token)) {
+                map.set(item.token, item);
+              }
+            }
+            return { links: Array.from(map.values()) };
+          }
+        }
+      } catch {}
+
+      return { links: serverLinks };
+    },
     refetchInterval: 15000,
   });
 
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const urlUnitId = params.get("unitId");
-      if (urlUnitId) {
-        const parsed = Number(urlUnitId);
-        if (!Number.isNaN(parsed) && parsed > 0) {
-          setSelectedUnitId(parsed);
-          setShareMode("single");
-          setCreateDialogOpen(true);
-          return;
-        }
-      }
-    }
-    if (units.length > 0 && selectedUnitId === "custom") {
-      setSelectedUnitId(units[0]!.id);
-    }
-  }, [units, selectedUnitId]);
+  const units = unitsQuery.data?.units ?? [];
   const shares = sharesQuery.data?.links ?? [];
 
   // Mutations
@@ -153,6 +167,18 @@ function WialonSharePage({ session }: { session: WialonSession }) {
       queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
       setSuccessLink(res.link);
       setCreateDialogOpen(false);
+
+      if (res?.link) {
+        try {
+          const local = localStorage.getItem("orb_shared_links_backup");
+          const existing = local ? JSON.parse(local) : [];
+          localStorage.setItem(
+            "orb_shared_links_backup",
+            JSON.stringify([res.link, ...existing.filter((i: any) => i.token !== res.link.token)]),
+          );
+        } catch {}
+      }
+
       // Reset form
       setClientName("");
       setClientPhone("");
@@ -182,7 +208,20 @@ function WialonSharePage({ session }: { session: WialonSession }) {
 
   const deleteMutation = useMutation({
     mutationFn: deleteShareFn,
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      try {
+        const local = localStorage.getItem("orb_shared_links_backup");
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed)) {
+            const token = variables?.data?.token;
+            localStorage.setItem(
+              "orb_shared_links_backup",
+              JSON.stringify(parsed.filter((p: any) => p.token !== token)),
+            );
+          }
+        }
+      } catch {}
       queryClient.invalidateQueries({ queryKey: ["unit-shares"] });
     },
   });
@@ -361,8 +400,38 @@ function WialonSharePage({ session }: { session: WialonSession }) {
     });
   }
 
+  function buildShareUrl(token: string): string {
+    const found =
+      (sharesQuery.data?.links || []).find((l) => l.token === token) ||
+      (successLink?.token === token ? successLink : null);
+
+    if (found?.type === "route" || found?.routeId) {
+      return `${window.location.origin}/ruta/${token}`;
+    }
+
+    let hash = "";
+    if (found) {
+      try {
+        const payload = {
+          t: found.token,
+          u: found.unitId,
+          n: found.unitName,
+          un: found.units?.map((u) => ({ id: u.unitId, name: u.unitName, pos: u.lastPosition })),
+          pos: found.lastPosition,
+          h: found.host || session.host,
+          s: found.sid || session.sid,
+          exp: found.expiresAt,
+          unl: found.isUnlimited,
+          c: found.clientName,
+        };
+        hash = `#d=${encodeURIComponent(JSON.stringify(payload))}`;
+      } catch {}
+    }
+    return `${window.location.origin}/rastreo/${token}${hash}`;
+  }
+
   function copyShareUrl(token: string) {
-    const url = `${window.location.origin}/rastreo/${token}`;
+    const url = buildShareUrl(token);
     navigator.clipboard.writeText(url);
     setCopiedToken(token);
     setTimeout(() => setCopiedToken(null), 3000);
@@ -374,9 +443,15 @@ function WialonSharePage({ session }: { session: WialonSession }) {
     clientName?: string | null,
     clientPhone?: string | null,
   ) {
-    const url = `${window.location.origin}/rastreo/${token}`;
+    const found =
+      (sharesQuery.data?.links || []).find((l) => l.token === token) ||
+      (successLink?.token === token ? successLink : null);
+    const url = buildShareUrl(token);
     const greeting = clientName ? `Hola ${clientName}, ` : "Hola, ";
-    const msg = `${greeting}te comparto el enlace para seguir en tiempo real la unidad satelital *${unitName}*:\n\n${url}\n\nEnlace seguro con mapa en vivo y navegación Waze.`;
+    const isRoute = found?.type === "route" || Boolean(found?.routeId);
+    const msg = isRoute
+      ? `${greeting}te comparto el recorrido de la ruta *${unitName}*:\n\n${url}\n\nEnlace seguro para seguimiento y marcado de paradas.`
+      : `${greeting}te comparto el enlace para seguir en tiempo real la unidad satelital *${unitName}*:\n\n${url}\n\nEnlace seguro con mapa en vivo y navegación Waze.`;
     const cleanPhone = clientPhone ? clientPhone.replace(/\D/g, "") : "";
     if (cleanPhone) {
       return `https://api.whatsapp.com/send?phone=${cleanPhone.length === 10 ? `52${cleanPhone}` : cleanPhone}&text=${encodeURIComponent(msg)}`;
@@ -513,6 +588,7 @@ function WialonSharePage({ session }: { session: WialonSession }) {
             const isRevoked = link.status === "revoked";
             const isActive = link.status === "active" && !isExpired && !isRevoked;
             const isMulti = link.units && link.units.length > 1;
+            const isRoute = link.type === "route" || Boolean(link.routeId);
 
             return (
               <div
@@ -528,7 +604,9 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                   <div className="space-y-1.5 min-w-0">
                     <div className="flex flex-wrap items-center gap-2.5">
                       <span className="font-display text-base font-bold text-foreground flex items-center gap-2">
-                        {isMulti ? (
+                        {isRoute ? (
+                          <RouteIcon className="size-4 text-emerald-400" />
+                        ) : isMulti ? (
                           <Layers className="size-4 text-cyan-400" />
                         ) : (
                           <Car className="size-4 text-primary" />
@@ -536,7 +614,12 @@ function WialonSharePage({ session }: { session: WialonSession }) {
                         {link.unitName}
                       </span>
 
-                      {isMulti ? (
+                      {isRoute ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-300">
+                          <RouteIcon className="size-3" />
+                          Ruta Compartida
+                        </span>
+                      ) : isMulti ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2.5 py-0.5 text-xs font-semibold text-cyan-300">
                           <Layers className="size-3" />
                           Flota ({link.units?.length} unidades)

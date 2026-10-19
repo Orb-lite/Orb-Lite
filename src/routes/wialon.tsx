@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { LogOut, User, Calendar, ShieldCheck, FileText, ChevronDown, ChevronUp, Users } from "lucide-react";
+import { LogOut, User, Calendar, ShieldCheck, FileText, ChevronDown, ChevronUp, Users, Terminal } from "lucide-react";
 import {
   PLATFORM_LABEL,
   useWialonKeepAlive,
@@ -18,17 +18,16 @@ export const Route = createFileRoute("/wialon")({
 
 const tabs = [
   { to: "/wialon/mapa", label: "Mapa", fullOnly: false },
-  { to: "/wialon/alertas", label: "Alertas", fullOnly: false },
   { to: "/wialon/geocercas", label: "Geocercas", fullOnly: false },
   { to: "/wialon/rutas", label: "Rutas", fullOnly: false },
   { to: "/wialon/compartir", label: "Compartir", fullOnly: false },
   { to: "/wialon/unidades", label: "Unidades", fullOnly: false },
-  { to: "/wialon/comandos", label: "Comandos TCP", fullOnly: false },
   { to: "/wialon/historial", label: "Historial", fullOnly: false },
   { to: "/wialon/reportes", label: "Reportes", fullOnly: false },
   { to: "/wialon/video", label: "Cámaras", fullOnly: false },
   { to: "/wialon/usuarios", label: "Sub-Cuentas", fullOnly: false, parentOnly: true },
   { to: "/wialon/cms", label: "Altas (CMS)", fullOnly: false },
+  { to: "/wialon/swarm", label: "Swarm APIs", fullOnly: false },
 ] as const;
 
 function WialonLayout() {
@@ -102,46 +101,45 @@ function WialonLayout() {
           </div>
         </div>
 
-        {session ? (
-          <div className="flex items-center gap-2">
-            {profile && (
-              <button
-                type="button"
-                onClick={() => setShowAccountDetails((v) => !v)}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
-              >
-                <User className="size-3.5 text-primary" />
-                <span>Mi Cuenta</span>
-                {showAccountDetails ? (
-                  <ChevronUp className="size-3 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="size-3 text-muted-foreground" />
-                )}
-              </button>
-            )}
+        <div className="flex items-center gap-2">
+          <Link
+            to="/wialon/swarm"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 py-2 text-xs font-mono font-semibold text-foreground hover:border-primary/50 hover:bg-muted transition-colors shadow-2xs"
+            title="Inspector de Arquitectura y Esquemas de APIs Wialon (Sin login CRM)"
+          >
+            <Terminal className="size-3.5 text-emerald-500" />
+            <span className="hidden sm:inline">Swarm APIs</span>
+            <span className="sm:hidden">Swarm</span>
+            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          </Link>
 
-            <Link
-              to="/noticias"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
-              title="Noticias y Final Release"
-            >
-              <span>Noticias</span>
-            </Link>
-            <Link
-              to="/faq"
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
-              title="Preguntas Frecuentes"
-            >
-              <span>FAQ</span>
-            </Link>
-            <button
-              onClick={onLogout}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-xs font-bold uppercase text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
-            >
-              <LogOut className="size-3.5" /> Salir
-            </button>
-          </div>
-        ) : null}
+          {session ? (
+            <>
+              {profile && (
+                <button
+                  type="button"
+                  onClick={() => setShowAccountDetails((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
+                >
+                  <User className="size-3.5 text-primary" />
+                  <span>Mi Cuenta</span>
+                  {showAccountDetails ? (
+                    <ChevronUp className="size-3 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="size-3 text-muted-foreground" />
+                  )}
+                </button>
+              )}
+
+              <button
+                onClick={onLogout}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-2 text-xs font-bold uppercase text-muted-foreground hover:border-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+              >
+                <LogOut className="size-3.5" /> Salir
+              </button>
+            </>
+          ) : null}
+        </div>
       </div>
 
       {/* Panel desplegable con datos registrados y tablas vinculadas al usuario */}

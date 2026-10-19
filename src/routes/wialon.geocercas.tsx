@@ -22,15 +22,10 @@ import {
   wialonCreateGeofence,
   wialonDeleteGeofence,
   wialonGeofences,
-  wialonUnits,
-  type WialonUnit,
 } from "@/lib/wialon.functions";
+import { clientFetchGeofences } from "@/lib/wialon-client-api";
+import { useWialonUnitsData } from "@/hooks/useWialonUnits";
 import type { WialonSession } from "@/lib/wialon-session";
-import {
-  fetchReliableGeofences,
-  fetchReliableUnits,
-  clientDirectDeleteGeofence,
-} from "@/lib/wialon-client-api";
 
 export const Route = createFileRoute("/wialon/geocercas")({
   head: () => ({
@@ -57,10 +52,10 @@ function colorToNumber(value: string) {
 
 function GeocercasView({ session }: { session: WialonSession }) {
   const fetchGeofences = useServerFn(wialonGeofences);
-  const fetchUnits = useServerFn(wialonUnits);
   const createGeofence = useServerFn(wialonCreateGeofence);
   const deleteGeofence = useServerFn(wialonDeleteGeofence);
   const queryClient = useQueryClient();
+  const { units } = useWialonUnitsData(session);
 
   const [name, setName] = React.useState("");
   const [type, setType] = React.useState<DrawingMode>("circle");
@@ -68,8 +63,6 @@ function GeocercasView({ session }: { session: WialonSession }) {
   const [filterResourceId, setFilterResourceId] = React.useState<number | "all">("all");
   const [createResourceId, setCreateResourceId] = React.useState<number | null>(null);
   const [focusedGeofenceId, setFocusedGeofenceId] = React.useState<number | null>(null);
-  const [focusedUnitId, setFocusedUnitId] = React.useState<number | null>(null);
-  const [showUnits, setShowUnits] = React.useState(true);
   const [drawMode, setDrawMode] = React.useState<DrawingMode | null>(null);
   const [drawingResetKey, setDrawingResetKey] = React.useState(0);
   const [draft, setDraft] = React.useState<Draft | null>(null);
@@ -81,47 +74,56 @@ function GeocercasView({ session }: { session: WialonSession }) {
 
   const query = useQuery({
     queryKey: ["wialon-geofences", session.sid, session.host],
-    queryFn: () =>
-      fetchReliableGeofences({
-        session,
-        fetchGeofencesServerFn: fetchGeofences,
-      }),
+    queryFn: async () => {
+      try {
+        const res = await fetchGeofences({ data: { host: session.host, sid: session.sid } });
+        if (res?.zones && res.zones.length > 0) return res;
+      } catch (err) {
+        console.warn("[Geocercas] Server fetchGeofences falló, probando cliente directo:", err);
+      }
+      return await clientFetchGeofences(session.host, session.sid);
+    },
     refetchInterval: 60000,
-  });
-
-  const unitsQuery = useQuery({
-    queryKey: ["wialon-units", session.sid, session.host],
-    queryFn: () =>
-      fetchReliableUnits({
-        session,
-        fetchUnitsServerFn: fetchUnits,
-      }),
-    refetchInterval: 25000,
   });
 
   const allZones = query.data?.zones ?? [];
   const resources = query.data?.resources ?? [];
-  const units = unitsQuery.data?.units ?? [];
+
+  // Filtrar geocercas que no son rutas lineales (tipo 2 = polígono, tipo 3 = círculo)
+  const polygonOrCircleZones = allZones.filter((z) => z.type === 2 || z.type === 3);
 
   // Filtrar por el cliente/recurso seleccionado
   const visibleZones =
     filterResourceId === "all"
-      ? allZones
-      : allZones.filter((z) => z.resourceId === filterResourceId);
+      ? polygonOrCircleZones
+      : polygonOrCircleZones.filter((z) => z.resourceId === filterResourceId);
 
   // Recurso seleccionado para crear
   const targetResourceId =
     createResourceId ??
     (filterResourceId !== "all" ? filterResourceId : (resources[0]?.id ?? null));
 
-  const mapGeofences: MapGeofence[] = visibleZones.map((zone) => ({
-    id: zone.id,
-    name: zone.name,
-    resource: zone.resource,
-    type: zone.type,
-    color: GEOFENCE_COLOR,
-    points: zone.points,
-  }));
+  const mapGeofences: MapGeofence[] = visibleZones.map((zone: any) => {
+    const rawPoints = Array.isArray(zone.points) ? zone.points : [];
+    const formattedPoints: Array<{ lat: number; lon: number; radius: number }> = rawPoints.map((pt: any) => {
+      if (Array.isArray(pt)) {
+        return { lat: pt[0], lon: pt[1], radius: zone.radius || 100 };
+      }
+      return {
+        lat: pt.lat ?? pt.y ?? 20.6736,
+        lon: pt.lon ?? pt.x ?? -103.344,
+        radius: pt.radius ?? pt.r ?? zone.radius ?? 100,
+      };
+    });
+    return {
+      id: zone.id,
+      name: zone.name,
+      resource: zone.resource,
+      type: (zone.type === 1 || zone.type === 2 || zone.type === 3 ? zone.type : 2) as 1 | 2 | 3,
+      color: GEOFENCE_COLOR,
+      points: formattedPoints,
+    };
+  });
 
   function chooseType(nextType: DrawingMode) {
     setType(nextType);
@@ -162,48 +164,21 @@ function GeocercasView({ session }: { session: WialonSession }) {
     setConfirmDeleteId(null);
     setError(null);
     setMessage(null);
-
-    // 1. Remoción optimista inmediata del listado y mapa
-    queryClient.setQueryData(
-      ["wialon-geofences", session.sid, session.host],
-      (prev: any) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          zones: (prev.zones ?? []).filter((z: any) => z.id !== zone.id),
-        };
-      },
-    );
-    if (focusedGeofenceId === zone.id) setFocusedGeofenceId(null);
-
     try {
-      // 2. Borrado vía ServerFn con fallback a JSONP cliente
-      try {
-        await deleteGeofence({
-          data: {
-            host: session.host,
-            sid: session.sid,
-            resourceId: zone.resourceId,
-            zoneId: zone.id,
-          },
-        });
-      } catch (serverErr) {
-        const directOk = await clientDirectDeleteGeofence(
-          session.host,
-          session.sid,
-          zone.resourceId,
-          zone.id,
-        );
-        if (!directOk) throw serverErr;
-      }
-
+      await deleteGeofence({
+        data: {
+          host: session.host,
+          sid: session.sid,
+          resourceId: zone.resourceId,
+          zoneId: zone.id,
+        },
+      });
       setMessage(`Geocerca "${zone.name}" eliminada de Wialon.`);
+      if (focusedGeofenceId === zone.id) setFocusedGeofenceId(null);
       await queryClient.invalidateQueries({
         queryKey: ["wialon-geofences", session.sid],
       });
-      await query.refetch();
     } catch (cause) {
-      await query.refetch();
       setError(
         cause instanceof Error ? cause.message : "No se pudo eliminar la geocerca de Wialon.",
       );
@@ -295,10 +270,10 @@ function GeocercasView({ session }: { session: WialonSession }) {
             }}
           >
             <option value="all">
-              🌐 Todos los clientes ({allZones.length} geocercas)
+              🌐 Todos los clientes ({polygonOrCircleZones.length} geocercas)
             </option>
             {resources.map((res) => {
-              const count = allZones.filter((z) => z.resourceId === res.id).length;
+              const count = polygonOrCircleZones.filter((z) => z.resourceId === res.id).length;
               return (
                 <option key={res.id} value={res.id}>
                   👤 {res.name} ({count} geocerca{count !== 1 ? "s" : ""})
@@ -332,63 +307,26 @@ function GeocercasView({ session }: { session: WialonSession }) {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         {/* Mapa con geocercas cargadas de Wialon */}
         <div className="overflow-hidden rounded-xl border border-border/60 bg-card/40 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 bg-background/50 px-4 py-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-3">
-              <span>
-                Mostrando {mapGeofences.length} geocerca
-                {mapGeofences.length !== 1 ? "s" : ""}
-                {units.length > 0 && showUnits ? ` · ${units.length} unidades satelitales` : ""}
-              </span>
-              {units.length > 0 ? (
-                <label className="inline-flex items-center gap-1.5 cursor-pointer text-foreground font-medium">
-                  <input
-                    type="checkbox"
-                    checked={showUnits}
-                    onChange={(e) => setShowUnits(e.target.checked)}
-                    className="rounded border-border accent-primary"
-                  />
-                  <span>Ver unidades</span>
-                </label>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-2">
-              {units.length > 0 && showUnits ? (
-                <select
-                  value={focusedUnitId ?? ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFocusedUnitId(val ? Number(val) : null);
-                  }}
-                  className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-primary"
-                >
-                  <option value="">🎯 Centrar en unidad…</option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} {u.online ? "(En línea)" : "(Sin señal)"}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-              {focusedGeofenceId || focusedUnitId ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFocusedGeofenceId(null);
-                    setFocusedUnitId(null);
-                  }}
-                  className="text-primary hover:underline"
-                >
-                  Restablecer vista general
-                </button>
-              ) : null}
-            </div>
+          <div className="flex items-center justify-between border-b border-border/50 bg-background/50 px-4 py-2 text-xs text-muted-foreground">
+            <span>
+              Mostrando {mapGeofences.length} geocerca
+              {mapGeofences.length !== 1 ? "s" : ""} en el mapa
+            </span>
+            {focusedGeofenceId ? (
+              <button
+                type="button"
+                onClick={() => setFocusedGeofenceId(null)}
+                className="text-primary hover:underline"
+              >
+                Restablecer vista general
+              </button>
+            ) : null}
           </div>
           <ClientOnly fallback={<div className="h-[580px] bg-muted/20" />}>
             <React.Suspense fallback={<div className="h-[580px] bg-muted/20" />}>
               <WialonMap
-                units={showUnits ? units : []}
+                units={units}
                 geofences={mapGeofences}
-                focusId={focusedUnitId}
                 focusGeofenceId={focusedGeofenceId}
                 drawMode={drawMode}
                 drawingResetKey={drawingResetKey}
@@ -567,10 +505,13 @@ function GeocercasView({ session }: { session: WialonSession }) {
           </div>
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleZones.map((zone) => {
+            {visibleZones.map((zone: any) => {
               const isCircle = zone.type === 3;
-              const radius =
-                isCircle && zone.points[0]?.radius ? Math.round(zone.points[0].radius) : null;
+              const rawPoints = Array.isArray(zone.points) ? zone.points : [];
+              const firstPt: any = rawPoints[0];
+              const radius = isCircle
+                ? Math.round(zone.radius ?? (firstPt && typeof firstPt === "object" ? firstPt.radius ?? firstPt.r : 100))
+                : null;
               const isDeleting = deletingId === zone.id;
 
               return (
@@ -608,7 +549,7 @@ function GeocercasView({ session }: { session: WialonSession }) {
                         ? radius
                           ? `${radius} m`
                           : "Circular"
-                        : `${zone.points.length} vértices`}
+                        : `${rawPoints.length} vértices`}
                     </span>
 
                     <div className="flex items-center gap-1">

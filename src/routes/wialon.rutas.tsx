@@ -199,7 +199,7 @@ function RutasView({ session }: { session: WialonSession }) {
   const [copiedUserRouteId, setCopiedUserRouteId] = React.useState<string | null>(null);
   const [confirmDeleteUserRouteId, setConfirmDeleteUserRouteId] = React.useState<string | null>(null);
   const [confirmDeleteWialonRouteId, setConfirmDeleteWialonRouteId] = React.useState<number | null>(null);
-  const [syncToWialon, setSyncToWialon] = React.useState(false);
+  const [syncToWialon, setSyncToWialon] = React.useState(true);
   const [geocoding, setGeocoding] = React.useState(false);
   const [planning, setPlanning] = React.useState(false);
   const [message, setMessage] = React.useState<string | null>(null);
@@ -598,11 +598,16 @@ function RutasView({ session }: { session: WialonSession }) {
         },
       });
 
-      setMessage(
-        syncToWialon && res?.wialonId
-          ? `Ruta "${res.route?.name ?? name}" guardada en tu cuenta y sincronizada en Wialon (#${res.wialonId}).`
-          : `Ruta "${res?.route?.name ?? name}" guardada exitosamente en tu cuenta de usuario (privada).`,
-      );
+      if (syncToWialon && (res as any)?.wialonError) {
+        toast.warning(`Ruta guardada, pero Wialon avisó: ${(res as any).wialonError}`);
+        setMessage(`Ruta "${res.route?.name ?? name}" guardada en cuenta privada. Wialon: ${(res as any).wialonError}`);
+      } else if (syncToWialon && res?.wialonId) {
+        toast.success(`Ruta guardada y sincronizada en Wialon (#${res.wialonId})`);
+        setMessage(`Ruta "${res.route?.name ?? name}" guardada y sincronizada en Wialon (#${res.wialonId}).`);
+      } else {
+        toast.success(`Ruta guardada exitosamente`);
+        setMessage(`Ruta "${res?.route?.name ?? name}" guardada exitosamente.`);
+      }
       setName("");
       resetDrawing();
       clearPlan();
@@ -693,8 +698,8 @@ function RutasView({ session }: { session: WialonSession }) {
     setMessage(null);
 
     // 1. Remoción optimista inmediata del listado y mapa
-    queryClient.setQueryData<{ routes: StoredUserRoute[] }>(
-      ["user-routes", session.userId],
+    queryClient.setQueriesData<{ routes: StoredUserRoute[] }>(
+      { queryKey: ["user-routes"] },
       (prev) => ({
         routes: (prev?.routes ?? []).filter((r) => r.id !== route.id),
       }),
@@ -747,7 +752,10 @@ function RutasView({ session }: { session: WialonSession }) {
 
       setMessage(`Ruta "${route.name}" eliminada de tu cuenta.`);
       await queryClient.invalidateQueries({
-        queryKey: ["user-routes", session.userId],
+        queryKey: ["user-routes"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["unit-shares"],
       });
       await userRoutesQuery.refetch();
     } catch (cause) {

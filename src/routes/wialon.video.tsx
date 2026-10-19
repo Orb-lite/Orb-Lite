@@ -13,7 +13,8 @@ import {
   Video,
 } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
-import { wialonVideoSettings, wialonVideoUnits, wialonUnits } from "@/lib/wialon.functions";
+import { wialonVideoSettings, wialonVideoUnits } from "@/lib/wialon.functions";
+import { clientFetchUnits, clientFetchVideoSettings } from "@/lib/wialon-client-api";
 import type { WialonSession } from "@/lib/wialon-session";
 
 export const Route = createFileRoute("/wialon/video")({
@@ -36,39 +37,61 @@ const WIALON_VIDEO_URL = "https://hosting.wialon.com/";
 function VideoView({ session }: { session: WialonSession }) {
   const videoUnitsFn = useServerFn(wialonVideoUnits);
   const videoSettingsFn = useServerFn(wialonVideoSettings);
-  const allUnitsFn = useServerFn(wialonUnits);
   const [unitId, setUnitId] = React.useState<number | null>(null);
 
   const videoUnits = useQuery({
     queryKey: ["wialon-video-units", session.sid, session.host],
-    queryFn: () => videoUnitsFn({ data: { host: session.host, sid: session.sid } }),
+    queryFn: async () => {
+      try {
+        const res = await videoUnitsFn({ data: { host: session.host, sid: session.sid } });
+        if (res?.units && res.units.length > 0) return res;
+      } catch (err) {
+        console.warn("[VideoView] videoUnitsFn server falló, probando cliente directo:", err);
+      }
+      const clientRes = await clientFetchUnits(session.host, session.sid);
+      return {
+        units: clientRes.units.map((u) => ({
+          id: u.id,
+          name: u.name,
+          cameraCount: 0,
+          brand: null as string | null,
+        })),
+      };
+    },
   });
 
-  const allUnitsQuery = useQuery({
-    queryKey: ["wialon-units", session.sid, session.host],
-    queryFn: () => allUnitsFn({ data: { host: session.host, sid: session.sid } }),
-  });
-
-  const unitsList = React.useMemo(() => {
-    const list = videoUnits.data?.units ?? [];
-    if (list.length > 0) return list;
-    return (allUnitsQuery.data?.units ?? []).map((u) => ({
-      id: u.id,
-      name: u.name,
-      cameraCount: 0,
-      brand: null,
-    }));
-  }, [videoUnits.data?.units, allUnitsQuery.data?.units]);
-
-  const selectedId = unitId ?? unitsList[0]?.id ?? null;
-  const selectedUnit = unitsList.find((unit) => unit.id === selectedId);
+  const selectedId = unitId ?? videoUnits.data?.units[0]?.id ?? null;
+  const selectedUnit = videoUnits.data?.units.find((unit) => unit.id === selectedId);
 
   const video = useQuery({
     queryKey: ["wialon-video-settings", session.sid, selectedId, session.host],
-    queryFn: () =>
-      videoSettingsFn({
-        data: { host: session.host, sid: session.sid, unitId: selectedId! },
-      }),
+    queryFn: async () => {
+      try {
+        const res = await videoSettingsFn({
+          data: { host: session.host, sid: session.sid, unitId: selectedId! },
+        });
+        if (res) return res;
+      } catch (err) {
+        console.warn("[VideoView] videoSettingsFn server falló, probando cliente directo:", err);
+      }
+      const direct = await clientFetchVideoSettings(session.host, session.sid, selectedId!);
+      if (direct) {
+        return {
+          cameras: Array.isArray(direct.cameras) ? direct.cameras : [],
+          channels: direct.channels ?? direct.cameras?.length ?? 1,
+          liveStream: direct.liveStream ?? null,
+          playbackStream: direct.playbackStream ?? null,
+          raw: direct,
+        };
+      }
+      return {
+        cameras: [],
+        channels: 0,
+        liveStream: null,
+        playbackStream: null,
+        raw: null,
+      };
+    },
     enabled: selectedId != null,
   });
 
@@ -116,9 +139,9 @@ function VideoView({ session }: { session: WialonSession }) {
             className="mt-2 w-full max-w-xl rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
             value={selectedId ?? ""}
             onChange={(event) => setUnitId(Number(event.target.value))}
-            disabled={unitsList.length === 0}
+            disabled={videoUnits.isLoading || !videoUnits.data?.units?.length}
           >
-            {unitsList.map((unit) => (
+            {videoUnits.data?.units?.map((unit) => (
               <option key={unit.id} value={unit.id}>
                 {unit.name}
                 {unit.cameraCount > 0
@@ -130,7 +153,7 @@ function VideoView({ session }: { session: WialonSession }) {
           </select>
         </label>
 
-        {videoUnits.isLoading && unitsList.length === 0 ? (
+        {videoUnits.isLoading ? (
           <p className="mt-3 text-xs text-muted-foreground">
             Buscando unidades disponibles en Wialon…
           </p>
@@ -215,7 +238,7 @@ function VideoView({ session }: { session: WialonSession }) {
             </div>
           ) : (
             <div className="grid gap-5 md:grid-cols-2">
-              {video.data.cameras.map((camera) => (
+              {video.data.cameras.map((camera: any) => (
                 <div
                   key={camera.index}
                   className="flex flex-col justify-between overflow-hidden rounded-xl border border-border/60 bg-card p-5 shadow-sm transition hover:border-primary/40"

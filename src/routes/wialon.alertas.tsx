@@ -36,10 +36,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useWialonSession } from "@/lib/wialon-session";
+import { useWialonUnitsData } from "@/hooks/useWialonUnits";
 import { wialonUnits, wialonUnitDetail } from "@/lib/wialon.functions";
 import { sendAlertEmail } from "@/lib/alert-email.functions";
-import { fetchReliableUnits, clientDirectFetchUnitDetail } from "@/lib/wialon-client-api";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/wialon/alertas")({
   head: () => ({
@@ -206,7 +205,10 @@ function WialonAlertasView() {
   const getUnitDetail = useServerFn(wialonUnitDetail);
   const sendAlertMail = useServerFn(sendAlertEmail);
 
-  const [units, setUnits] = React.useState<Array<{ id: number; name: string }>>([]);
+  const { units: loadedUnits } = useWialonUnitsData(session);
+  const units = React.useMemo(() => {
+    return loadedUnits.map((u) => ({ id: u.id, name: u.name }));
+  }, [loadedUnits]);
   const [selectedUnitId, setSelectedUnitId] = React.useState<string>("todas");
   const [unitDetail, setUnitDetail] = React.useState<UnitDetailState | null>(null);
 
@@ -254,27 +256,6 @@ function WialonAlertasView() {
     },
   ]);
 
-  // Cargar lista de unidades con fallback resiliente
-  React.useEffect(() => {
-    if (!session) return;
-    let active = true;
-    fetchReliableUnits({ session, fetchUnitsServerFn: getUnits })
-      .then((res) => {
-        if (!active) return;
-        if (res?.units && Array.isArray(res.units)) {
-          const loadedUnits = res.units.map((u: any) => ({
-            id: u.id,
-            name: u.name,
-          }));
-          setUnits(loadedUnits);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [session, getUnits]);
-
   // Cargar configuración guardada por unidad si cambia la selección
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -315,19 +296,9 @@ function WialonAlertasView() {
       }));
 
       try {
-        let detail: any = null;
-        try {
-          detail = await getUnitDetail({
-            data: { host: session.host, sid: session.sid, unitId: unitIdNum },
-          });
-        } catch {}
-
-        if (!detail || !detail.sensors?.length) {
-          const direct = await clientDirectFetchUnitDetail(session.host, session.sid, unitIdNum);
-          if (direct) {
-            detail = direct;
-          }
-        }
+        const detail = await getUnitDetail({
+          data: { host: session.host, sid: session.sid, unitId: unitIdNum },
+        });
 
         if (detail) {
           const sensorsList: UnitSensorInfo[] = (detail.sensors || []).map((s: any) => ({
@@ -440,7 +411,7 @@ function WialonAlertasView() {
     }
   }, [selectedUnitId, fetchUnitSensors]);
 
-  const handleSaveForUnit = async () => {
+  const handleSaveForUnit = () => {
     try {
       const key =
         selectedUnitId === "todas"
@@ -452,64 +423,18 @@ function WialonAlertasView() {
           ? "todas las unidades"
           : units.find((u) => String(u.id) === selectedUnitId)?.name || "la unidad seleccionada";
       toast.success(`Reglas guardadas exitosamente para ${targetLabel}`);
-
-      // Sincronizar en Supabase para persistencia y respaldo en la nube
-      try {
-        const token = `alert_cfg_${selectedUnitId}_${session?.userId || "user"}`;
-        const { data: existing } = await supabase
-          .from("shared_links")
-          .select("id")
-          .eq("token", token)
-          .maybeSingle();
-
-        const rowId = existing?.id || crypto.randomUUID();
-        await supabase.from("shared_links").upsert({
-          id: rowId,
-          token,
-          unit_id: `alert_config_${selectedUnitId}`,
-          name: JSON.stringify(config),
-          created_by_name: session?.userName || null,
-          created_by_id: session?.userId ? String(session.userId) : null,
-          is_active: true,
-        });
-      } catch (err) {
-        console.warn("[alertas] Supabase sync alert config:", err);
-      }
     } catch {
       toast.error("No se pudo guardar la configuración");
     }
   };
 
-  const handleApplyToAllUnits = async () => {
+  const handleApplyToAllUnits = () => {
     try {
       localStorage.setItem("orb_lite_alert_config", JSON.stringify(config));
       for (const u of units) {
         localStorage.setItem(`orb_lite_alert_config_unit_${u.id}`, JSON.stringify(config));
       }
       toast.success("Reglas replicadas y aplicadas a todas las unidades");
-
-      // Sincronizar regla general en Supabase
-      try {
-        const token = `alert_cfg_todas_${session?.userId || "user"}`;
-        const { data: existing } = await supabase
-          .from("shared_links")
-          .select("id")
-          .eq("token", token)
-          .maybeSingle();
-
-        const rowId = existing?.id || crypto.randomUUID();
-        await supabase.from("shared_links").upsert({
-          id: rowId,
-          token,
-          unit_id: "alert_config_todas",
-          name: JSON.stringify(config),
-          created_by_name: session?.userName || null,
-          created_by_id: session?.userId ? String(session.userId) : null,
-          is_active: true,
-        });
-      } catch (err) {
-        console.warn("[alertas] Supabase sync all alert configs:", err);
-      }
     } catch {
       toast.error("Error al replicar las reglas");
     }

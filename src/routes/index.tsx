@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   MapPin,
@@ -21,16 +20,14 @@ import {
   CheckCircle2,
   ArrowRight,
   ChevronRight,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Layers,
-  HelpCircle,
-  ShieldAlert,
+  Newspaper,
 } from "lucide-react";
 
 import heroImg from "@/assets/hero-gps.jpg";
 import { CtaBanner } from "@/components/site-chrome";
+import { newsArticles } from "@/data/news";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -167,31 +164,7 @@ const techPillars = [
   },
 ];
 
-const homeFaqs = [
-  {
-    q: "¿Qué alertas configurables incluye la plataforma ORB-LITE?",
-    a: "La plataforma incluye alertas totalmente configurables de: baja batería vehicular (<11.8V) y corte de arnés; excesos de velocidad en km/h para ciudad y carretera; baja o alta temperatura para cadena de frío y motor; situaciones de riesgo de sensores (puertas, combustible, impacto); conducción errática (frenado brusco, aceleraciones y curvas violentas); y botón de pánico SOS para auxilio inmediato.",
-  },
-  {
-    q: "¿Cómo funciona el paro de motor remoto en caso de robo?",
-    a: "Envías el comando seguro desde tu celular o computadora. El relevador automotriz corta la ignición o bomba de gasolina de forma controlada cuando la unidad reduce su velocidad o se detiene, inmovilizando el vehículo sin peligro.",
-  },
-  {
-    q: "¿Qué costos de renovación existen tras el primer año?",
-    a: "Cero contratos forzosos. El primer año está 100% incluido. Al segundo año, la plataforma cuesta solo $160 MXN/año y el SIM multi-carrier con datos ilimitados $590 MXN/año, o el paquete completo de $750 MXN al año (~$63 pesos al mes).",
-  },
-  {
-    q: "¿Qué cobertura tiene el chip y qué pasa si no hay señal celular?",
-    a: "El chip multi-carrier conmuta automáticamente entre Telcel, Movistar y AT&T. Si el vehículo entra a una zona sin red (túnel o sierra), su memoria interna almacena hasta 100,000 puntos y los transmite tan pronto recupera señal.",
-  },
-  {
-    q: "¿Puedo compartir la ubicación de mi auto con la policía o clientes?",
-    a: "Sí. Generas un enlace público temporal válido por 2, 6, 12 o 24 horas. El receptor puede abrirlo en cualquier celular o PC y ver la ubicación en vivo sin necesidad de tu usuario ni contraseña.",
-  },
-];
-
 function Index() {
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
   return (
     <div className="space-y-20 pb-10">
       {/* HERO SECTION */}
@@ -473,66 +446,58 @@ function Index() {
         </div>
       </section>
 
-      {/* PREGUNTAS FRECUENTES (FAQ) */}
-      <section id="faq" className="mx-auto max-w-6xl px-5">
-        <div className="text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3.5 py-1 text-xs font-semibold uppercase tracking-wider text-primary">
-            <HelpCircle className="size-3.5" />
-            <span>Resolución Inmediata de Dudas</span>
+      {/* SECCIÓN DE NOTICIAS Y NOVEDADES */}
+      <section className="mx-auto max-w-6xl px-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <span className="font-display text-xs font-bold uppercase tracking-[0.25em] text-primary flex items-center gap-2">
+              <Newspaper className="size-4" />
+              Actualidad Telemática & Plataforma
+            </span>
+            <h2 className="mt-2 font-display text-3xl font-bold uppercase italic sm:text-4xl text-foreground">
+              Últimas Noticias y <span className="text-gradient-lime">Novedades</span>
+            </h2>
           </div>
-          <h2 className="mt-3 font-display text-3xl font-bold uppercase italic sm:text-4xl text-foreground">
-            Preguntas <span className="text-gradient-lime">Frecuentes</span>
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            Conoce cómo funcionan las alertas de seguridad, la plataforma de telemetría y los costos
-            anuales sin sorpresas.
-          </p>
-        </div>
-
-        <div className="mt-8 mx-auto max-w-4xl space-y-3">
-          {homeFaqs.map((faq, idx) => {
-            const isOpen = openFaq === idx;
-            return (
-              <div
-                key={faq.q}
-                className={`overflow-hidden rounded-xl border transition-all ${
-                  isOpen
-                    ? "border-primary/50 bg-card/90 shadow-md"
-                    : "border-border/70 bg-card/40 hover:border-primary/30"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setOpenFaq(isOpen ? null : idx)}
-                  className="flex w-full items-center justify-between gap-4 p-5 text-left transition"
-                >
-                  <span className="font-display text-sm font-bold uppercase text-foreground sm:text-base">
-                    {faq.q}
-                  </span>
-                  <div className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-border/80 bg-background/50 text-muted-foreground">
-                    {isOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-                  </div>
-                </button>
-
-                {isOpen && (
-                  <div className="border-t border-border/60 px-5 pb-5 pt-3">
-                    <p className="text-xs leading-relaxed text-muted-foreground sm:text-sm">
-                      {faq.a}
-                    </p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-8 flex justify-center">
           <Link
-            to="/faq"
-            className="inline-flex items-center gap-2 rounded-lg border border-primary/50 bg-primary/5 px-6 py-3 font-display text-xs font-bold uppercase tracking-widest text-primary hover:bg-primary/10 transition"
+            to="/noticias"
+            className="inline-flex items-center gap-1.5 font-display text-xs font-bold uppercase tracking-wider text-primary hover:underline"
           >
-            Ver todas las preguntas y respuestas detalladas en FAQ →
+            Ver todas las noticias
+            <ArrowRight className="size-3.5" />
           </Link>
+        </div>
+
+        <div className="mt-8 grid gap-6 md:grid-cols-3">
+          {newsArticles.slice(0, 3).map((article) => (
+            <Link
+              key={article.id}
+              to="/noticias"
+              className="group flex flex-col justify-between rounded-2xl border border-border/80 bg-card/60 p-6 transition-all hover:border-primary/50 hover:bg-card/90 hover:shadow-lg"
+            >
+              <div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="rounded bg-primary/10 px-2.5 py-0.5 font-display text-[10px] font-bold uppercase text-primary">
+                    {article.category}
+                  </span>
+                  <span>{article.readTime}</span>
+                </div>
+
+                <h3 className="mt-4 font-display text-base font-bold uppercase tracking-wide text-foreground group-hover:text-primary transition-colors">
+                  {article.title}
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground line-clamp-3">
+                  {article.summary}
+                </p>
+              </div>
+
+              <div className="mt-5 flex items-center justify-between border-t border-border/50 pt-4 text-xs text-muted-foreground">
+                <span>{article.date}</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-primary group-hover:translate-x-1 transition-transform">
+                  Leer más <ArrowRight className="size-3" />
+                </span>
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
 

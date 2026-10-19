@@ -8,6 +8,7 @@ export type WialonSession = {
   host: "lite" | "full";
   userId: number;
   userName: string;
+  token?: string;
   profile?: PlatformUserProfile | null;
 };
 
@@ -23,56 +24,22 @@ export const PLATFORM_URLS: Record<WialonSession["host"], { app: string; cms: st
   full: { app: "https://hosting.wialon.com/", cms: "https://cms.wialon.com/" },
 };
 
-export function clearSession() {
-  if (typeof window === "undefined") return;
-  try {
-    window.sessionStorage.removeItem(KEY);
-    window.localStorage.removeItem(KEY);
-    window.localStorage.removeItem("orblite.wialon.sid");
-    window.sessionStorage.removeItem("orblite.wialon.sid");
-    window.sessionStorage.removeItem("orblite.wialon.session");
-    window.localStorage.removeItem("orblite.wialon.session");
-    for (const name of ["orblite.wialon.sid", "orblite.wialon.session", "wialon_session"]) {
-      document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
-    }
-  } catch {}
-  window.dispatchEvent(new Event("wialon-session-change"));
-}
-
 export function readSession(): WialonSession | null {
   if (typeof window === "undefined") return null;
   try {
-    // Purgar claves legacy obsoletas que causan sesiones fantasma
-    try {
-      window.localStorage.removeItem("orblite.wialon.sid");
-      window.sessionStorage.removeItem("orblite.wialon.sid");
-    } catch {}
-
     const raw = window.sessionStorage.getItem(KEY) || window.localStorage.getItem(KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as WialonSession;
+    if (!parsed?.sid || !parsed?.host) return null;
 
-    // Validación estricta anti-sesión fantasma:
-    // Debe tener SID válido, HOST válido, y un NOMBRE DE USUARIO REAL (no vacío, no "undefined", no "null")
-    const hasValidSid = typeof parsed?.sid === "string" && parsed.sid.trim().length >= 5;
-    const hasValidHost = parsed?.host === "lite" || parsed?.host === "full";
-    const rawUserName = typeof parsed?.userName === "string" ? parsed.userName.trim() : "";
-    const hasValidUser =
-      rawUserName.length > 0 &&
-      rawUserName.toLowerCase() !== "undefined" &&
-      rawUserName.toLowerCase() !== "null" &&
-      rawUserName.toLowerCase() !== "anon" &&
-      rawUserName.toLowerCase() !== "desconocido";
-
-    if (!hasValidSid || !hasValidHost || !hasValidUser) {
-      console.warn("[wialon-session] Sesión fantasma sin usuario detectada y purgada:", parsed);
-      clearSession();
-      return null;
+    // Si tiene token respaldado en localStorage, vincularlo
+    if (!parsed.token) {
+      const storedToken = window.localStorage.getItem("wialon_token");
+      if (storedToken) parsed.token = storedToken;
     }
 
     return parsed;
   } catch {
-    clearSession();
     return null;
   }
 }
@@ -80,23 +47,17 @@ export function readSession(): WialonSession | null {
 export function writeSession(session: WialonSession | null) {
   if (typeof window === "undefined") return;
   if (session) {
-    const rawUserName = typeof session.userName === "string" ? session.userName.trim() : "";
-    if (
-      !session.sid ||
-      !rawUserName ||
-      rawUserName.toLowerCase() === "undefined" ||
-      rawUserName.toLowerCase() === "null"
-    ) {
-      console.warn("[wialon-session] Intento de guardar sesión sin usuario cancelado.");
-      clearSession();
-      return;
+    if (session.token) {
+      window.localStorage.setItem("wialon_token", session.token);
     }
-    const payload = JSON.stringify(session);
-    window.sessionStorage.setItem(KEY, payload);
-    window.localStorage.setItem(KEY, payload);
+    window.sessionStorage.setItem(KEY, JSON.stringify(session));
+    window.localStorage.setItem(KEY, JSON.stringify(session));
   } else {
-    clearSession();
-    return;
+    window.sessionStorage.removeItem(KEY);
+    window.localStorage.removeItem(KEY);
+    window.localStorage.removeItem("wialon_token");
+    window.localStorage.removeItem("wialon_session");
+    window.sessionStorage.clear();
   }
   window.dispatchEvent(new Event("wialon-session-change"));
 }
@@ -122,12 +83,7 @@ export function useWialonSession(): WialonSession | null | undefined {
   return session;
 }
 
-/**
- * Mantiene viva la sesión de Wialon continuamente (cada 60s y al volver a la pestaña).
- * Wialon invalida los tokens de sesión tras 5 minutos de inactividad. El keep-alive
- * directo desde el navegador envía peticiones JSONP con la IP idéntica del cliente,
- * previniendo desconexiones inesperadas y manteniendo la sesión indefinidamente.
- */
+/** Mantiene viva la sesión de Wialon periódicamente y cierra si la plataforma la invalidó. */
 export function useWialonKeepAlive(
   session: WialonSession | null | undefined,
   ping: (args: {
@@ -139,49 +95,30 @@ export function useWialonKeepAlive(
     let cancelled = false;
 
     async function check() {
-      if (cancelled || !session?.sid) return;
       try {
-        // 1. Preferir ping directo desde el cliente vía JSONP (misma IP del navegador)
-        const base =
-          session.host === "full" ? "https://hst-api.wialon.com" : "https://hst-api.wialon.us";
-        const cbName = `orb_ping_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        const s = document.createElement("script");
-        s.src = `${base}/wialon/ajax.html?svc=core/duplicate&params=%7B%7D&sid=${session.sid}&callback=${cbName}`;
-        (window as any)[cbName] = (res: any) => {
-          delete (window as any)[cbName];
-          if (s.parentNode) s.parentNode.removeChild(s);
-          if (res?.eid && res.eid !== session.sid) {
-            writeSession({ ...session, sid: res.eid });
-          }
-        };
-        document.head.appendChild(s);
-
-        // 2. Comprobación pasiva del servidor (sin expulsar si solo hay mismatch de IP)
-        try {
-          await ping({ data: { host: session.host, sid: session.sid } });
-        } catch {}
+        const result = await ping({ data: { host: session!.host, sid: session!.sid } });
+        if (!cancelled && result && result.valid === false) {
+          console.warn("[useWialonKeepAlive] Sesión invalidada por la plataforma Wialon.");
+          writeSession(null);
+        }
       } catch {
-        // Error de red temporal: no expulsar al usuario
+        // error temporal de red: se reintenta en el siguiente ciclo sin expulsar al usuario
       }
     }
 
-    // Ping cada 60 segundos (muy por debajo de los 5 minutos de inactividad de Wialon)
-    const timer = window.setInterval(check, 60 * 1000);
-
-    // Ping inmediato al volver a enfocar la pestaña tras estar en segundo plano
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        void check();
-      }
+    // Intervalo de keepalive cada 2.5 minutos para mantener la sesión de Wialon viva
+    const timer = window.setInterval(check, 150_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void check();
     };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("focus", onVisibilityChange);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onVisibility);
 
     return () => {
       cancelled = true;
       window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("focus", onVisibilityChange);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onVisibility);
     };
   }, [session?.sid, session?.host]);
 }

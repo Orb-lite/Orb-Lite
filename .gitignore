@@ -11,3 +11,4 @@ bun.lock*
 api/server/
 .env*
 !.env.example
+.aistudio/

@@ -257,7 +257,55 @@ export async function getSharedUnitLinks(params?: {
 
     if (Array.isArray(dbLinks)) {
       for (const row of dbLinks) {
-        if (!row.token || row.unit_id === "route") continue;
+        if (!row.token) continue;
+
+        // Si es un enlace de ruta compartida (unit_id = 'route')
+        if (row.unit_id === "route") {
+          let routeName = "Ruta compartida";
+          let stopsCount = 0;
+          let parsedRoute: any = null;
+          try {
+            if (row.name && row.name.startsWith("{")) {
+              parsedRoute = JSON.parse(row.name);
+              routeName = parsedRoute.name || routeName;
+              stopsCount = parsedRoute.stops?.length || parsedRoute.routeStops?.length || 0;
+            }
+          } catch {}
+
+          const isExpired = row.expires_at ? new Date(row.expires_at).getTime() <= now : false;
+          const routeItem: SharedUnitLink = {
+            id: row.id,
+            token: row.token,
+            unitId: 0,
+            unitName: `Ruta: ${routeName}${stopsCount > 0 ? ` (${stopsCount} paradas)` : ""}`,
+            imei: null,
+            units: [],
+            clientName: row.created_by_name || parsedRoute?.userName || "Operador / Chofer",
+            clientPhone: null,
+            clientEmail: parsedRoute?.reportEmail || null,
+            notes: `Enlace público de ruta para reparto u operación`,
+            createdByUserId: row.created_by_id
+              ? Number(row.created_by_id)
+              : parsedRoute?.userId ?? null,
+            createdByUsername: row.created_by_name || parsedRoute?.userName || null,
+            durationHours: 0,
+            isUnlimited: true,
+            createdAt: row.created_at || new Date().toISOString(),
+            expiresAt: row.expires_at || new Date(now + 50 * 365 * 24 * 3600 * 1000).toISOString(),
+            status: !row.is_active ? "revoked" : isExpired ? "expired" : "active",
+            viewCount: 0,
+            lastViewedAt: null,
+            host: "lite",
+            sid: null,
+            wialonToken: null,
+            lastPosition: null,
+            trail: [],
+          };
+          inMemoryUnitShares.set(row.token, routeItem);
+          inMemoryUnitShares.set(row.id, routeItem);
+          continue;
+        }
+
         let meta: any = null;
         try {
           if (row.name && row.name.startsWith("{")) {
@@ -322,8 +370,8 @@ export async function getSharedUnitLinks(params?: {
   }
 
   // Filtrado jerárquico estricto:
-  // "Lo que crean los usuarios se verá por las cuentas superiores, pero no al revés."
-  if (params?.userId) {
+  // El usuario que creó el enlace SIEMPRE debe ver su propio enlace en su lista
+  if (params?.userId && params.userId > 0) {
     try {
       const { resolveHierarchicalUserIds } = await import("./hierarchy.server");
       const { visibleIds, isSuperior } = await resolveHierarchicalUserIds(
@@ -333,12 +381,16 @@ export async function getSharedUnitLinks(params?: {
       );
 
       const filtered = all.filter((item) => {
-        if (item.createdByUserId) {
-          return visibleIds.includes(item.createdByUserId);
+        // 1. El propio creador siempre ve sus links
+        if (item.createdByUserId === params.userId) {
+          return true;
         }
-        // Si no tiene creador explícito (link creado previamente):
-        // Solo las cuentas superiores pueden supervisar links huérfanos
-        return isSuperior;
+        // 2. Cuentas superiores ven links de usuarios subordinados
+        if (item.createdByUserId && visibleIds.includes(item.createdByUserId)) {
+          return true;
+        }
+        // 3. Si no tiene creador explícito o cuenta raíz:
+        return isSuperior || visibleIds.includes(0);
       });
 
       return filtered.sort((a, b) => b.createdAt.localeCompare(a.createdAt));

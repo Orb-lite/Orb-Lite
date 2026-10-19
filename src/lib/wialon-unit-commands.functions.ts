@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { wialonCall, type WialonHost } from "@/lib/wialon.server";
+import { wialonCall, WialonError, type WialonHost } from "@/lib/wialon.server";
 
 const hostSchema = z.enum(["lite", "full"]);
 
@@ -188,7 +188,9 @@ export const wialonGetUnitCommands = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
-    // Flags 1 (base) + 256 (pos) + 512 (icon) + 1024 (sensors) + 4096 (cmds)
+    // Flags en Wialon:
+    // 1 (base), 256 (propiedades avanzadas), 512 (cmds activos disponibles), 1024 (último mensaje y pos),
+    // 524288 (0x00080000: listado completo de definiciones de comandos guardados -> item.cml)
     const res = await wialonCall<{
       item?: {
         id: number;
@@ -196,30 +198,71 @@ export const wialonGetUnitCommands = createServerFn({ method: "POST" })
         hw?: string | number;
         uid?: string;
         cmds?:
-          | Array<{ id: number; n?: string; c?: string; l?: string; p?: string; d?: string; a?: number; f?: number }>
-          | Record<string, { id: number; n?: string; c?: string; l?: string; p?: string; d?: string; a?: number; f?: number }>;
+          | Array<{ id?: number; n?: string; c?: string; l?: string; p?: string; d?: string; a?: number; f?: number }>
+          | Record<string, { id?: number; n?: string; c?: string; l?: string; p?: string; d?: string; a?: number; f?: number }>;
+        cml?: Record<
+          string,
+          { id: number; n?: string; c?: string; l?: string; p?: string; d?: string; a?: number; f?: number }
+        >;
       };
-    }>(host, "core/search_item", { id: data.unitId, flags: 1 + 256 + 512 + 1024 + 4096 }, data.sid);
+    }>(
+      host,
+      "core/search_item",
+      { id: data.unitId, flags: 1 + 256 + 512 + 1024 + 524288 },
+      data.sid,
+    );
 
     const item = res.item;
     if (!item) throw new Error("La unidad no fue encontrada en la plataforma Wialon.");
 
+    const commandMap = new Map<string, WialonUnitCommand>();
+
+    // 1. Mapear comandos guardados permanentemente desde item.cml (Flag 0x80000)
+    if (item.cml && typeof item.cml === "object") {
+      for (const [key, c] of Object.entries(item.cml)) {
+        if (!c) continue;
+        const id = Number(c.id || key);
+        const name = (c.n || `Comando ${id}`).trim();
+        commandMap.set(name.toLowerCase(), {
+          id,
+          name,
+          type: c.c || "custom_msg",
+          linkType: c.l || "tcp",
+          param: c.p || "",
+          description: c.d || "",
+          access: c.a ?? 0,
+          flags: c.f ?? 0,
+        });
+      }
+    }
+
+    // 2. Mapear comandos activos desde item.cmds (Flag 0x200)
     const rawCmds = item.cmds
       ? Array.isArray(item.cmds)
         ? item.cmds
         : Object.values(item.cmds)
       : [];
 
-    const commands: WialonUnitCommand[] = rawCmds.map((c) => ({
-      id: Number(c.id),
-      name: c.n || `Comando ${c.id}`,
-      type: c.c || "custom_msg",
-      linkType: c.l || "tcp",
-      param: c.p || "",
-      description: c.d || "",
-      access: c.a ?? 0,
-      flags: c.f ?? 0,
-    }));
+    for (const c of rawCmds) {
+      if (!c) continue;
+      const id = Number(c.id || 0);
+      const name = (c.n || `Comando ${id || commandMap.size + 1}`).trim();
+      const normName = name.toLowerCase();
+      if (!commandMap.has(normName)) {
+        commandMap.set(normName, {
+          id: id || commandMap.size + 1,
+          name,
+          type: c.c || "custom_msg",
+          linkType: c.l || "tcp",
+          param: c.p || "",
+          description: c.d || "",
+          access: c.a ?? 0,
+          flags: c.f ?? 0,
+        });
+      }
+    }
+
+    const commands: WialonUnitCommand[] = Array.from(commandMap.values());
 
     return {
       unitId: item.id,
@@ -276,29 +319,54 @@ export const wialonSaveUnitCommand = createServerFn({ method: "POST" })
     const payload = {
       itemId: data.unitId,
       id: isUpdate ? data.commandId : 0,
-      callMode,
       n: data.name.trim(),
       c: data.commandType,
       l: data.linkType || "tcp",
       p: finalParam,
-      d: data.description.trim(),
       a: data.access ?? 0,
       f: 0,
+      callMode,
     };
 
-    const res = await wialonCall<any>(
-      host,
-      "unit/update_command_definition",
-      payload,
-      data.sid,
-    );
+    let res: any;
+    try {
+      res = await wialonCall<any>(
+        host,
+        "unit/update_command_definition",
+        payload,
+        data.sid,
+      );
+    } catch (err: any) {
+      // Si el equipo o protocolo rechaza "tcp" explícito (error 4), intentar con canal automático ("")
+      if (err instanceof WialonError && err.code === 4 && payload.l !== "") {
+        payload.l = "";
+        res = await wialonCall<any>(
+          host,
+          "unit/update_command_definition",
+          payload,
+          data.sid,
+        );
+      } else {
+        throw err;
+      }
+    }
+
+    const createdId = Array.isArray(res)
+      ? typeof res[0] === "object" && res[0] !== null
+        ? res[0].id
+        : typeof res[0] === "number"
+          ? res[0]
+          : typeof res[1] === "object" && res[1] !== null
+            ? res[1].id
+            : data.commandId || 1
+      : res?.id || data.commandId || 1;
 
     return {
       success: true,
       mode: callMode,
       result: res,
       command: {
-        id: Array.isArray(res) ? res[0] : res?.id || data.commandId || 1,
+        id: createdId,
         name: data.name,
         type: data.commandType,
         linkType: data.linkType || "tcp",
@@ -355,18 +423,26 @@ export const wialonBatchAddTeltonikaCommands = createServerFn({ method: "POST" }
     const searchRes = await wialonCall<{
       item?: {
         cmds?:
-          | Array<{ id: number; n?: string }>
-          | Record<string, { id: number; n?: string }>;
+          | Array<{ id?: number; n?: string }>
+          | Record<string, { id?: number; n?: string }>;
+        cml?: Record<string, { id?: number; n?: string }>;
       };
-    }>(host, "core/search_item", { id: data.unitId, flags: 4096 }, data.sid);
+    }>(host, "core/search_item", { id: data.unitId, flags: 1 + 512 + 524288 }, data.sid);
 
-    const existingCmds = searchRes.item?.cmds
+    const existingNames = new Set<string>();
+    if (searchRes.item?.cml && typeof searchRes.item.cml === "object") {
+      for (const c of Object.values(searchRes.item.cml)) {
+        if (c?.n) existingNames.add(c.n.trim().toLowerCase());
+      }
+    }
+    const rawExistingCmds = searchRes.item?.cmds
       ? Array.isArray(searchRes.item.cmds)
         ? searchRes.item.cmds
         : Object.values(searchRes.item.cmds)
       : [];
-
-    const existingNames = new Set(existingCmds.map((c) => (c.n || "").trim().toLowerCase()));
+    for (const c of rawExistingCmds) {
+      if (c?.n) existingNames.add(c.n.trim().toLowerCase());
+    }
 
     const presetsToApply = data.presetIds && data.presetIds.length > 0
       ? TELTONIKA_COMMAND_PRESETS.filter((p) => data.presetIds!.includes(p.id))
@@ -383,23 +459,27 @@ export const wialonBatchAddTeltonikaCommands = createServerFn({ method: "POST" }
       }
 
       try {
-        await wialonCall(
-          host,
-          "unit/update_command_definition",
-          {
-            itemId: data.unitId,
-            id: 0,
-            callMode: "create",
-            n: preset.name,
-            c: preset.commandType,
-            l: preset.linkType,
-            p: preset.param,
-            d: preset.description,
-            a: 0,
-            f: 0,
-          },
-          data.sid,
-        );
+        const cmdPayload = {
+          itemId: data.unitId,
+          id: 0,
+          n: preset.name,
+          c: preset.commandType,
+          l: preset.linkType,
+          p: preset.param,
+          a: 0,
+          f: 0,
+          callMode: "create",
+        };
+        try {
+          await wialonCall(host, "unit/update_command_definition", cmdPayload, data.sid);
+        } catch (callErr: any) {
+          if (callErr instanceof WialonError && callErr.code === 4) {
+            cmdPayload.l = "";
+            await wialonCall(host, "unit/update_command_definition", cmdPayload, data.sid);
+          } else {
+            throw callErr;
+          }
+        }
         addedCount++;
         existingNames.add(preset.name.trim().toLowerCase());
       } catch (err: any) {

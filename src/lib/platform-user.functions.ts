@@ -97,16 +97,13 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
     };
     const subusers: SubuserInfo[] = [];
 
-    // 1. Consultar usuario actual en platform_users (por ID o por nombre de usuario)
+    // 1. Consultar usuario actual en platform_users
     try {
-      let puQuery = supabase.from("platform_users" as any).select("*");
-      if (wialonUserId > 0) {
-        puQuery = puQuery.or(`wialon_user_id.eq.${wialonUserId},wialon_username.ilike.${wialonUsername}`);
-      } else {
-        puQuery = puQuery.ilike("wialon_username", wialonUsername);
-      }
-      const { data: puList, error: puErr } = await puQuery.limit(1);
-      const puData = puList && puList.length > 0 ? puList[0] : null;
+      const { data: puData, error: puErr } = await supabase
+        .from("platform_users" as any)
+        .select("*")
+        .eq("wialon_user_id", wialonUserId)
+        .maybeSingle();
 
       if (!puErr && puData) {
         profileId = (puData as any).id;
@@ -115,8 +112,8 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
         company = (puData as any).company ?? null;
         email = (puData as any).email ?? null;
         phone = (puData as any).phone ?? null;
-        role = (puData as any).role || (wialonUsername.toLowerCase().includes("orb") ? "parent" : "client");
-        isParent = Boolean((puData as any).is_parent) || wialonUsername.toLowerCase().includes("orb");
+        role = (puData as any).role || "client";
+        isParent = Boolean((puData as any).is_parent);
         parentUserId = (puData as any).parent_user_id ? Number((puData as any).parent_user_id) : null;
         if ((puData as any).shared_permissions) {
           subuserPermissions = {
@@ -125,19 +122,11 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
           };
         }
 
-        // Actualizar último login y sincronizar ID
-        const updatePayload: Record<string, unknown> = {
-          last_login_at: new Date().toISOString(),
-          wialon_username: wialonUsername,
-        };
-        if (wialonUserId > 0) {
-          updatePayload.wialon_user_id = wialonUserId;
-        }
-
+        // Actualizar último login
         await supabase
           .from("platform_users" as any)
-          .update(updatePayload as any)
-          .eq("id", profileId);
+          .update({ last_login_at: new Date().toISOString(), wialon_username: wialonUsername } as any)
+          .eq("wialon_user_id", wialonUserId);
       }
     } catch {
       // Si la tabla no está creada, el fallback continuará
@@ -201,7 +190,7 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
     // 4. DETECTAR SUBCUENTAS EN WIALON SI HAY SESIÓN ACTIVA
     if (sid) {
       try {
-        let wialonUsersRes: {
+        const wialonUsersRes = await wialonCall<{
           items?: Array<{
             id: number;
             nm: string;
@@ -209,64 +198,23 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
             bact?: number;
             fl?: number;
           }>;
-        } | null = null;
-
-        try {
-          wialonUsersRes = await wialonCall<{
-            items?: Array<{
-              id: number;
-              nm: string;
-              crt?: number;
-              bact?: number;
-              fl?: number;
-            }>;
-          }>(
-            host,
-            "core/search_items",
-            {
-              spec: {
-                itemsType: "user",
-                propName: "sys_name",
-                propValueMask: "*",
-                sortType: "sys_name",
-              },
-              force: 1,
-              flags: 1 + 4, // 1 = base, 4 = facturación y creador (crt)
-              from: 0,
-              to: 0,
+        }>(
+          host,
+          "core/search_items",
+          {
+            spec: {
+              itemsType: "user",
+              propName: "sys_name",
+              propValueMask: "*",
+              sortType: "sys_name",
             },
-            sid,
-          );
-        } catch {
-          // Fallback para subcuentas o usuarios sin permisos de facturación (Error 7 Access Denied)
-          try {
-            wialonUsersRes = await wialonCall<{
-              items?: Array<{
-                id: number;
-                nm: string;
-                crt?: number;
-                bact?: number;
-                fl?: number;
-              }>;
-            }>(
-              host,
-              "core/search_items",
-              {
-                spec: {
-                  itemsType: "user",
-                  propName: "sys_name",
-                  propValueMask: "*",
-                  sortType: "sys_name",
-                },
-                force: 1,
-                flags: 1,
-                from: 0,
-                to: 0,
-              },
-              sid,
-            );
-          } catch {}
-        }
+            force: 1,
+            flags: 1 + 4, // 1 = base, 4 = facturación y creador (crt)
+            from: 0,
+            to: 0,
+          },
+          sid,
+        );
 
         const items = wialonUsersRes?.items || [];
         const me = items.find(
@@ -290,15 +238,14 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
           }
         }
 
-        // En Wialon, core/search_items con itemsType: "user" devuelve estrictamente
-        // los usuarios a los que esta sesión tiene acceso o supervisa.
+        // Subcuentas son única y estrictamente aquellas cuyo creador `crt` es el usuario actual
         const childUsers = items.filter(
           (u) =>
             u.id !== wialonUserId &&
-            u.nm.toLowerCase() !== wialonUsername.toLowerCase(),
+            (u.crt === wialonUserId || (me && me.crt === 0 && u.bact === me.bact && u.id !== me.id)),
         );
 
-        if (childUsers.length > 0 || isParent || wialonUsername.toLowerCase().includes("orb")) {
+        if (childUsers.length > 0 && (!parentUserId || (me && me.crt === 0))) {
           isParent = true;
           role = "parent";
           parentUserId = null;
@@ -309,7 +256,8 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
               await supabase
                 .from("platform_users" as any)
                 .update({ wialon_user_id: wialonUserId } as any)
-                .eq("wialon_username", wialonUsername);
+                .eq("wialon_username", wialonUsername)
+                .eq("wialon_user_id", 0);
 
               await supabase
                 .from("platform_users" as any)
@@ -379,23 +327,17 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
       }
     }
 
-    // 5. Si no se tenían subusers por Wialon, consultar si en Supabase tiene subcuentas vinculadas
+    // 5. Si no se tenía subusers por Wialon, consultar si en Supabase tiene subcuentas vinculadas
     if (subusers.length === 0) {
       try {
         const { data: dbSubusers } = await supabase
           .from("platform_users" as any)
           .select("*")
-          .or(`parent_user_id.eq.${wialonUserId},parent_user_id.eq.0,role.eq.subuser`);
+          .eq("parent_user_id", wialonUserId);
 
-        const validSubusers = (dbSubusers || []).filter(
-          (s: any) =>
-            s.wialon_user_id !== wialonUserId &&
-            s.wialon_username?.toLowerCase() !== wialonUsername.toLowerCase(),
-        );
-
-        if (validSubusers.length > 0) {
+        if (dbSubusers && dbSubusers.length > 0) {
           isParent = true;
-          for (const s of validSubusers as any[]) {
+          for (const s of dbSubusers as any[]) {
             subusers.push({
               id: s.id,
               wialonUserId: Number(s.wialon_user_id),
@@ -408,14 +350,6 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
               },
               lastLoginAt: s.last_login_at,
             });
-
-            // Si tenía parent_user_id: 0 o nulo, actualizarlo con el ID de la cuenta superior
-            if (wialonUserId > 0 && (!s.parent_user_id || s.parent_user_id === 0)) {
-              await supabase
-                .from("platform_users" as any)
-                .update({ parent_user_id: wialonUserId } as any)
-                .eq("wialon_user_id", s.wialon_user_id);
-            }
           }
         }
       } catch {}

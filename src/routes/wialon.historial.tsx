@@ -6,8 +6,8 @@ import { Download, LoaderCircle } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { PlatformHeader } from "@/components/wialon/PlatformHeader";
 import { wialonHistory, wialonUnits, type WialonMessage } from "@/lib/wialon.functions";
+import { clientFetchHistory, clientFetchUnits } from "@/lib/wialon-client-api";
 import type { WialonSession } from "@/lib/wialon-session";
-import { fetchReliableUnits } from "@/lib/wialon-client-api";
 import { downloadExcelWorkbook, renderTrackMapImage } from "@/lib/excel-export";
 
 const WialonMap = React.lazy(() => import("@/components/wialon-map"));
@@ -39,21 +39,12 @@ function toLocalInput(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+import { useWialonUnitsData } from "@/hooks/useWialonUnits";
+
 function HistorialView({ session }: { session: WialonSession }) {
-  const fetchUnits = useServerFn(wialonUnits);
   const fetchHistory = useServerFn(wialonHistory);
+  const { units, selectedUnitId, selectUnit } = useWialonUnitsData(session);
 
-  const unitsQuery = useQuery({
-    queryKey: ["wialon-units", session.sid, session.host],
-    queryFn: () =>
-      fetchReliableUnits({
-        session,
-        fetchUnitsServerFn: fetchUnits,
-      }),
-  });
-  const units = unitsQuery.data?.units ?? [];
-
-  const [unitId, setUnitId] = React.useState<number | null>(null);
   const [from, setFrom] = React.useState(() => toLocalInput(new Date(Date.now() - 86400000)));
   const [to, setTo] = React.useState(() => toLocalInput(new Date()));
   const [busy, setBusy] = React.useState(false);
@@ -66,24 +57,42 @@ function HistorialView({ session }: { session: WialonSession }) {
     points: number;
   } | null>(null);
 
-  const selected = unitId ?? units[0]?.id ?? null;
+  const selected = selectedUnitId ?? units[0]?.id ?? null;
 
   async function onSearch(e: React.FormEvent) {
     e.preventDefault();
     if (!selected) return;
     setError(null);
     setBusy(true);
+    const timeFrom = Math.floor(new Date(from).getTime() / 1000);
+    const timeTo = Math.floor(new Date(to).getTime() / 1000);
+
     try {
-      const data = await fetchHistory({
-        data: {
-          host: session.host,
-          sid: session.sid,
-          unitId: selected,
-          timeFrom: Math.floor(new Date(from).getTime() / 1000),
-          timeTo: Math.floor(new Date(to).getTime() / 1000),
-        },
-      });
-      setResult(data);
+      let data: any = null;
+      try {
+        data = await fetchHistory({
+          data: {
+            host: session.host,
+            sid: session.sid,
+            unitId: selected,
+            timeFrom,
+            timeTo,
+          },
+        });
+      } catch (err) {
+        console.warn("[Historial] fetchHistory server falló, probando cliente directo:", err);
+      }
+
+      if (!data?.messages || data.messages.length === 0) {
+        data = await clientFetchHistory(session.host, session.sid, selected, timeFrom, timeTo);
+      }
+
+      if (data && data.messages) {
+        setResult(data);
+        if (data.messages.length === 0) {
+          setError("No se encontraron registros de GPS en el rango seleccionado.");
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo consultar el historial.");
     } finally {
@@ -169,17 +178,11 @@ function HistorialView({ session }: { session: WialonSession }) {
           <select
             className={inputClass}
             value={selected ?? ""}
-            onChange={(e) => setUnitId(Number(e.target.value))}
-            disabled={units.length === 0}
+            onChange={(e) => selectUnit(Number(e.target.value))}
           >
-            {units.length === 0 ? (
-              <option value="">
-                {unitsQuery.isLoading ? "Cargando unidades satelitales…" : "No hay unidades disponibles"}
-              </option>
-            ) : null}
             {units.map((unit) => (
               <option key={unit.id} value={unit.id}>
-                {unit.name} {unit.online ? "(En línea)" : "(Sin señal)"}
+                {unit.name}
               </option>
             ))}
           </select>

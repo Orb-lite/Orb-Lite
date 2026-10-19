@@ -140,6 +140,9 @@ export const wialonLoginWithCredentials = createServerFn({ method: "POST" })
               if (found) {
                 userId = found.id;
                 userName = found.nm;
+              } else if (uSearch?.items?.length) {
+                userId = uSearch.items[0]!.id;
+                userName = uSearch.items[0]!.nm;
               }
             } catch {}
           }
@@ -185,7 +188,7 @@ export const wialonLogin = createServerFn({ method: "POST" })
         const acc = await wialonCall<{ user?: { id?: number; nm?: string } }>(
           h,
           "core/get_account_data",
-          {},
+          { type: 1 },
           cleanToken,
         );
         if (acc && typeof acc === "object" && !("error" in acc)) {
@@ -205,12 +208,9 @@ export const wialonLogin = createServerFn({ method: "POST" })
                 },
                 cleanToken,
               );
-              const found = (uSearch?.items || []).find(
-                (u) => u.nm.toLowerCase() === userName.toLowerCase(),
-              );
-              if (found) {
-                userId = found.id;
-                userName = found.nm;
+              if (uSearch?.items?.length) {
+                userId = uSearch.items[0].id;
+                userName = uSearch.items[0].nm;
               }
             } catch {}
           }
@@ -228,16 +228,15 @@ export const wialonLogin = createServerFn({ method: "POST" })
     let lastError: unknown = null;
     for (const h of hostCandidates) {
       try {
-        // fl: 7 solicita flags completos de usuario (0x2 = objeto user con id y nm)
         const result = await wialonCall<{
           eid?: string;
           au?: string;
           u?: { id?: number; nm?: string };
           user?: { id?: number; nm?: string };
-        }>(h, "token/login", { token: cleanToken, fl: 7 });
+        }>(h, "token/login", { token: cleanToken, fl: 1 });
 
         if (result?.eid) {
-          const uObj = result.user || result.u;
+          const uObj = result.u || result.user;
           let userId = uObj?.id ?? 0;
           let userName = uObj?.nm ?? result.au ?? "Usuario";
           if (userId === 0) {
@@ -260,6 +259,9 @@ export const wialonLogin = createServerFn({ method: "POST" })
               if (found) {
                 userId = found.id;
                 userName = found.nm;
+              } else if (userSearch?.items?.length) {
+                userId = userSearch.items[0]!.id;
+                userName = userSearch.items[0]!.nm;
               }
             } catch {}
           }
@@ -307,7 +309,7 @@ export const wialonLoginWithSid = createServerFn({ method: "POST" })
       }>(
         host,
         "core/get_account_data",
-        {},
+        { type: 1 },
         data.sid,
       );
       const uObj = res?.u || res?.user;
@@ -336,6 +338,9 @@ export const wialonLoginWithSid = createServerFn({ method: "POST" })
         if (found) {
           userId = found.id;
           userName = found.nm;
+        } else if (uSearch?.items?.length) {
+          userId = uSearch.items[0]!.id;
+          userName = uSearch.items[0]!.nm;
         }
       } catch {}
     }
@@ -942,14 +947,14 @@ export const wialonPing = createServerFn({ method: "POST" })
     const host = data.host as WialonHost;
     try {
       // core/get_account_data es universal y no requiere permisos sobre avl_unit
-      await wialonCall(host, "core/get_account_data", {}, data.sid);
+      await wialonCall(host, "core/get_account_data", { type: 1 }, data.sid);
       return { valid: true as const };
     } catch (error) {
       if (isSessionExpired(error)) {
         // Reintentar en el host alternativo por si la sesión cambió de datacenter
         const altHost: WialonHost = host === "lite" ? "full" : "lite";
         try {
-          await wialonCall(altHost, "core/get_account_data", {}, data.sid);
+          await wialonCall(altHost, "core/get_account_data", { type: 1 }, data.sid);
           return { valid: true as const };
         } catch (altErr) {
           if (isSessionExpired(altErr)) return { valid: false as const };
@@ -1486,35 +1491,70 @@ export const saveUserRoute = createServerFn({ method: "POST" })
     });
 
     let wialonId: number | null = null;
-    if (data.syncToWialon && data.host && data.sid && data.resourceId) {
-      try {
-        const hexColor = Number.parseInt(data.color.replace("#", ""), 16) || 0xf59e0b;
-        const res = await wialonCall<Array<number | Record<string, unknown> | null>>(
-          data.host as WialonHost,
-          "resource/update_zone",
-          {
-            itemId: data.resourceId,
-            id: 0,
-            callMode: "create",
-            n: data.name,
-            d: `Ruta de usuario ${data.userName ?? data.userId}`,
-            t: 1,
-            w: 4,
-            f: 0x20,
-            c: hexColor,
-            tc: 0xffffff,
-            ts: 12,
-            p: data.points.map((p) => ({ x: p.lon, y: p.lat, r: 0 })),
-          },
-          data.sid,
-        );
-        wialonId = Array.isArray(res) && typeof res[0] === "number" ? res[0] : null;
-      } catch (err) {
-        console.warn("No se pudo reflejar en Wialon:", err);
+    let wialonError: string | null = null;
+
+    if (data.syncToWialon && data.host && data.sid) {
+      let targetResourceId = data.resourceId;
+      if (!targetResourceId) {
+        try {
+          const resSearch = await wialonCall<{ items?: Array<{ id: number }> }>(
+            data.host as WialonHost,
+            "core/search_items",
+            {
+              spec: {
+                itemsType: "avl_resource",
+                propName: "sys_name",
+                propValueMask: "*",
+                sortType: "sys_name",
+              },
+              force: 1,
+              flags: 1,
+              from: 0,
+              to: 1,
+            },
+            data.sid,
+          );
+          if (resSearch?.items?.[0]?.id) {
+            targetResourceId = resSearch.items[0].id;
+          }
+        } catch (findErr) {
+          console.warn("[saveUserRoute] No se pudo resolver recurso destino:", findErr);
+        }
+      }
+
+      if (targetResourceId) {
+        try {
+          const hexColor = Number.parseInt(data.color.replace("#", ""), 16) || 0xf59e0b;
+          const res = await wialonCall<Array<number | Record<string, unknown> | null>>(
+            data.host as WialonHost,
+            "resource/update_zone",
+            {
+              itemId: targetResourceId,
+              id: 0,
+              callMode: "create",
+              n: data.name,
+              d: `Ruta de usuario ${data.userName ?? data.userId}`,
+              t: 1,
+              w: 4,
+              f: 0x20,
+              c: hexColor,
+              tc: 0xffffff,
+              ts: 12,
+              p: data.points.map((p) => ({ x: p.lon, y: p.lat, r: 0 })),
+            },
+            data.sid,
+          );
+          wialonId = Array.isArray(res) && typeof res[0] === "number" ? res[0] : null;
+        } catch (err: any) {
+          wialonError = err?.message || "Error al crear la ruta en Wialon";
+          console.warn("[saveUserRoute] Error en resource/update_zone:", err);
+        }
+      } else {
+        wialonError = "No se encontró un recurso en Wialon con permisos para guardar rutas.";
       }
     }
 
-    return { route: stored, wialonId };
+    return { route: stored, wialonId, wialonError };
   });
 
 export const deleteUserRoute = createServerFn({ method: "POST" })

@@ -18,6 +18,7 @@ import {
 } from "@/components/crm-manual-forms";
 import { UsuariosDemoSection } from "@/components/crm-demo-users";
 import { SolicitudesDemoSection } from "@/components/crm-demo-requests";
+import { CrmTelemetryTab } from "@/components/crm-telemetry-tab";
 
 import {
   SolicitudCard,
@@ -66,6 +67,7 @@ function CrmPage() {
     | "registrar-cliente"
     | "usuarios-demo"
     | "solicitudes-demo"
+    | "telemetria-swarm"
   >("solicitudes");
 
   const PAGE_SIZE = 10;
@@ -197,6 +199,15 @@ function CrmPage() {
           >
             Usuarios demo
           </Button>
+          <Button
+            size="sm"
+            variant={tab === "telemetria-swarm" ? "default" : "ghost"}
+            onClick={() => setTab("telemetria-swarm")}
+            className="gap-1.5"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Swarm APIs (Wialon)
+          </Button>
         </div>
 
         {tab === "solicitudes" ? (
@@ -298,6 +309,8 @@ function CrmPage() {
           <SolicitudesDemoSection />
         ) : tab === "usuarios-demo" ? (
           <UsuariosDemoSection />
+        ) : tab === "telemetria-swarm" ? (
+          <CrmTelemetryTab />
         ) : (
           <RegistrarClienteSection />
         )}

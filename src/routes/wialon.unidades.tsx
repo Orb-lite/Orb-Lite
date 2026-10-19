@@ -1,16 +1,16 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw, Search, Share2, Terminal } from "lucide-react";
+import { RefreshCw, Search } from "lucide-react";
 import { WialonGuard } from "@/components/wialon-guard";
 import { WialonUnitDetail } from "@/components/wialon-unit-detail";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { wialonUnits } from "@/lib/wialon.functions";
+import { useWialonUnitsData } from "@/hooks/useWialonUnits";
 import type { WialonSession } from "@/lib/wialon-session";
 import { matchesUnitSearch, selectAllState, useHiddenUnits } from "@/lib/wialon-visibility";
-import { fetchReliableUnits } from "@/lib/wialon-client-api";
 
 export const Route = createFileRoute("/wialon/unidades")({
   head: () => ({
@@ -29,17 +29,10 @@ export const Route = createFileRoute("/wialon/unidades")({
 });
 
 function UnidadesView({ session }: { session: WialonSession }) {
-  const fetchUnits = useServerFn(wialonUnits);
   const [detailId, setDetailId] = React.useState<number | null>(null);
   const [search, setSearch] = React.useState("");
   const { hidden, setVisible } = useHiddenUnits(session);
-  const query = useQuery({
-    queryKey: ["wialon-units", session.sid, session.host],
-    queryFn: () => fetchReliableUnits({ session, fetchUnitsServerFn: fetchUnits }),
-    refetchInterval: 30000,
-  });
-
-  const units = query.data?.units ?? [];
+  const { units, isLoading, isFetching, isError, error, refetch } = useWialonUnitsData(session);
   const online = units.filter((u) => u.online).length;
   const filtered = React.useMemo(
     () => units.filter((unit) => matchesUnitSearch(unit, search)),
@@ -67,17 +60,17 @@ function UnidadesView({ session }: { session: WialonSession }) {
             />
           </div>
           <button
-            onClick={() => void query.refetch()}
+            onClick={() => void refetch()}
             className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:border-primary hover:text-primary"
           >
-            <RefreshCw className={`size-4 ${query.isFetching ? "animate-spin" : ""}`} /> Actualizar
+            <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} /> Actualizar
           </button>
         </div>
       </div>
 
-      {query.isError ? (
+      {isError ? (
         <p className="mt-4 text-sm text-destructive">
-          {query.error instanceof Error ? query.error.message : "Error al consultar la plataforma."}
+          {error instanceof Error ? error.message : "Error al consultar la plataforma."}
         </p>
       ) : null}
 
@@ -99,7 +92,7 @@ function UnidadesView({ session }: { session: WialonSession }) {
               <th className="px-4 py-3">Estado</th>
               <th className="px-4 py-3">Velocidad</th>
               <th className="px-4 py-3">Última señal</th>
-              <th className="px-4 py-3 text-right">Acciones</th>
+              <th className="px-4 py-3 text-right">Detalle</th>
             </tr>
           </thead>
           <tbody>
@@ -131,34 +124,16 @@ function UnidadesView({ session }: { session: WialonSession }) {
                     : "—"}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-1.5">
-                    <a
-                      href={`/wialon/comandos?unitId=${unit.id}`}
-                      className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary transition-colors"
-                      title="Registrar y enviar comandos TCP en Wialon"
-                    >
-                      <Terminal className="size-3.5" />
-                      <span>Comandos</span>
-                    </a>
-                    <a
-                      href={`/wialon/compartir?unitId=${unit.id}`}
-                      className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary transition-colors"
-                      title="Compartir enlace de rastreo en tiempo real"
-                    >
-                      <Share2 className="size-3.5" />
-                      <span>Compartir</span>
-                    </a>
-                    <button
-                      onClick={() => setDetailId(unit.id)}
-                      className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary transition-colors"
-                    >
-                      Detalle
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setDetailId(unit.id)}
+                    className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold uppercase tracking-wide hover:border-primary hover:text-primary"
+                  >
+                    Ver detalle
+                  </button>
                 </td>
               </tr>
             ))}
-            {!query.isLoading && filtered.length === 0 ? (
+            {!isLoading && filtered.length === 0 ? (
               <tr>
                 <td className="px-4 py-6 text-muted-foreground" colSpan={8}>
                   {units.length === 0

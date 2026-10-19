@@ -1,7 +1,7 @@
 import * as React from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ShieldCheck, MapPin, Video, KeyRound, ArrowRight, User, Lock } from "lucide-react";
+import { ShieldCheck, MapPin, Video, KeyRound, ArrowRight, User, Lock, Terminal } from "lucide-react";
 import { toast } from "sonner";
 import { PLATFORM_URLS, readSession, useWialonSession, writeSession, type WialonSession } from "@/lib/wialon-session";
 import { wialonLogin, wialonLoginWithCredentials } from "@/lib/wialon.functions";
@@ -91,25 +91,24 @@ async function directClientLoginWithCredentials(
           { host: "full", base: "https://hst-api.wialon.com" },
         ];
 
-  // 1. Probar JSONP directo (bypassea CORS 100%)
+  // 1. Probar JSONP directo (libre de CORS)
   for (const { host: h, base } of hosts) {
     try {
       const params = encodeURIComponent(JSON.stringify({ user, password: pass }));
       const jsonpUrl = `${base}/wialon/ajax.html?svc=core/login&params=${params}`;
       const data = await jsonpLogin<any>(jsonpUrl, 6000);
       if (data?.eid) {
-        const uObj = data.u || data.user;
         return {
           sid: data.eid,
           host: h,
-          userId: uObj?.id ?? 0,
-          userName: uObj?.nm ?? data.au ?? user,
+          userId: data.user?.id ?? 0,
+          userName: data.user?.nm ?? user,
         };
       }
     } catch {}
   }
 
-  // 2. Probar proxies locales
+  // 2. Probar proxies
   for (const { host: h } of hosts) {
     const proxyUrl = h === "full" ? "/wialon-full-api/?svc=core/login" : "/wialon-lite-api/?svc=core/login";
     try {
@@ -123,50 +122,13 @@ async function directClientLoginWithCredentials(
       if (res.ok) {
         const data = (await res.json()) as any;
         if (data?.eid) {
-          const uObj = data.u || data.user;
           return {
             sid: data.eid,
             host: h,
-            userId: uObj?.id ?? 0,
-            userName: uObj?.nm ?? data.au ?? user,
+            userId: data.user?.id ?? 0,
+            userName: data.user?.nm ?? user,
           };
         }
-      }
-    } catch {}
-  }
-
-  return null;
-}
-
-async function directClientLoginWithToken(
-  host: "lite" | "full",
-  token: string,
-): Promise<WialonSession | null> {
-  const hosts: Array<{ host: "lite" | "full"; base: string }> =
-    host === "full"
-      ? [
-          { host: "full", base: "https://hst-api.wialon.com" },
-          { host: "lite", base: "https://hst-api.wialon.us" },
-        ]
-      : [
-          { host: "lite", base: "https://hst-api.wialon.us" },
-          { host: "full", base: "https://hst-api.wialon.com" },
-        ];
-
-  // 1. Probar JSONP directo
-  for (const { host: h, base } of hosts) {
-    try {
-      const params = encodeURIComponent(JSON.stringify({ token, fl: 1 }));
-      const jsonpUrl = `${base}/wialon/ajax.html?svc=token/login&params=${params}`;
-      const data = await jsonpLogin<any>(jsonpUrl, 6000);
-      if (data?.eid) {
-        const uObj = data.u || data.user;
-        return {
-          sid: data.eid,
-          host: h,
-          userId: uObj?.id ?? 0,
-          userName: uObj?.nm ?? data.au ?? "Usuario",
-        };
       }
     } catch {}
   }
@@ -206,20 +168,36 @@ function WialonLoginPage() {
         return;
       }
 
-      // Si ya hay una sesión activa en el navegador, redirigir directo al mapa
+      // Si ya hay una sesión activa legítima (con usuario autenticado), redirigir directo al mapa
       const existing = readSession();
       if (existing?.sid) {
-        void navigate({ to: "/wialon/mapa" });
-        return;
+        const isLegitUser = Boolean(
+          existing.userName &&
+          existing.userName !== "Usuario" &&
+          (existing.userId > 0 || existing.profile),
+        );
+        if (isLegitUser) {
+          void navigate({ to: "/wialon/mapa" });
+          return;
+        } else {
+          // Sesión fantasma o huérfana sin usuario: purgarla automáticamente
+          writeSession(null);
+        }
       }
     }
   }, [navigate]);
 
-  function startWialonOAuthLogin() {
+  function startWialonOAuthLogin(prefilledUser?: string) {
     const base = PLATFORM_URLS[host].app.replace(/\/$/, "");
     window.sessionStorage.setItem("orblite.wialon.oauth-host", host);
     window.localStorage.setItem("orblite.wialon.oauth-host", host);
-    const redirect = `${window.location.origin}/wialon/callback?host=${host}`;
+
+    // Si el usuario entra por orb-lite.com sin www, normalizar a www.orb-lite.com para evitar rebotes 308 que puedan perder el hash
+    let origin = window.location.origin;
+    if (origin.includes("orb-lite.com") && !origin.includes("www.")) {
+      origin = origin.replace("orb-lite.com", "www.orb-lite.com");
+    }
+    const redirect = `${origin}/wialon/callback?host=${host}`;
     const url = new URL(`${base}/login.html`);
     url.searchParams.set("client_id", "ORB-LITE");
     url.searchParams.set("access_type", "-1"); // Permisos completos de telemetría, unidades y geocercas
@@ -229,6 +207,13 @@ function WialonLoginPage() {
     url.searchParams.set("lang", "es");
     url.searchParams.set("redirect_uri", redirect);
     url.searchParams.set("response_type", "token");
+
+    const targetUser = (prefilledUser || user).trim();
+    if (targetUser) {
+      url.searchParams.set("user", targetUser);
+      url.searchParams.set("login", targetUser);
+    }
+
     window.location.assign(url.toString());
   }
 
@@ -248,14 +233,33 @@ function WialonLoginPage() {
 
     try {
       let sess: WialonSession | null = null;
+
+      // 1. Probar endpoint directo /api/wialon-credentials-login
       try {
-        const res = await loginCredentials({
-          data: { host, user: user.trim(), password },
+        const cRes = await fetch("/api/wialon-credentials-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ host, user: user.trim(), password }),
         });
-        if (res?.sid) sess = res;
-      } catch (serverErr) {
-        sess = await directClientLoginWithCredentials(host, user.trim(), password);
-        if (!sess) throw serverErr;
+        if (cRes.ok) {
+          const cData = (await cRes.json()) as any;
+          if (cData?.sid) sess = cData;
+        }
+      } catch (cErr) {
+        console.warn("[Login Directo] /api/wialon-credentials-login falló:", cErr);
+      }
+
+      // 2. Si no, probar ServerFn en Cloudflare Worker
+      if (!sess) {
+        try {
+          const res = await loginCredentials({
+            data: { host, user: user.trim(), password },
+          });
+          if (res?.sid) sess = res;
+        } catch (serverErr) {
+          sess = await directClientLoginWithCredentials(host, user.trim(), password);
+          if (!sess) throw serverErr;
+        }
       }
 
       if (sess) {
@@ -307,33 +311,24 @@ function WialonLoginPage() {
     setError(null);
 
     try {
-      let sess: WialonSession | null = null;
-      try {
-        const res = await loginToken({
-          data: { host, token: token.trim() },
-        });
-        if (res?.sid) {
-          sess = {
-            sid: res.sid,
-            host: res.host,
-            userId: res.userId,
-            userName: res.userName,
-            profile: null,
-          };
-        }
-      } catch (serverErr) {
-        sess = await directClientLoginWithToken(host, token.trim());
-        if (!sess) throw serverErr;
-      }
-
-      if (sess?.sid) {
+      const res = await loginToken({
+        data: { host, token: token.trim() },
+      });
+      if (res?.sid) {
+        const sess: WialonSession = {
+          sid: res.sid,
+          host: res.host,
+          userId: res.userId,
+          userName: res.userName,
+          profile: null,
+        };
         try {
           const profile = (await syncUser({
             data: {
-              wialonUserId: sess.userId,
-              wialonUsername: sess.userName,
-              host: sess.host,
-              sid: sess.sid,
+              wialonUserId: res.userId,
+              wialonUsername: res.userName,
+              host: res.host,
+              sid: res.sid,
             },
           })) as PlatformUserProfile | null;
           sess.profile = profile;
@@ -412,21 +407,7 @@ function WialonLoginPage() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Página de Wialon
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("direct");
-                setError(null);
-              }}
-              className={`flex-1 rounded-md py-2 transition-all ${
-                activeTab === "direct"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Usuario y Contraseña
+              Acceso a Plataforma
             </button>
             <button
               type="button"
@@ -440,37 +421,17 @@ function WialonLoginPage() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Token
+              Token Permanente
             </button>
           </div>
 
-          {/* Opción 1: Login por la página de Wialon */}
+          {/* Opción 1: Acceso a la plataforma (Oficial Wialon) */}
           {activeTab === "wialon-oauth" && (
             <div className="space-y-4">
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Inicia sesión en la página oficial de Wialon. Una vez autenticado, se abrirá automáticamente tu sesión dentro de la plataforma ORB-LITE vinculando tus datos y unidades registradas.
-              </p>
-
-              <button
-                type="button"
-                onClick={startWialonOAuthLogin}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-lg hover:opacity-90 active:scale-[0.99] transition-all"
-              >
-                <span>Entrar por la página de Wialon</span>
-                <ArrowRight className="size-4" />
-              </button>
-
-              <p className="text-[11px] text-center text-muted-foreground">
-                Servidor: <span className="font-mono text-primary font-semibold">{host === "lite" ? "lite.wialon.us" : "hosting.wialon.com"}</span>
-              </p>
-            </div>
-          )}
-
-          {/* Opción 2: Formulario directo Usuario y Contraseña */}
-          {activeTab === "direct" && (
-            <form onSubmit={handleDirectCredentialsLogin} className="space-y-3.5">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-foreground">Usuario</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-foreground">
+                  Usuario en Wialon <span className="text-muted-foreground font-normal">(opcional)</span>
+                </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
@@ -478,55 +439,52 @@ function WialonLoginPage() {
                     autoComplete="username"
                     value={user}
                     onChange={(e) => setUser(e.target.value)}
-                    placeholder="Usuario en Wialon"
+                    placeholder="Ej. mi_empresa_gps"
                     className="w-full rounded-lg border border-border bg-background py-2.5 pl-9 pr-3 text-sm text-foreground focus:border-primary focus:outline-none"
-                    required
                   />
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Si escribes tu usuario, aparecerá precargado automáticamente en la pasarela.
+                </p>
               </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-foreground">Contraseña</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full rounded-lg border border-border bg-background py-2.5 pl-9 pr-3 text-sm text-foreground focus:border-primary focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
-                  {error}
-                </div>
-              )}
 
               <button
-                type="submit"
-                disabled={loading}
-                className="mt-2 flex w-full items-center justify-center rounded-xl bg-primary py-3 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow hover:opacity-90 disabled:opacity-50 transition-all"
+                type="button"
+                onClick={() => startWialonOAuthLogin()}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-display text-sm font-bold uppercase tracking-wider text-primary-foreground shadow-lg hover:opacity-90 active:scale-[0.99] transition-all"
               >
-                {loading ? "Iniciando sesión…" : "Abrir mi plataforma"}
+                <span>{user.trim() ? `Entrar como "${user.trim()}"` : "Entrar a la plataforma de rastreo"}</span>
+                <ArrowRight className="size-4" />
               </button>
-            </form>
+
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-left">
+                <div className="flex items-start gap-2.5">
+                  <ShieldCheck className="size-4 shrink-0 text-primary mt-0.5" />
+                  <div className="space-y-1 text-[11px] text-muted-foreground leading-relaxed">
+                    <p className="font-semibold text-foreground">Seguridad oficial de Wialon</p>
+                    <p>
+                      Wialon requiere autenticación en su pasarela cifrada para proteger tus credenciales. Una vez autorizado, el mapa satelital de ORB-LITE se abrirá automáticamente en tu pantalla.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-center text-muted-foreground">
+                Servidor de enlace: <span className="font-mono text-primary font-semibold">{host === "lite" ? "lite.wialon.us" : "hosting.wialon.com"}</span>
+              </p>
+            </div>
           )}
 
-          {/* Opción 3: Token */}
+          {/* Opción 2: Token */}
           {activeTab === "token" && (
             <form onSubmit={handleTokenLogin} className="space-y-3.5">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-foreground">Token de acceso</label>
+                <label className="text-xs font-semibold text-foreground">Token de acceso o API Key</label>
                 <textarea
                   rows={2}
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
-                  placeholder="Pega aquí tu token de Wialon…"
+                  placeholder="Pega aquí tu token permanente de Wialon…"
                   className="w-full rounded-lg border border-border bg-background p-2.5 font-mono text-xs text-foreground focus:border-primary focus:outline-none"
                   required
                 />
@@ -548,6 +506,31 @@ function WialonLoginPage() {
             </form>
           )}
         </section>
+
+        {/* Pestaña / Acceso Oculto a Swarm de APIs Wialon sin login CRM */}
+        <div className="mt-4 rounded-xl border border-dashed border-border/80 bg-muted/20 p-3.5 text-center transition-all hover:border-primary/50">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-left">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                <Terminal className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-xs font-semibold text-foreground">
+                  Swarm de APIs Wialon · Arquitectura &amp; Esquemas
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Acceso directo para integradores y desarrolladores (sin iniciar sesión en CRM).
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/wialon/swarm"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-2xs hover:opacity-90 transition-opacity shrink-0"
+            >
+              Explorar Swarm <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Grid de módulos en la plataforma ORB-LITE */}

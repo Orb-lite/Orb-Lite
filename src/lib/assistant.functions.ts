@@ -294,7 +294,7 @@ export const assistantExecuteProcess = createServerFn({ method: "POST" })
           throw new Error("Faltan datos obligatorios: Nombre de la geocerca y coordenadas.");
         }
 
-        const resource = fields.resourceName || "Orb_lite";
+        const resource = fields.resourceName || "AlfredoRetana";
         const geoId = "GEO-" + Math.floor(1000 + Math.random() * 9000);
 
         return {

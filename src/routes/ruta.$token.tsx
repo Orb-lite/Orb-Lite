@@ -8,8 +8,11 @@ import {
   markSharedStopVisited,
   commentSharedStop,
   finishSharedRoute,
+  type SharedRouteView,
 } from "@/lib/route-share.functions";
 import { downloadExcelWorkbook } from "@/lib/excel-export";
+
+type StopItem = SharedRouteView["stops"][number];
 
 const SharedRouteMap = React.lazy(() => import("@/components/wialon/SharedRouteMap"));
 
@@ -86,6 +89,31 @@ async function exportVisitReport(routeName: string, stops: SharedStop[]) {
   });
 }
 
+function getClientFallbackRoute(token: string) {
+  if (typeof window === "undefined") return null;
+  try {
+    const hash = window.location.hash.slice(1);
+    if (hash.startsWith("d=")) {
+      const decoded = JSON.parse(decodeURIComponent(hash.slice(2)));
+      return {
+        name: decoded.name || "Ruta Asignada",
+        stops: (decoded.stops || []).map((s: any, idx: number) => ({
+          label: s.label || (idx === 0 ? "Salida" : `Parada ${idx}`),
+          lat: s.lat,
+          lon: s.lon,
+          visitedAt: s.visitedAt ?? null,
+          comment: s.comment ?? null,
+          contact: s.contact ?? null,
+        })),
+        path: decoded.path || [],
+        reportSent: false,
+        liveVehicle: null,
+      };
+    }
+  } catch {}
+  return null;
+}
+
 function SharedRoutePage() {
   const { token } = Route.useParams();
   const queryClient = useQueryClient();
@@ -108,15 +136,27 @@ function SharedRoutePage() {
     return () => navigator.geolocation.clearWatch(id);
   }, []);
 
+  const fallback = React.useMemo(() => getClientFallbackRoute(token), [token]);
+
   const query = useQuery({
     queryKey: ["shared-route", token],
-    queryFn: () => getSharedRoute({ data: { token } }),
+    queryFn: async () => {
+      try {
+        const res = await getSharedRoute({ data: { token } });
+        if (res) return res;
+      } catch (err) {
+        console.warn("[ruta] getSharedRoute server falló:", err);
+      }
+      const fb = getClientFallbackRoute(token);
+      if (fb) return fb;
+      throw new Error("La ruta no existe o ha expirado.");
+    },
     retry: false,
     refetchInterval: 5000,
   });
 
-  const route = query.data;
-  const stops = route?.stops ?? [];
+  const route = query.data ?? fallback;
+  const stops: StopItem[] = (route?.stops as StopItem[]) ?? [];
   const nextIndex = stops.findIndex((stop) => !stop.visitedAt);
   const doneCount = stops.filter((stop) => stop.visitedAt).length;
 

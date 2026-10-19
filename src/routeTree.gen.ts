@@ -41,6 +41,7 @@ import { Route as WialonHistorialRouteImport } from './routes/wialon.historial'
 import { Route as WialonMapaRouteImport } from './routes/wialon.mapa'
 import { Route as WialonReportesRouteImport } from './routes/wialon.reportes'
 import { Route as WialonRutasRouteImport } from './routes/wialon.rutas'
+import { Route as WialonSwarmRouteImport } from './routes/wialon.swarm'
 import { Route as WialonUnidadesRouteImport } from './routes/wialon.unidades'
 import { Route as WialonUsuariosRouteImport } from './routes/wialon.usuarios'
 import { Route as WialonVideoRouteImport } from './routes/wialon.video'
@@ -208,6 +209,11 @@ const WialonRutasRoute = WialonRutasRouteImport.update({
   path: '/rutas',
   getParentRoute: () => WialonRoute,
 } as any)
+const WialonSwarmRoute = WialonSwarmRouteImport.update({
+  id: '/swarm',
+  path: '/swarm',
+  getParentRoute: () => WialonRoute,
+} as any)
 const WialonUnidadesRoute = WialonUnidadesRouteImport.update({
   id: '/unidades',
   path: '/unidades',
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/reportes': typeof WialonReportesRoute
   '/wialon/rutas': typeof WialonRutasRoute
+  '/wialon/swarm': typeof WialonSwarmRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
   '/wialon/usuarios': typeof WialonUsuariosRoute
   '/wialon/video': typeof WialonVideoRoute
@@ -311,6 +318,7 @@ export interface FileRoutesByTo {
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/reportes': typeof WialonReportesRoute
   '/wialon/rutas': typeof WialonRutasRoute
+  '/wialon/swarm': typeof WialonSwarmRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
   '/wialon/usuarios': typeof WialonUsuariosRoute
   '/wialon/video': typeof WialonVideoRoute
@@ -352,6 +360,7 @@ export interface FileRoutesById {
   '/wialon/mapa': typeof WialonMapaRoute
   '/wialon/reportes': typeof WialonReportesRoute
   '/wialon/rutas': typeof WialonRutasRoute
+  '/wialon/swarm': typeof WialonSwarmRoute
   '/wialon/unidades': typeof WialonUnidadesRoute
   '/wialon/usuarios': typeof WialonUsuariosRoute
   '/wialon/video': typeof WialonVideoRoute
@@ -393,6 +402,7 @@ export interface FileRouteTypes {
     | '/wialon/mapa'
     | '/wialon/reportes'
     | '/wialon/rutas'
+    | '/wialon/swarm'
     | '/wialon/unidades'
     | '/wialon/usuarios'
     | '/wialon/video'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/wialon/mapa'
     | '/wialon/reportes'
     | '/wialon/rutas'
+    | '/wialon/swarm'
     | '/wialon/unidades'
     | '/wialon/usuarios'
     | '/wialon/video'
@@ -471,6 +482,7 @@ export interface FileRouteTypes {
     | '/wialon/mapa'
     | '/wialon/reportes'
     | '/wialon/rutas'
+    | '/wialon/swarm'
     | '/wialon/unidades'
     | '/wialon/usuarios'
     | '/wialon/video'
@@ -729,6 +741,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WialonRutasRouteImport
       parentRoute: typeof WialonRoute
     }
+    '/wialon/swarm': {
+      id: '/wialon/swarm'
+      path: '/swarm'
+      fullPath: '/wialon/swarm'
+      preLoaderRoute: typeof WialonSwarmRouteImport
+      parentRoute: typeof WialonRoute
+    }
     '/wialon/unidades': {
       id: '/wialon/unidades'
       path: '/unidades'
@@ -802,6 +821,7 @@ interface WialonRouteChildren {
   WialonMapaRoute: typeof WialonMapaRoute
   WialonReportesRoute: typeof WialonReportesRoute
   WialonRutasRoute: typeof WialonRutasRoute
+  WialonSwarmRoute: typeof WialonSwarmRoute
   WialonUnidadesRoute: typeof WialonUnidadesRoute
   WialonUsuariosRoute: typeof WialonUsuariosRoute
   WialonVideoRoute: typeof WialonVideoRoute
@@ -819,6 +839,7 @@ const WialonRouteChildren: WialonRouteChildren = {
   WialonMapaRoute: WialonMapaRoute,
   WialonReportesRoute: WialonReportesRoute,
   WialonRutasRoute: WialonRutasRoute,
+  WialonSwarmRoute: WialonSwarmRoute,
   WialonUnidadesRoute: WialonUnidadesRoute,
   WialonUsuariosRoute: WialonUsuariosRoute,
   WialonVideoRoute: WialonVideoRoute,

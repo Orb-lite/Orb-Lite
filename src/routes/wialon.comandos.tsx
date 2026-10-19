@@ -48,6 +48,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/wialon/comandos")({
   head: () => ({
@@ -154,14 +155,17 @@ function WialonComandosView({ session }: { session: WialonSession }) {
   // Mutación: Guardar / Editar comando en Wialon
   const saveMutation = useMutation({
     mutationFn: saveCommandFn,
-    onSuccess: () => {
+    onSuccess: (res) => {
       void queryClient.invalidateQueries({ queryKey: ["wialon-unit-commands"] });
+      void commandsQuery.refetch();
+      toast.success(`Comando "${res.command?.name ?? 'TCP'}" guardado exitosamente en Wialon`);
       setIsNewDialogOpen(false);
       setIsEditingId(null);
       resetForm();
     },
     onError: (err: any) => {
       setFormError(err?.message || "Error al guardar el comando en Wialon.");
+      toast.error(err?.message || "Error al guardar el comando en Wialon.");
     },
   });
 
@@ -170,14 +174,24 @@ function WialonComandosView({ session }: { session: WialonSession }) {
     mutationFn: deleteCommandFn,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["wialon-unit-commands"] });
+      void commandsQuery.refetch();
+      toast.success("Comando eliminado exitosamente de Wialon");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Error al eliminar el comando en Wialon.");
     },
   });
 
   // Mutación: Cargar Pack Teltonika
   const batchTeltonikaMutation = useMutation({
     mutationFn: batchTeltonikaFn,
-    onSuccess: () => {
+    onSuccess: (res) => {
       void queryClient.invalidateQueries({ queryKey: ["wialon-unit-commands"] });
+      void commandsQuery.refetch();
+      toast.success(`Pack Teltonika: ${res.addedCount} comandos agregados en Wialon (${res.skippedCount} ya existían)`);
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Error al registrar pack Teltonika en Wialon.");
     },
   });
 
