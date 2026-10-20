@@ -32,6 +32,26 @@ export default defineConfig({
   vite: {
     plugins: [
       {
+        name: "orb-native-tsconfig-paths",
+        enforce: "pre",
+        config(config) {
+          if (Array.isArray(config.plugins)) {
+            const strip = (arr: any[]): any[] =>
+              arr.flatMap((item) => {
+                if (Array.isArray(item)) return strip(item);
+                if (item && item.name === "vite-tsconfig-paths") return [];
+                return [item];
+              });
+            config.plugins = strip(config.plugins);
+          }
+          return {
+            resolve: {
+              tsconfigPaths: true,
+            },
+          };
+        },
+      },
+      {
         name: "orb-prepare-dist-plugin",
         closeBundle() {
           try {
@@ -46,6 +66,7 @@ export default defineConfig({
       chunkSizeWarningLimit: 2500,
     },
     resolve: {
+      tsconfigPaths: true,
       alias: {
         // React Email requires entities v4.5.0; bypass nested newer copies.
         "entities/lib/decode.js": path.resolve(
