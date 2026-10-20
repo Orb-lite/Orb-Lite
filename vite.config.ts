@@ -42,6 +42,9 @@ export default defineConfig({
         },
       },
     ],
+    build: {
+      chunkSizeWarningLimit: 2500,
+    },
     resolve: {
       alias: {
         // React Email requires entities v4.5.0; bypass nested newer copies.
