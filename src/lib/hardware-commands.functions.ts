@@ -14,7 +14,7 @@ export interface HardwareCommand {
 
 /** Consulta las definiciones de comandos por marca de hardware o lista todas */
 export const getHardwareCommandDefinitions = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         brand: z.string().trim().optional(),
@@ -53,7 +53,7 @@ export const getHardwareCommandDefinitions = createServerFn({ method: "POST" })
 
 /** Agrega una nueva definición de comando para una marca de GPS */
 export const addHardwareCommandDefinition = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         hardwareBrand: z.string().trim().min(2).max(100),
@@ -87,7 +87,7 @@ export const addHardwareCommandDefinition = createServerFn({ method: "POST" })
 
 /** Actualiza una definición de comando de hardware existente */
 export const updateHardwareCommandDefinition = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -123,7 +123,7 @@ export const updateHardwareCommandDefinition = createServerFn({ method: "POST" }
 
 /** Elimina una definición de comando de hardware */
 export const deleteHardwareCommandDefinition = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         id: z.string().uuid(),

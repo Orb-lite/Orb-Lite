@@ -92,7 +92,7 @@ function normalizeUnit(
 
 /** Inicia sesión en Wialon con usuario y contraseña directos. */
 export const wialonLoginWithCredentials = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         host: hostSchema,
@@ -169,7 +169,7 @@ export const wialonLoginWithCredentials = createServerFn({ method: "POST" })
 
 /** Inicia sesión en Wialon exclusivamente con un token generado por su API. */
 export const wialonLogin = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         host: hostSchema,
@@ -286,7 +286,7 @@ export const wialonLogin = createServerFn({ method: "POST" })
   });
 
 export const wialonLoginWithSid = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         host: hostSchema,
@@ -354,7 +354,7 @@ export const wialonLoginWithSid = createServerFn({ method: "POST" })
   });
 
 export const wialonLogout = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     try {
       await wialonCall(data.host as WialonHost, "core/logout", {}, data.sid);
@@ -366,7 +366,7 @@ export const wialonLogout = createServerFn({ method: "POST" })
 
 /** Lista de unidades con su última posición, IMEI y usuario creador. */
 export const wialonUnits = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const primaryHost = data.host as WialonHost;
     const hostsToTry: WialonHost[] = [primaryHost, primaryHost === "lite" ? "full" : "lite"];
@@ -492,7 +492,7 @@ function detectCameraBrand(...texts: Array<string | undefined | null>): string |
 
 /** Consulta oficial de cámaras de una unidad exclusivamente mediante unit/get_video_settings. */
 export const wialonVideoSettings = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         unitId: z.number().int().positive(),
@@ -533,7 +533,7 @@ export const wialonVideoSettings = createServerFn({ method: "POST" })
 
 /** Unidades con soporte de cámaras y video consultadas para el usuario actual. */
 export const wialonVideoUnits = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const primaryHost = data.host as WialonHost;
     const hostsToTry: WialonHost[] = [primaryHost, primaryHost === "lite" ? "full" : "lite"];
@@ -598,7 +598,7 @@ export const wialonVideoUnits = createServerFn({ method: "POST" })
 
 /** Historial de mensajes/recorrido de una unidad en un intervalo. */
 export const wialonHistory = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         unitId: z.number().int().positive(),
@@ -665,7 +665,7 @@ export const wialonHistory = createServerFn({ method: "POST" })
 
 /** Datos base del CMS: cuentas/recursos, usuarios y unidades. */
 export const wialonCmsOverview = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
@@ -706,7 +706,7 @@ export const wialonCmsOverview = createServerFn({ method: "POST" })
 
 /** Tipos de equipo disponibles para dar de alta unidades. */
 export const wialonHwTypes = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema.extend({ search: z.string().trim().optional() }).parse(input),
   )
   .handler(async ({ data }) => {
@@ -730,7 +730,7 @@ export const wialonHwTypes = createServerFn({ method: "POST" })
 
 /** Alta de unidad (CMS). */
 export const wialonCreateUnit = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         creatorId: z.number().int().positive(),
@@ -779,7 +779,7 @@ export const wialonCreateUnit = createServerFn({ method: "POST" })
 
 /** Alta de usuario (CMS). */
 export const wialonCreateUser = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         creatorId: z.number().int().positive(),
@@ -814,7 +814,7 @@ export type WialonAccessLevel = keyof typeof ACCESS_MASKS;
 
 /** Permisos reales del usuario conectado: rol, altas disponibles y límites de la cuenta. */
 export const wialonPermissions = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema.extend({ userId: z.number().int() }).parse(input),
   )
   .handler(async ({ data }) => {
@@ -913,7 +913,7 @@ export const wialonPermissions = createServerFn({ method: "POST" })
 
 /** Otorga acceso de un usuario a unidades específicas. */
 export const wialonGrantUnits = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         userId: z.number().int().positive(),
@@ -942,7 +942,7 @@ export const wialonGrantUnits = createServerFn({ method: "POST" })
 
 /** Mantiene viva la sesión y confirma si sigue siendo válida. */
 export const wialonPing = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
     try {
@@ -979,7 +979,7 @@ export type WialonSensor = {
 
 /** Detalle completo de una unidad: posición, sensores con su último valor y comandos. */
 export const wialonUnitDetail = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema.extend({ unitId: z.number().int().positive() }).parse(input),
   )
   .handler(async ({ data }) => {
@@ -1051,7 +1051,7 @@ export const wialonUnitDetail = createServerFn({ method: "POST" })
 
 /** Ejecuta un comando en la unidad (bloqueo de motor, salidas, etc.). */
 export const wialonSendCommand = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         unitId: z.number().int().positive(),
@@ -1083,7 +1083,7 @@ export const wialonSendCommand = createServerFn({ method: "POST" })
 /* ------------------------------------------------------------------ */
 
 export const wialonGeofences = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
@@ -1268,7 +1268,7 @@ export const wialonGeofences = createServerFn({ method: "POST" })
   });
 
 export const wialonCreateGeofence = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         resourceId: z.number().int().positive(),
@@ -1329,7 +1329,7 @@ export const wialonCreateGeofence = createServerFn({ method: "POST" })
   });
 
 export const wialonCreateRoute = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         resourceId: z.number().int().positive(),
@@ -1375,7 +1375,7 @@ export const wialonCreateRoute = createServerFn({ method: "POST" })
   });
 
 export const wialonDeleteGeofence = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         resourceId: z.number().int().positive(),
@@ -1409,7 +1409,7 @@ export type { StoredUserRoute } from "./user-routes.server";
  * acceso. Las rutas se muestran exactamente con ese criterio.
  */
 export const getUserRoutes = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         userId: z.number().int(),
@@ -1434,7 +1434,7 @@ export const getUserRoutes = createServerFn({ method: "POST" })
   });
 
 export const saveUserRoute = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         userId: z.number().int(),
@@ -1558,7 +1558,7 @@ export const saveUserRoute = createServerFn({ method: "POST" })
   });
 
 export const deleteUserRoute = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         userId: z.number().int(),
@@ -1639,7 +1639,7 @@ async function geocodeAddress(address: string): Promise<WialonGeocodedAddress> {
 
 /** Busca las direcciones escritas para mostrar sus puntos en el mapa antes de crear la ruta. */
 export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         addresses: z
@@ -1654,7 +1654,7 @@ export const wialonGeocodeAddresses = createServerFn({ method: "POST" })
   }));
 
 export const wialonPlanRoute = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         origin: z.string().trim().min(3, "Captura el punto de salida."),
@@ -1807,7 +1807,7 @@ export const wialonPlanRoute = createServerFn({ method: "POST" })
   });
 
 export const wialonDrivers = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const host = data.host as WialonHost;
 
@@ -1857,7 +1857,7 @@ export const wialonDrivers = createServerFn({ method: "POST" })
 
 /** Datos de la cuenta conectada: plan, servicios y saldo de días. */
 export const wialonAccount = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const account = await wialonCall<{
       plan?: string;
@@ -1879,7 +1879,7 @@ export const wialonAccount = createServerFn({ method: "POST" })
 
 /** Renombra una unidad existente. */
 export const wialonRenameUnit = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         unitId: z.number().int().positive(),
@@ -1925,7 +1925,7 @@ function numeric(value: unknown): number | null {
  * en su tiempo de medición (se toma el parámetro configurado del sensor).
  */
 export const wialonReportData = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         unitId: z.number().int().positive(),
@@ -2031,7 +2031,7 @@ export const wialonReportData = createServerFn({ method: "POST" })
 
 /** Plantillas de reporte disponibles en los recursos de la cuenta. */
 export const wialonReportTemplates = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     const res = await wialonCall<{
       items?: Array<{
@@ -2080,7 +2080,7 @@ export type WialonReportTable = {
 
 /** Ejecuta report/exec_report y devuelve las tablas tabulares para exportar. */
 export const wialonExecReport = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     sessionSchema
       .extend({
         resourceId: z.number().int().positive(),
@@ -2231,7 +2231,7 @@ function mapLogisticsPoint(raw: RawLogisticsPoint): WialonLogisticsRoutePoint | 
 
 /** Lee las rutas creadas en Wialon Logistics (solo disponible en ORB-FULL). */
 export const wialonLogisticsRoutes = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => sessionSchema.parse(input))
+  .validator((input: unknown) => sessionSchema.parse(input))
   .handler(async ({ data }) => {
     if (data.host !== "full") return { routes: [] as WialonLogisticsRoute[] };
 

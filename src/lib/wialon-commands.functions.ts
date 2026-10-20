@@ -23,7 +23,7 @@ const commandLogs: WialonCommandLogEntry[] = [];
 
 /** Envía un comando a la unidad utilizando el API remoto de Wialon */
 export const wialonExecuteUnitCommand = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         host: hostSchema,
@@ -118,7 +118,7 @@ export const getCrmCommandHistory = createServerFn({ method: "GET" }).handler(as
 
 /** Registra una acción de copiado o despacho manual por SMS */
 export const logManualCommandDispatch = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         unitId: z.number().int().positive(),

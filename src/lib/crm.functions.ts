@@ -14,7 +14,7 @@ function assertCrmUser(claims: any) {
 
 export const crmListSolicitudes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z.object({ status: z.enum(["todas", ...STATUSES]).default("todas") }).parse(data),
   )
   .handler(async ({ data, context }) => {
@@ -38,7 +38,7 @@ export const crmListSolicitudes = createServerFn({ method: "POST" })
 
 export const crmUpdateSolicitud = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -235,7 +235,7 @@ async function upsertCustomerRecord(
 /** Registra una venta hecha fuera de la página (WhatsApp, mostrador, teléfono). */
 export const crmCreateSale = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
@@ -473,7 +473,7 @@ export const crmCreateSale = createServerFn({ method: "POST" })
 /** Registra o actualiza un cliente sin generar una venta. */
 export const crmSaveCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
@@ -515,7 +515,7 @@ export const crmSaveCustomer = createServerFn({ method: "POST" })
 /** Edita los datos de un cliente existente sin tocar su historial de compras. */
 export const crmUpdateCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         customerNumber: z.number().int().min(500).max(9_999_999),
@@ -564,7 +564,7 @@ export const crmUpdateCustomer = createServerFn({ method: "POST" })
 /** Borra un cliente y todas sus solicitudes asociadas. */
 export const crmDeleteCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z.object({ customerNumber: z.number().int().min(500).max(9_999_999) }).parse(data),
   )
   .handler(async ({ data, context }) => {
@@ -602,7 +602,7 @@ export const crmDeleteCustomer = createServerFn({ method: "POST" })
 /** Consulta un cliente por número para precargar los formularios del CRM. */
 export const crmLookupCustomer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z.object({ customerNumber: z.number().int().min(500).max(9_999_999) }).parse(data),
   )
   .handler(async ({ data, context }) => {
@@ -670,7 +670,7 @@ export const crmListRenovaciones = createServerFn({ method: "POST" })
 /** Crea o edita una renovación desde el panel de control. */
 export const crmSaveRenovacion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => renovacionSchema.parse(data))
+  .validator((data: unknown) => renovacionSchema.parse(data))
   .handler(async ({ data, context }) => {
     assertCrmUser(context.claims);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -720,7 +720,7 @@ export const crmSaveRenovacion = createServerFn({ method: "POST" })
 /** Borra una renovación del panel de control. */
 export const crmDeleteRenovacion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .validator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     assertCrmUser(context.claims);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -771,7 +771,7 @@ export const crmListDemoUsers = createServerFn({ method: "POST" })
 /** Genera un usuario demo (uno por cliente) con contraseña fija Abc2026+. */
 export const crmCreateDemoUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         customerNumber: z.number().int().min(500).max(9_999_999).nullish(),
@@ -865,7 +865,7 @@ export const crmCreateDemoUser = createServerFn({ method: "POST" })
 /** Borra un usuario demo. */
 export const crmDeleteDemoUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .validator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     assertCrmUser(context.claims);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -899,7 +899,7 @@ export const crmListDemoRequests = createServerFn({ method: "POST" })
  */
 export const crmSendDemoRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -985,7 +985,7 @@ export const crmSendDemoRequest = createServerFn({ method: "POST" })
 /** Borra una solicitud de demo. */
 export const crmDeleteDemoRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
+  .validator((data: unknown) => z.object({ id: z.string().uuid() }).parse(data))
   .handler(async ({ data, context }) => {
     assertCrmUser(context.claims);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

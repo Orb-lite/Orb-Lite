@@ -35,7 +35,7 @@ export interface CustomerLookup {
 
 /** Confirma que un número de cliente existe y saluda por su primer nombre. */
 export const lookupCustomer = createServerFn({ method: "POST" })
-  .inputValidator((data) =>
+  .validator((data) =>
     z.object({ customerNumber: z.number().int().min(500).max(9_999_999) }).parse(data),
   )
   .handler(async ({ data }): Promise<CustomerLookup | null> => {
@@ -85,7 +85,7 @@ function randomCustomerNumber() {
  * genera uno aleatorio (500 en adelante) y lo devuelve.
  */
 export const saveCustomerOrder = createServerFn({ method: "POST" })
-  .inputValidator((data) => saveSchema.parse(data))
+  .validator((data) => saveSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 

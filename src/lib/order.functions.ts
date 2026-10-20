@@ -62,7 +62,7 @@ const orderSchema = z.object({
 });
 
 export const notifyNewOrder = createServerFn({ method: "POST" })
-  .inputValidator((data) => orderSchema.parse(data))
+  .validator((data) => orderSchema.parse(data))
   .handler(async ({ data }) => {
     const shipping = SHIPPING_OPTIONS.find((s) => s.id === data.shippingId) ?? SHIPPING_OPTIONS[0]!;
 

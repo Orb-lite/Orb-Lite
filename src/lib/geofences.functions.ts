@@ -16,7 +16,7 @@ export interface DatabaseGeofence {
 
 /** Obtiene las geocercas guardadas en la base de datos para un usuario */
 export const getDatabaseGeofences = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         userId: z.string().min(1),
@@ -88,7 +88,7 @@ export const getDatabaseGeofences = createServerFn({ method: "POST" })
 
 /** Guarda una nueva geocerca en Supabase y opcionalmente la asigna a un usuario */
 export const saveDatabaseGeofence = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         name: z.string().trim().min(2).max(100),
@@ -124,7 +124,7 @@ export const saveDatabaseGeofence = createServerFn({ method: "POST" })
 
 /** Actualiza una geocerca existente */
 export const updateDatabaseGeofence = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -161,7 +161,7 @@ export const updateDatabaseGeofence = createServerFn({ method: "POST" })
 
 /** Elimina una geocerca y sus asignaciones */
 export const deleteDatabaseGeofence = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         id: z.string().uuid(),
@@ -190,7 +190,7 @@ export const deleteDatabaseGeofence = createServerFn({ method: "POST" })
 
 /** Asigna una geocerca a otro usuario */
 export const assignGeofenceToUser = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         geofenceId: z.string().uuid(),

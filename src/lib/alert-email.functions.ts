@@ -14,7 +14,7 @@ const alertEmailSchema = z.object({
 });
 
 export const sendAlertEmail = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => alertEmailSchema.parse(input))
+  .validator((input: unknown) => alertEmailSchema.parse(input))
   .handler(async ({ data }) => {
     // Lista de correos: siempre incluye ventas@orb-lite.com como correo central
     const recipientsSet = new Set<string>();

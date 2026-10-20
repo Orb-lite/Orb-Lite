@@ -3,7 +3,7 @@ import { z } from "zod";
 import { processAssistantMessage, type AssistantProcessId } from "./assistant.server";
 
 export const assistantChat = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         message: z.string().trim().min(1).max(2000),
@@ -23,7 +23,7 @@ export const assistantChat = createServerFn({ method: "POST" })
   });
 
 export const assistantExecuteProcess = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         processId: z.enum([

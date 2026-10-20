@@ -71,7 +71,7 @@ const syncInputSchema = z.object({
  *    y la cuenta padre decide qué compartir (rutas, geocercas, links) con sus subcuentas.
  */
 export const syncWialonPlatformUser = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => syncInputSchema.parse(input))
+  .validator((input: unknown) => syncInputSchema.parse(input))
   .handler(async ({ data }): Promise<PlatformUserProfile> => {
     const supabase = getSupabaseServerClient();
     let wialonUserId = data.wialonUserId;
@@ -455,7 +455,7 @@ export const syncWialonPlatformUser = createServerFn({ method: "POST" })
  * y links compartidos para una subcuenta específica.
  */
 export const updateSubuserPermissions = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         parentUserId: z.number().int(),

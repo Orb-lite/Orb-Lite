@@ -58,7 +58,7 @@ export type PublicUnitTracking = {
 
 /** Crea un nuevo enlace temporal para compartir una o varias unidades. */
 export const createUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         unitId: z.number().int().optional(),
@@ -138,7 +138,7 @@ export const createUnitShare = createServerFn({ method: "POST" })
 
 /** Lista todos los enlaces temporales creados según la jerarquía de cuentas. */
 export const listUnitShares = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         host: z.enum(["lite", "full"]).optional(),
@@ -158,7 +158,7 @@ export const listUnitShares = createServerFn({ method: "POST" })
 
 /** Revoca / invalida un enlace temporal. */
 export const revokeUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => z.object({ token: z.string().min(16) }).parse(input))
+  .validator((input: unknown) => z.object({ token: z.string().min(16) }).parse(input))
   .handler(async ({ data }) => {
     const ok = await revokeSharedUnitLink(data.token);
     return { success: ok };
@@ -166,7 +166,7 @@ export const revokeUnitShare = createServerFn({ method: "POST" })
 
 /** Extiende la duración de un enlace temporal. */
 export const extendUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         token: z.string().min(16),
@@ -181,7 +181,7 @@ export const extendUnitShare = createServerFn({ method: "POST" })
 
 /** Elimina un enlace temporal del historial. */
 export const deleteUnitShare = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => z.object({ token: z.string().min(16) }).parse(input))
+  .validator((input: unknown) => z.object({ token: z.string().min(16) }).parse(input))
   .handler(async ({ data }) => {
     const ok = await deleteSharedUnitLink(data.token);
     return { success: ok };
@@ -192,7 +192,7 @@ export const deleteUnitShare = createServerFn({ method: "POST" })
  * No requiere inicio de sesión.
  */
 export const getPublicUnitTracking = createServerFn({ method: "GET" })
-  .inputValidator((input: unknown) => z.object({ token: z.string().min(16) }).parse(input))
+  .validator((input: unknown) => z.object({ token: z.string().min(16) }).parse(input))
   .handler(async ({ data }): Promise<PublicUnitTracking> => {
     // 1. Refrescar posición en vivo desde Wialon
     const refreshed = await refreshSharedUnitLivePosition(data.token);

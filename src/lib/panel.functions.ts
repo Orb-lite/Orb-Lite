@@ -10,7 +10,7 @@ function assertToken(token: string) {
 }
 
 export const listSolicitudes = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         token: z.string().min(8),
@@ -38,7 +38,7 @@ export const listSolicitudes = createServerFn({ method: "POST" })
   });
 
 export const updateSolicitudStatus = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         token: z.string().min(8),
@@ -67,7 +67,7 @@ export const updateSolicitudStatus = createServerFn({ method: "POST" })
 
 /** Define (o restablece) la contraseña del CRM para ventas@orb-lite.com. */
 export const setCrmPassword = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         token: z.string().min(8),

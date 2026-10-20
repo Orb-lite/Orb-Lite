@@ -75,7 +75,7 @@ function toView(
 
 /** Genera (o reutiliza) el enlace público de una ruta guardada del usuario. */
 export const shareUserRoute = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         userId: z.number().int().nonnegative(),
@@ -152,7 +152,7 @@ export const shareUserRoute = createServerFn({ method: "POST" })
 
 /** Vista pública de una ruta compartida (sin iniciar sesión). */
 export const getSharedRoute = createServerFn({ method: "GET" })
-  .inputValidator((input: unknown) => z.object({ token: z.string().min(16) }).parse(input))
+  .validator((input: unknown) => z.object({ token: z.string().min(16) }).parse(input))
   .handler(async ({ data }) => {
     const { getRouteByShareToken } = await import("./user-routes.server");
     const route = await getRouteByShareToken(data.token);
@@ -191,7 +191,7 @@ export const getSharedRoute = createServerFn({ method: "GET" })
 
 /** Marca o desmarca el check de visita de una parada (público, con el token). */
 export const markSharedStopVisited = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         token: z.string().min(16),
@@ -232,7 +232,7 @@ export const markSharedStopVisited = createServerFn({ method: "POST" })
 
 /** El operador envía el resumen después de completar y anotar las visitas. */
 export const finishSharedRoute = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => z.object({ token: z.string().min(16) }).parse(input))
+  .validator((input: unknown) => z.object({ token: z.string().min(16) }).parse(input))
   .handler(async ({ data }) => {
     const { getRouteByShareToken } = await import("./user-routes.server");
     const route = await getRouteByShareToken(data.token);
@@ -248,7 +248,7 @@ export const finishSharedRoute = createServerFn({ method: "POST" })
 
 /** Guarda el comentario del operador para una parada. */
 export const commentSharedStop = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         token: z.string().min(16),
@@ -273,7 +273,7 @@ export const commentSharedStop = createServerFn({ method: "POST" })
 
 /** Correos usados antes por la cuenta para recibir reportes. */
 export const getReportEmails = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ userId: z.number().int().nonnegative() }).parse(input),
   )
   .handler(async ({ data }) => {

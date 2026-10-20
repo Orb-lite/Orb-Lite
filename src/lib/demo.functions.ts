@@ -3,7 +3,7 @@ import { z } from "zod";
 
 /** Solicitud pública de demo — se guarda para revisarla en el CRM. No envía correo al cliente. */
 export const createDemoRequest = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         firstName: z.string().trim().min(2).max(80),

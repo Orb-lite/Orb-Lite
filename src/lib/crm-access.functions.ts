@@ -101,7 +101,7 @@ export const requestCrmAccessCodeGet = createServerFn({ method: "GET" }).handler
 
 /** Valida el código de un solo uso y define la contraseña del CRM. */
 export const redeemCrmAccessCode = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
         code: z

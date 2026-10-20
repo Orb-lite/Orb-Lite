@@ -177,7 +177,7 @@ export const TELTONIKA_COMMAND_PRESETS: TeltonikaCommandPreset[] = [
 
 /** Obtiene la lista completa de comandos registrados en Wialon para un equipo específico */
 export const wialonGetUnitCommands = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         host: hostSchema,
@@ -275,7 +275,7 @@ export const wialonGetUnitCommands = createServerFn({ method: "POST" })
 
 /** Registra o actualiza un comando custom via TCP directamente en Wialon (item.cmds) */
 export const wialonSaveUnitCommand = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         host: hostSchema,
@@ -378,7 +378,7 @@ export const wialonSaveUnitCommand = createServerFn({ method: "POST" })
 
 /** Elimina un comando registrado en Wialon */
 export const wialonDeleteUnitCommand = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         host: hostSchema,
@@ -406,7 +406,7 @@ export const wialonDeleteUnitCommand = createServerFn({ method: "POST" })
 
 /** Registra en lote los comandos estándar de Teltonika en la unidad en Wialon */
 export const wialonBatchAddTeltonikaCommands = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         host: hostSchema,
@@ -498,7 +498,7 @@ export const wialonBatchAddTeltonikaCommands = createServerFn({ method: "POST" }
 
 /** Ejecuta un comando en la unidad vía canal TCP utilizando unit/exec_cmd */
 export const wialonSendTcpCommand = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         host: hostSchema,

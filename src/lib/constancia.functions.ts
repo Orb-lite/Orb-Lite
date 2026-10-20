@@ -18,7 +18,7 @@ const schema = z.object({
  * la ruta interna más un enlace firmado (30 días) para el equipo de ventas.
  */
 export const uploadConstanciaFiscal = createServerFn({ method: "POST" })
-  .inputValidator((data: unknown) => schema.parse(data))
+  .validator((data: unknown) => schema.parse(data))
   .handler(async ({ data }) => {
     const bytes = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
     if (bytes.byteLength > MAX_BYTES) {
